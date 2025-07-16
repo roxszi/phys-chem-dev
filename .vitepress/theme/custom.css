@@ -1,0 +1,33 @@
+/* 
+ * 自定义样式
+ */
+
+/* 居中 */
+.center {
+  /* 弹性盒子布局 */
+  display: flex;
+  /* 水平均匀分散 */
+  justify-content: space-around;
+  /* 垂直居中 */
+  align-items: center;
+  /* 外边距 */
+  margin: auto;
+}
+
+/* 全局样式 */
+:root {
+  /* 文字标题 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background:
+    linear-gradient(120deg, #bd34fe, #41d1ff);
+  /* 图片 */
+  --vp-home-hero-image-background-image: 
+    linear-gradient(-55deg, #bd34fe 50%, #47caff 50%);
+  --vp-home-hero-image-filter: brightness(1.75) blur(5rem);
+}
+
+/* 数学公式容器 */
+mjx-container {
+  /* 同时隐藏水平和垂直滚动条 */
+  overflow: hidden;
+}

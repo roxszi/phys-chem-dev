@@ -1,0 +1,24 @@
+{
+  "name": "cpu-phys-chem",
+  "version": "0.2.0",
+  "description": "CPU物化助手",
+  "author": "SI_Cheng-Yun",
+  "license": "MulanPSL-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "set VITE_BUILD_KIND=atomgit&& vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@vueuse/core": "^13.5.0",
+    "tdesign-vue-next": "^1.14.2"
+  },
+  "devDependencies": {
+    "@techstark/opencv-js": "^4.11.0-release.1",
+    "unplugin-auto-import": "^19.3.0",
+    "unplugin-vue-components": "^28.8.0",
+    "vitepress": "^1.6.3",
+    "vue": "^3.5.17"
+  }
+}
