@@ -78,9 +78,11 @@ export default {
   ],
 
   // // toc精确到哪一级
-  // tocLevel: [2, 3, 4],
-  // // 目录大纲层级
-  // outlineLevel: [2, 3],
+  tocLevel: [2, 3],
+  // 侧边栏位置："left" | true
+  outlineAside: true,
+  // 目录大纲层级
+  outlineLevel: [2, 3, 4],
 
   // 社交链接
   socialLinks: socialLinks,

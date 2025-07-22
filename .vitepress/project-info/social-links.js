@@ -348,7 +348,7 @@ export default [{
 }, {
   // AtomGit项目地址
   icon: { svg: atomSvg },
-  link: "https://atomgit.com/",
+  link: "https://atomgit.com/cpuer/phys-chem-admin",
 }, {
   // VitePress
   icon: { svg: vitepressSvg },

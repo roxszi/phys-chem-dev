@@ -98,6 +98,8 @@ export default defineConfig({
     logo: projectInfo.logo,
     // 社交链接
     socialLinks: projectInfo.socialLinks,
+    // 侧边栏位置："left" | true
+    aside: projectInfo.outlineAside,
     // 目录大纲层级
     outline: {
       level: projectInfo.outlineLevel,

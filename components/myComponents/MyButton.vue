@@ -11,7 +11,7 @@
   <t-button
     :block="props.block"
     :disabled="props.disabled"
-    :loading="props.disabled"
+    :loading="props.loading"
     shape="round"
     size="medium"
     :theme="props.theme"
