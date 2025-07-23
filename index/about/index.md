@@ -1,5 +1,7 @@
 # 关于
 
+[[toc]]
+
 ## 简介
 
 本在线软件（WebApp）以中国药科大学的物理化学教育教学为着眼点，拟借助各类数字化技术（统计机器学习方法、计算机视觉方法、各类神经网络深度学习方法等），旨在解决物理化学理论与实验教育教学过程中的各类需求。
@@ -31,3 +33,7 @@
 本应用的源码托管在 [AtomGit平台](https://atomgit.com) 上，源码链接为：
 
 [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+
+## 版权
+
+本在线软件（WebApp）的源码及文档，遵循 [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2) 协议。

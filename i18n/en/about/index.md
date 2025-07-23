@@ -32,3 +32,6 @@ If you have any questions, please feel free to contact us at any time!
 
 [https://atomgit.com/cpuer/phys-chem-app-admin](https://atomgit.com/cpuer/phys-chem-app-admin)
 
+## Copyright
+
+The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2) license.
