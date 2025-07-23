@@ -29,16 +29,21 @@ hero:
     - theme: alt
       text: 关于
       link: about/
-    - theme: alt
-      text: 测试
-      link: test
+    # - theme: alt
+    #   text: 测试
+    #   link: test
 
 # 主页特性部分
 features:
-  - title: 待完善
-    icon: 🎓
-    details: 待完善
-    # link: /news/2024-2025创坞入驻项目公示/
-    # linkText: 查看详情
+  - title: 接触角测量助手
+    icon: 📷
+    details: 接触角测量前，手机需进行的垂直校准操作。
+    link: experiment/contact-angle/vertical-calibration.md
+    linkText: 进入应用
+  - title: 接触角图片处理助手
+    icon: 💦
+    details: 接触角测量后，需对图片进行的各类处理工作，以最终获得接触角数据。
+    link: experiment/contact-angle/drop-pic-process.md
+    linkText: 进入应用
 ---
 
