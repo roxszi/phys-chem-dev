@@ -30,4 +30,4 @@
 
 本应用的源码托管在 [AtomGit平台](https://atomgit.com) 上，源码链接为：
 
-[https://atomgit.com/cpuer/phys-chem-app-admin](https://atomgit.com/cpuer/phys-chem-app-admin)
+[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)

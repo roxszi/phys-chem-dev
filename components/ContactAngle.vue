@@ -3,8 +3,28 @@
   通过图片处理，得到轮廓数据，然后通过计算拟合最终求解接触角。
   计算机视觉库的实现，以及一些交互的设计思路。
   构建OpenCV.js：https://docs.opencv.ac.cn/4.12.0/d4/da1/tutorial_js_setup.html
-  test
+  交互主要分4步完成，共5个状态：
+  1.  读取图片/上传图片。读取到的图片将直接灰度化，渲染在canvas上。
+      此处的交互主要就是上传图片。
+      此步骤将保存原图片的Mat对象，以便后续使用。
+  2.  裁剪图片为合适的尺寸。裁剪完毕后将裁剪好的图片渲染在canvas上。
+      短按控制边框；长按清空已有选框。可以反复多次裁剪。直至点击“完成裁剪”按钮。
+      此步骤将覆盖保存Mat图像，即用裁剪后的灰度Mat图像替换原Mat图像。
+      同时，也将保存canvas的imageData对象，以便后续使用。
+  3.  寻找液滴的最佳轮廓。
+      有2个算法（其实默认的Canny算法更好），调节switch开关以切换。
+      每个算法都2个参数（2个滑轨），调节滑轨可实时查看轮廓效果（灰度图叠加轮廓线）。
+      设置了粗调、细调的切换。可更改滑轨的范围值。
+      长按canvas可清空效果。
+      此步骤结束时将保存轮廓数据为坐标数组。在遍历提取轮廓数组时，会找到y坐标最小值。
+      并保存叠加图的imageData对象，以便下一步使用。
+  4.  寻找基线。
+      在第3步叠加imageData基础上寻找基线。先以上一步得到的y坐标最小值绘制平直线。
+      设置左、右调节滑轨，可微调左右截距，并实时查看基线效果。
+      此步骤结束时将获得基线的截距。
+  5.  计算接触角。此处不用再有交互。
  -->
+
 
 <!--
   视图层
@@ -20,7 +40,8 @@
     3.  选择基底线、液滴边缘线。
   </t-alert>
 
-  <!-- 步骤1：警报框 -->
+  <!-- canvas头-步骤1 -->
+  <!-- 警报框 -->
   <t-alert
     v-if="taskHeadRef === 1"
     theme="warning" title="步骤1"
@@ -31,7 +52,10 @@
 
   <!--
     图片上传
-    这个一直都存在
+    这个一直都存在，方便用户删除上传的图片
+    onPicChange：图片上传、删除时触发。
+      上传则处理图片并进入下个流程；
+      删除则清空所有数据，回到初始状态（状态1）。
    -->
   <t-upload
     :disabled="false" class="center"
@@ -42,9 +66,8 @@
     :onChange="onPicChange"
   />
 
-
-
-  <!-- 步骤2：警报框 -->
+  <!-- canvas头-步骤2 -->
+  <!-- 警报框 -->
   <t-alert
     v-if="taskHeadRef === 2"
     theme="warning" title="步骤2"
@@ -54,24 +77,29 @@
     可通过下方“裁剪图片”按钮多次裁剪，直到满意后，点击下方“完成裁剪”按钮进入下一步。
   </t-alert>
 
-
-  <!-- 步骤3：容器 -->
+  <!-- canvas头-步骤3 -->
   <mySpace v-else-if="taskHeadRef === 3">
     <!-- 警报框 -->
     <t-alert theme="warning" title="步骤3">
       接下来寻找固体基底及液滴的最佳轮廓。<br />
       调节滑轨可切换灰度值呈现的轮廓效果；长按可清空效果。
     </t-alert>
-    <!-- 边缘检测算法切换开关 -->
+    <!--
+      边缘检测算法切换开关
+      onContourAlgorithmSwitchChange：切换算法时触发。
+        已统一（对齐）了两个算法的参数数量及格式。
+        每次切换都要用新算法刷新一下轮廓渲染结果。
+     -->
     <MySwitch
-      @change="() => { slideContour(thresholdNumArrRef) }"
+      @change="onContourAlgorithmSwitchChange"
       v-model="contourAlgorithmSwitchRef"
       leftLabel="Canny法"
       rightLabel="阈值化法"
     />
   </mySpace>
 
-  <!-- 步骤4：警报框 -->
+  <!-- canvas头-步骤4 -->
+  <!-- 警报框 -->
   <t-alert
     v-else-if="taskHeadRef === 4"
     theme="warning" title="步骤4"
@@ -81,8 +109,11 @@
 
   <!--
     canvas元素块
-    这个一直存在
-    这是最重要的，从第二步开始，其它的元素块都围绕这个展开
+    这个一直存在。这是最重要的，从第二步开始，其它的元素块都围绕这个展开
+    onCanvasClick：点击canvas时触发。
+      步骤2时用于选框；步骤4时用于粗选基线。
+    onLongPress：在逻辑层注册，长按canvas时触发。
+      步骤2、步骤3时用于清空选框（初始化）。
    -->
   <div style="width:100%;">
     <canvas
@@ -92,26 +123,40 @@
     ></canvas>
   </div>
 
-  <!-- 步骤2：容器（按钮容器） -->
+  <!--
+    canvas脚-步骤2
+    主要就是选框裁剪。主要交互放在canvas上了。这里只是按钮。
+    onSureRect：确定选框并裁剪。
+    onDetermineRect：最终确定裁剪并进入下一步。
+   -->
   <div
     v-if="taskFootRef === 2"
     class="center"
   >
     <myButton
-      @click="(event) => { onSureRect(event, false) }"
+      @click="onSureRect"
       :block="false"
     >
       裁剪图片
     </myButton>
     <myButton
-      @click="(event) => { onSureRect(event, true) }"
+      @click="onDetermineRect"
       :block="false" theme="danger"
     >
       完成裁剪
     </myButton>
   </div>
 
-  <!-- 步骤3：容器 -->
+  <!--
+    canvas脚-步骤3
+    主要就是调节滑轨来实现轮廓选择。有按钮来控制滑轨的粗调和细调切换。
+    onSlideContour：滑轨变化时触发，用于实时渲染轮廓效果。
+      是边缘检测具体实现slideContour()方法的防抖封装。
+      传参isSure用于区分是否最终确定轮廓。
+    onContourSlideChangeEnd：滑轨变化结束时触发，用于在细调的时候，更新滑轨的可移动范围。
+    contourCoarseToggle：切换滑轨的粗调和细调。
+    onDetermineContour：最终确定轮廓的按钮事件回调钩子。
+   -->
   <mySpace
     v-else-if="taskFootRef === 3"
     size="small"
@@ -119,8 +164,8 @@
     <!-- 滑轨：主参数 -->
     <div>主参数：</div>
     <t-slider
-      @change="() => { onSlideContour(thresholdNumArrRef, false) }"
-      @changeEnd="() => { refreshContourFineSlider(isContourCoarseRef) }"
+      @change="onSlideChange"
+      @changeEnd="onContourSlideChangeEnd"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="thresholdNumArrRef[2]" :max="thresholdNumArrRef[3]" :step="1" 
       :marks="[thresholdNumArrRef[4], thresholdNumArrRef[5],
@@ -130,8 +175,8 @@
     <!-- 滑轨：辅助参数 -->
     <div>辅助参数：</div>
     <t-slider
-      @change="() => { onSlideContour(thresholdNumArrRef, false) }"
-      @changeEnd="() => { refreshContourFineSlider(isContourCoarseRef) }"
+      @change="onSlideChange"
+      @changeEnd="onContourSlideChangeEnd"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="thresholdNumArrRef[8]" :max="thresholdNumArrRef[9]" :step="1" 
       :marks="[thresholdNumArrRef[10], thresholdNumArrRef[11],
@@ -147,7 +192,7 @@
         {{ isContourCoarseRef ? "切换细调" : "切换粗调" }}
       </myButton>
       <myButton
-        @click="() => { onSlideContour(thresholdNumArrRef, true) }"
+        @click="onDetermineContour"
         :disabled="(thresholdNumArrRef[0] === 0)"
         :block="false" theme="danger"
       >
@@ -156,7 +201,7 @@
     </div>
   </mySpace>
 
-  <!-- 步骤4：容器 -->
+  <!-- canvas脚-步骤4：容器 -->
   <mySpace
     v-else-if="taskFootRef === 4"
     size="small"
@@ -164,8 +209,7 @@
     <!-- 滑轨：左截距 -->
     <div>左截距：</div>
     <t-slider
-      @change="() => { onSlideBaseline(thresholdNumArrRef, false) }"
-      @changeEnd="() => { refreshBaselineFineSlider() }"
+      :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="interceptNumArrRef[2]" :max="interceptNumArrRef[3]" :step="1" 
       :marks="[interceptNumArrRef[4], interceptNumArrRef[5],
@@ -175,8 +219,7 @@
     <!-- 滑轨：右截距 -->
     <div>右截距：</div>
     <t-slider
-      @change="() => { onSlideBaseline(interceptNumArrRef, false) }"
-      @changeEnd="() => { refreshBaselineFineSlider() }"
+      :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="interceptNumArrRef[8]" :max="interceptNumArrRef[9]" :step="1" 
       :marks="[interceptNumArrRef[10], interceptNumArrRef[11],
@@ -186,13 +229,13 @@
     <!-- 容器（按钮容器） -->
     <div class="center">
       <myButton
-        @click="() => { taskStatusRef = 3 }"
+        @click="onBackToStep3"
         :block="false" theme="default"
       >
         返回上一步
       </myButton>
       <myButton
-        @click="() => { onSlideBaseline(interceptNumArrRef, true) }"
+        @click="onDetermineBaseline"
         :disabled="(thresholdNumArrRef[0] === 0)"
         :block="false" theme="danger"
       >
@@ -215,6 +258,7 @@
 
 </MySpace></template>
 
+
 <!--
   逻辑层
  -->
@@ -225,7 +269,6 @@ import { computed, ref, watch } from "vue"
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
 import my from "@/utils/myFunc.js"
-import MySwitch from "./myComponents/MySwitch.vue"
 
 // 一上来就要先调用加载框，防止用户操作
 // 等到<canvas>元素块和OpenCV.js都加载完毕后，才能停止加载框
@@ -233,9 +276,11 @@ my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
 
 /**
  * 任务状态：
- * 1 - 未开始，或删除了图片；
- * 2 - 读取到了图片，正在选框裁剪图片；
- * 3 - 完成了选框，得到了裁剪的图片；
+ * 1 - 未开始，或删除了图片。正在等待读取图片；
+ * 2 - 读取到了图片。正在选框裁剪图片；
+ * 3 - 完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
+ * 4 - 完成了轮廓寻找，得到了液滴轮廓坐标。正在寻找基线；
+ * 5 - 完成了基线寻找，得到了基线坐标。正在计算接触角。
  * @type { import("vue").Ref<Number> }
  */
 const taskStatusRef = ref(1)
@@ -245,21 +290,27 @@ const taskHeadRef = computed(() => taskStatusRef.value)
 const taskFootRef = computed(() => taskStatusRef.value)
 /** 用户上传的文件数组对象 @type { import("vue").Ref<File[]> } */
 const fileArrRef = ref([])
-/** 视图层的<canvas>Dom对象 @type { import("vue").Ref<HTMLCanvasElement> } */
-// canvas加载很慢，需要等，比较好的等待方法是watch监听钩子
-// nextTick、onMounted都不如watch
-const canvasRef = ref(null)
-// 接<canvas>的父元素对象，用于计算<canvas>的宽度
-/** \<canvas>的父元素对象 @type { import("vue").Ref<HTMLCanvasElement> } */
-const canvasParentRef = useParentElement(canvasRef)
 /** 
- * 第三步寻找轮廓的上下限范围
+ * 视图层的<canvas>Dom对象
+ * @type { import("vue").Ref<HTMLCanvasElement> }
+ * canvas加载很慢，需要等，比较好的等待方法是watch监听钩子。
+ * 实测nextTick、onMounted都不如watch。
+ */
+const canvasRef = ref(null)
+/**
+ * 视图层<canvas>的父元素对象
+ * @type { import("vue").Ref<HTMLCanvasElement> }
+ * 用于计算<canvas>的宽度的。
+ */
+const canvasParentRef = useParentElement(canvasRef)
+/**
+ * 第三步寻找轮廓的上下限范围数组对象对象
  * @type { import("vue").Ref<Number[]> }
- * 第1、2个值分别代表主参数和辅助参数
- * 第3、4个值分别代表主参数的上限/下限
- * 第5、6、7、8个值分别代表主参数的mark标记
- * 第9、10个值分别代表辅助参数的上限/下限
- * 第11、12、13、14个值分别代表辅助参数的mark标记
+ * 第1、2个值分别代表主参数和辅助参数；
+ * 第3、4个值分别代表主参数的上限/下限；
+ * 第5、6、7、8个值分别代表主参数的mark标记；
+ * 第9、10个值分别代表辅助参数的上限/下限；
+ * 第11、12、13、14个值分别代表辅助参数的mark标记。
  */
 const thresholdNumArrRef = ref([
   // 主参数和辅助参数
@@ -274,27 +325,25 @@ const thresholdNumArrRef = ref([
   0, 85, 170, 255
 ])
 /** 
- * 第三步寻找轮廓的算法
+ * 第三步寻找轮廓的算法切换对象
  * @type { import("vue").Ref<Boolean> }
  * @value true - Canny算法
  * @value false - 阈值化法
  */
 const contourAlgorithmSwitchRef = ref(false)
-/** 是否是轮廓粗调模式 @type { import("vue").Ref<Boolean> } */
+/** 第三步寻找轮廓是否是粗调模式 @type { import("vue").Ref<Boolean> } */
 const isContourCoarseRef = ref(true)
 /**
  * 第四步寻找基线的截距
  * @type { import("vue").Ref<Number[]> }
- * 第1、2个值分别为左、右截距
- * 第3、4个值分别为左截距的下限/上限
- * 第5、6、7、8个值分别为左截距的mark标记
- * 第9、10个值分别为右截距的下限/上限
- * 第11、12、13、14个值分别为右截距的mark标记
+ * 第1、2个值分别为左、右截距；
+ * 第3、4个值分别为左截距的下限/上限；
+ * 第5、6、7、8个值分别为左截距的mark标记；
+ * 第9、10个值分别为右截距的下限/上限；
+ * 第11、12、13、14个值分别为右截距的mark标记。
+ * @note 不能轻易赋值，因为在步骤4，一旦赋值，就会触发绘制基线等回调
  */
 const interceptNumArrRef =  ref([0, 0])
-
-
-
 
 /**
  * 接触角业务的全局对象
@@ -304,14 +353,15 @@ const interceptNumArrRef =  ref([0, 0])
  * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
  * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
  * @property { ImageData } imageDataGray 灰度图的canvas的图像数据
- * @property { import("@techstark/opencv-js").Mat } matContour 灰度图Mat对象
- * @property { ImageData } imageDataContour canvas的图像数据
  * @property { Number } rectXmax canvas元素块选框的X坐标大值
  * @property { Number } rectYmax canvas元素块选框的Y坐标大值
  * @property { Number } rectXmin canvas元素块选框的X坐标小值
  * @property { Number } rectYmin canvas元素块选框的Y坐标小值
+ * @property { ImageData } imageDataContour 轮廓图的canvas的图像数据
+ * @property { Number[][] } contourPointAoa 轮廓点坐标数组
+ * @property { Number } contourYMin 轮廓点Y坐标的最小值
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
- * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + px)
+ * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上
  */
 /** 接触角业务的全局对象 @type { ContactAngle } */
@@ -321,13 +371,18 @@ const contactAngleObj = {
   canvasScaling: 0.0,
   matGray: null,
   imageDataGray: null,
-  matContour: null,
-  imageDataContour: null,
   rectXmax: null,
   rectYmax: null,
   rectXmin: null,
   rectYmin: null,
+  imageDataContour: null,
+  contourPointAoa: [],
+  contourYMin: null,
 }
+
+/**
+ * @全局监听钩子
+ */
 
 // 注册一个<canvas>的响应式鼠标点击监听
 const {
@@ -340,14 +395,15 @@ const {
   // // 停止监听方法
   // stop: stopMouseInElement
 } = useMouseInElement(canvasRef)
+
 // 注册一个<canvas>长按的监听钩子
 onLongPress(
   // 监听对象：<canvas>
   canvasRef,
-  // 回调
+  // 回调钩子
   onCanvasLongPress,
   // 配置：长按时间
-  // { delay: 800 }
+  // { delay: 500 }
 )
 
 // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
@@ -382,6 +438,107 @@ const { stop: stopWatch } = watch(
 )
 
 /**
+ * 长按<canvas>触发的回调
+ * 步骤2、步骤3：清空<canvas>上的标记
+ */
+function onCanvasLongPress(event) {
+  // 获取任务进度
+  const taskStatus = taskStatusRef.value
+  // 任务进度为2时
+  if (taskStatus === 2) {
+    // 清空canvas上的矩形标记数据
+    canvasRectDataRemove()
+    // 恢复canvas原图
+    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
+  } else if (taskStatus === 3) {
+    // 恢复canvas原图
+    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
+  }
+}
+
+/**
+ * 点击<canvas>触发的回调
+ * 步骤2：选框
+ * 步骤4：绘制基线
+ */
+function onCanvasClick(event) {
+  // 获取任务进度
+  const taskStatus = taskStatusRef.value
+  // 任务进度为2时，即选框绘制阶段，则调用选框方法
+  if (taskStatus === 2) {
+    chooseRect()
+  // 任务进度为4时，即基线绘制阶段，则调用基线粗调方法
+  // 基线粗调会改变模型绑定的值，进而触发绘制基线方法
+  } else if (taskStatus === 4) {
+    chooseBaseline()
+  }
+}
+
+/**
+ * 清空canvas上的矩形标记数据
+ */
+function canvasRectDataRemove() {
+  // 清空选框的X和Y边界值
+  contactAngleObj.rectXmax = null
+  contactAngleObj.rectYmax = null
+  contactAngleObj.rectXmin = null
+  contactAngleObj.rectYmin = null
+}
+
+/**
+ * 设置canvas的绘图上下文ctx
+ */
+function ctxSetting() {
+  // 红色笔迹
+  contactAngleObj.ctx.strokeStyle = "red"
+  // 线宽：2像素 x 缩放比例
+  contactAngleObj.ctx.lineWidth = 2 * contactAngleObj.canvasScaling
+}
+
+/**
+ * 滑轨调节的事件回调钩子
+ * 步骤3：基线粗调 + 细调。此步骤下，用户只能操作滑轨，因此事件全部来源于滑轨。
+ * 步骤4：基线细调。此步骤下，用户点击canvas会触发绑定值的修改，也会触发该回调。
+ * @note 对于模型绑定，即便是其它操作修改了所绑定的值，也会触发值变化事件的回调。
+ */
+function onSlideChange(event) {
+  // 获取任务进度
+  const taskStatus = taskStatusRef.value
+  // 任务进度为3时，即确定轮廓阶段
+  if (taskStatus === 3) {
+    // 直接执行防抖处理的轮廓查找方法
+    slideContourThrottled(false)
+  // 任务进度为4时，即基线绘制阶段
+  } else if (taskStatus === 4) {
+    // 直接执行防抖处理的基线绘制方法
+    drawBaselineThrottled()
+  }
+}
+
+/**
+ * 调节滑轨操作刚停止的事件回调钩子
+ * 步骤3：基线细调。此步骤下，用户只能操作滑轨，因此事件全部来源于滑轨。
+ */
+function onContourSlideChangeEnd(event) {
+  // 任务进度为3，且为细调状态
+  if ((taskStatusRef.value === 3) && (isContourCoarseRef.value === false)) {
+    // 调用进度3下的具体刷新滑轨方法
+    refreshContourFineSlider()
+  }
+}
+
+/**
+ * @步骤1 传图
+ */
+
+/**
+ * 任务进度切换到步骤1
+ */
+function taskToStep1() {
+  taskStatusRef.value = 1
+}
+
+/**
  * 图片上传或改变时触发的回调
  * @param { Array<T> } event 事件对象
  * @note 会读取全局对象contactAngleObj的<canvas>宽度对象canvasWidth
@@ -391,7 +548,7 @@ const { stop: stopWatch } = watch(
 async function onPicChange(event) { try {
   // 如果是清空了照片，则把任务进度切换回1，并直接返回即可
   if (event.length === 0) { 
-    taskStatusRef.value = 1
+    taskToStep1()
     return
   }
   // 加载框
@@ -453,7 +610,7 @@ async function onPicChange(event) { try {
     0, 0, canvasRef.value.width, canvasRef.value.height
   )
   // 第一阶段完成，任务进度改为2
-  taskStatusRef.value = 2
+  taskToStep2()
   // 停止加载框
   my.loading(false)
 } catch (error) {
@@ -469,32 +626,15 @@ async function onPicChange(event) { try {
 }}
 
 /**
- * 长按<canvas>触发的回调
- * 本质上就是清空<canvas>上的标记
+ * @步骤2 绘制选框
+ * 此处的选框、清除选框等方法，放在上面的全局canvas监听里了
  */
-function onCanvasLongPress(event) {
-  if (taskStatusRef.value < 2) {
-    return
-  } else if (taskStatusRef.value === 2) {
-    // 清空选框的X和Y边界值
-    contactAngleObj.rectXmax = null
-    contactAngleObj.rectYmax = null
-    contactAngleObj.rectXmin = null
-    contactAngleObj.rectYmin = null
-    // 恢复canvas原图
-    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
-  } else {
-    // 恢复canvas原图
-    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
-  }
-}
 
 /**
- * 点击<canvas>触发的回调
+ * 任务进度切换到步骤2
  */
-function onCanvasClick(event) {
-  // 任务进度为2时，即选框绘制阶段，则调用选框方法
-  if (taskStatusRef.value === 2) { chooseRect() }
+function taskToStep2() {
+  taskStatusRef.value = 2
 }
 
 /**
@@ -504,7 +644,7 @@ function chooseRect() { try {
   // 点击位置的实际X、Y坐标
   const realElementX = elementX.value * contactAngleObj.canvasScaling
   const realElementY = elementY.value * contactAngleObj.canvasScaling
-  // 如果选框X边界未定义，即第一次点击，记录下选框的左上角坐标
+  // 如果选框X边界未定义，即第一次点击，需记录下选框的左上角坐标
   if (!contactAngleObj.rectXmax) {
     // 接<canvas>宽高
     const canvasWidth = canvasRef.value.width
@@ -618,78 +758,6 @@ function chooseRect() { try {
 }}
 
 /**
- * 点击“裁剪图片”或“完成裁剪”触发的回调
- * @param { Boolean } [isDetermine = false] 是否确定裁剪
- */
-function onSureRect(event, isDetermine = false) { try {
-  // 如果没有选框
-  if (!contactAngleObj.rectXmax) {
-    // 如果是点击“完成裁剪”，则执行下一步
-    if (isDetermine) {
-      // 任务状态进展到“3”
-      taskStatusRef.value = 3
-    }
-    // 直接跳过
-    return
-  }
-  // 根据新的选框尺寸更新<canvas>的显示尺寸
-  const canvasNewWidth = contactAngleObj.rectXmax - contactAngleObj.rectXmin
-  const canvasNewHeight = contactAngleObj.rectYmax - contactAngleObj.rectYmin
-  // 开始裁剪：确定定义裁剪区域
-  const rect = new contactAngleObj.cv.Rect(
-    contactAngleObj.rectXmin,
-    contactAngleObj.rectYmin,
-    canvasNewWidth,
-    canvasNewHeight
-  )
-  // 清空裁剪标记
-  onCanvasLongPress()
-  // 执行裁剪
-  let cropped = contactAngleObj.matGray.roi(rect)
-  // 在<canvas>上绘制裁剪结果
-  contactAngleObj.cv.imshow(canvasRef.value, cropped)
-  // 绘制完成，更新contactAngleObj.matGray为cropped
-  contactAngleObj.matGray.delete()
-  contactAngleObj.matGray = cropped
-  cropped = null
-  // 绘制后，需要更新<canvas>的显示缩放及宽高
-  canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
-  // 计算新的缩放比例
-  contactAngleObj.canvasScaling = canvasNewWidth / canvasParentRef.value.clientWidth
-  // 更新<canvas>的显示高
-  canvasRef.value.style.height = canvasNewHeight / contactAngleObj.canvasScaling + "px"
-  // 更新完成，恢复绘图上下文ctx设置
-  ctxSetting()
-  // 把canvas的原图保存好，以方便恢复
-  contactAngleObj.imageDataGray = contactAngleObj.ctx.getImageData(
-    0, 0, canvasRef.value.width, canvasRef.value.height
-  )
-  // 如果是点击“完成裁剪”，则执行下一步
-  if (isDetermine) {
-    // 任务状态进展到“3”
-    taskStatusRef.value = 3
-  }
-} catch (error) {
-  // 报错处理
-  console.log("onSureRect()方法出错：", error)
-  my.dialog({
-    theme: "danger",
-    header: "裁剪报错",
-    body: error.message
-  })
-}}
-
-/**
- * 设置canvas的绘图上下文ctx
- */
-function ctxSetting() {
-  // 红色笔迹
-  contactAngleObj.ctx.strokeStyle = "red"
-  // 线宽：2像素 x 缩放比例
-  contactAngleObj.ctx.lineWidth = 2 * contactAngleObj.canvasScaling
-}
-
-/**
  * 绘制选框
  * @note 会调用全局对象contactAngleObj的ctx
  * @note 会读取全局变量contactAngleObj的rectXmax、rectYmax、rectXmin、rectYmin
@@ -707,24 +775,158 @@ function drawRect() {
 }
 
 /**
- * 选择轮廓的事件钩子
- * @note 给chooseContour做了防抖处理，以防止频繁调用
+ * 点击“裁剪图片”按钮的事件回调钩子
  */
-const onSlideContour = useThrottleFn(slideContour, 500, true)
+function onSureRect(event) {
+  // 直接执行裁剪方法
+  sureRect(false)
+}
+
 /**
- * 选择轮廓的回调方法
- * @param { Number[] } thresholdNumArr 阈值数组
+ * 点击“确定裁剪”按钮的事件回调钩子
+ */
+function onDetermineRect(event) {
+  // 直接执行裁剪方法，并确定完成裁剪
+  sureRect(true)
+}
+
+/**
+ * “裁剪图片”或“完成裁剪”的具体方法
+ * @param { Boolean } [isDetermine = false] 是否确定完成裁剪
+ */
+function sureRect(isDetermine = false) { try {
+  // 如果没有选框
+  if (!contactAngleObj.rectXmax) {
+    // 如果是“完成裁剪”，则直接进入下一步即可
+    if (isDetermine === true) {
+      // 选框数据初始化
+      canvasRectDataRemove()
+      // 任务状态进展到“3”
+      taskStatusRef.value = 3
+    }
+    // 直接返回即可
+    return
+  }
+  // 根据新的选框尺寸更新<canvas>的显示尺寸
+  const canvasNewWidth = contactAngleObj.rectXmax - contactAngleObj.rectXmin
+  const canvasNewHeight = contactAngleObj.rectYmax - contactAngleObj.rectYmin
+  // 开始裁剪：确定定义裁剪区域
+  const rect = new contactAngleObj.cv.Rect(
+    contactAngleObj.rectXmin,
+    contactAngleObj.rectYmin,
+    canvasNewWidth,
+    canvasNewHeight
+  )
+  // 清空裁剪标记
+  canvasRectDataRemove()
+  // 执行裁剪
+  let cropped = contactAngleObj.matGray.roi(rect)
+  // 在<canvas>上绘制裁剪结果
+  contactAngleObj.cv.imshow(canvasRef.value, cropped)
+  // 绘制完成，更新contactAngleObj.matGray为cropped
+  contactAngleObj.matGray.delete()
+  contactAngleObj.matGray = cropped
+  cropped = null
+  // 绘制后，需要更新<canvas>的显示缩放及宽高
+  // 从<canvas>父元素获取<canvas>的显示宽度
+  canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
+  // 计算新的缩放比例
+  contactAngleObj.canvasScaling = canvasNewWidth / canvasParentRef.value.clientWidth
+  // 更新<canvas>的显示高
+  canvasRef.value.style.height = canvasNewHeight / contactAngleObj.canvasScaling + "px"
+  // 更新完成，恢复绘图上下文ctx设置
+  ctxSetting()
+  // 把canvas的原图保存好，以方便恢复
+  contactAngleObj.imageDataGray = contactAngleObj.ctx.getImageData(
+    0, 0, canvasRef.value.width, canvasRef.value.height
+  )
+  // 如果是点击“完成裁剪”，则执行下一步
+  if (isDetermine) {
+    // 任务状态进展到“3”
+    taskToStep3()
+  }
+} catch (error) {
+  // 报错处理
+  console.log("sureRect()方法出错：", error)
+  my.dialog({
+    theme: "danger",
+    header: "裁剪报错",
+    body: error.message
+  })
+}}
+
+/**
+ * @步骤3 选择轮廓
+ */
+
+/**
+ * 任务进度切换到步骤3
+ */
+function taskToStep3() {
+  // 初始化一些数据
+  // 粗调
+  isContourCoarseRef.value = true
+  // 参数
+  thresholdNumArrRef.value = [
+    // 主参数和辅助参数
+    0, 0,
+    // 主参数的下限/上限
+    0, 255,
+    // 主参数的mark标记
+    0, 85, 170, 255,
+    // 辅助参数的下限/上限
+    0, 255,
+    // 辅助参数的mark标记
+    0, 85, 170, 255
+  ]
+  // 算法
+  contourAlgorithmSwitchRef.value = false
+  // 切换到状态3
+  taskStatusRef.value = 3
+}
+
+/**
+ * 寻找轮廓算法的切换算法事件钩子
+ */
+function onContourAlgorithmSwitchChange(event) {
+  // 直接调用轮廓查找方法，刷新一次轮廓渲染即可
+  slideContour(false)
+}
+
+/**
+ * 点击“确定轮廓”按钮的事件回调钩子
+ */
+function onDetermineContour(event) {
+  // 直接执行轮廓查找方法，并确定完成轮廓查找
+  slideContour(true)
+}
+
+/**
+ * 选择轮廓方法的防抖方法
+ * @note 给slideContour做了防抖处理，以防止频繁调用
+ */
+const slideContourThrottled = useThrottleFn(slideContour, 500, true)
+
+/**
+ * 选择轮廓的具体回调方法
  * @param { Boolean } [isDetermine = false] 是否确定轮廓
  * 先用2种算法（中的一个）得到二值化轮廓图：
  * 1.  以阈值化法Threshold算法实现的轮廓查找
  * 2.  以Canny算法实现的轮廓查找
  * 然后寻找轮廓、处理轮廓
+ * @note 会读取thresholdNumArrRef
  */
-function slideContour(thresholdNumArr, isDetermine = false) { try {
+function slideContour(isDetermine = false) { try {
+  // 防抖的bug防范：只有在“3”任务状态时，才允许执行
+  // 这可以防止进入步骤4的瞬间执行此方法，造成canvas不正常的刷新回退
+  if (taskStatusRef.value !== 3) { return }
+  // 接阈值数组的前2个参数
+  const mainParam = thresholdNumArrRef.value[0]
+  const auxParam = thresholdNumArrRef.value[1]
   // 初始化一个二值化图的过渡对象
   let matBinary = new contactAngleObj.cv.Mat()
   // 阈值化Threshold算法：true
-  if (contourAlgorithmSwitchRef.value) {
+  if (contourAlgorithmSwitchRef.value === true) {
     // Threshold算法，将灰度图转为二值化图，赋值给全局变量matObj.binary
     contactAngleObj.cv.threshold(
       // 灰度图
@@ -732,9 +934,9 @@ function slideContour(thresholdNumArr, isDetermine = false) { try {
       // 输出数组（二值化图）
       matBinary,
       // 阈值：主参数
-      thresholdNumArr[0],
-      // 用于THRESH_BINARY和THRESH_BINARY_INV阈值类型的最大值，即辅助参数
-      thresholdNumArr[1],
+      mainParam,
+      // 用于THRESH_BINARY和THRESH_BINARY_INV阈值类型的最大值，辅助参数
+      auxParam,
       // 阈值类型
       contactAngleObj.cv.THRESH_BINARY
     )
@@ -748,9 +950,9 @@ function slideContour(thresholdNumArr, isDetermine = false) { try {
       // 输出：二值化Canny边缘检测图
       matBinary,
       // 阈值minVal：辅助参数
-      thresholdNumArr[1],
+      auxParam,
       // 阈值maxVal：主参数
-      thresholdNumArr[0],
+      mainParam,
       // apertureSize，Sobel 算子的孔径大小
       3,
       // L2gradient，是否使用更精确的L2范数计算图像梯度：不启用
@@ -836,46 +1038,16 @@ function makeContour(matBinary, isDetermine = false) { try {
   // 把画布图案绘制在canvas上
   contactAngleObj.cv.imshow(canvasRef.value, contoursHandleMat)
   // 如果确定了轮廓
-  if (isDetermine) { try {
-    // 加载框
-    my.loading("正在存储轮廓坐标...")
-    // 所有轮廓点的数组
-    const allContourPoints = []
-    // 用于收集所有轮廓点的最小值，先用canvas的高度初始化（即最大值）
-    let minY = canvasRef.value.height
-    // 遍历所有轮廓点
-    for (let i = 0; i < metVectorContours.size(); i++) {
-      // 挨个获取轮廓
-      const contour = metVectorContours.get(i)
-      for (let j = 0; j < contour.rows; j++) {
-        // 接X和Y坐标
-        const pointX = contour.data32S[j * 2]
-        const pointY = contour.data32S[j * 2 + 1]
-        // 装箱
-        allContourPoints.push([pointX, pointY])
-        // 如果y坐标小于minY，则更新minY
-        if (pointY < minY) { minY = pointY }
-      }
-      // 删除轮廓释放内存
-      contour.delete()
-    }
-    console.log("allContourPoints", allContourPoints)
-    console.log("minY", minY)
+  if (isDetermine === true) {
+    // 提取轮廓点数据
+    contourPointsToAoa(metVectorContours)
+    // canvas保存一下方便后面恢复
+    contactAngleObj.imageDataContour = contactAngleObj.ctx.getImageData(
+      0, 0, canvasRef.value.width, canvasRef.value.height
+    )
     // 状态机切换到4
-    // taskStatusRef.value = 4
-    // 停止加载框
-    my.loading(false)
-  } catch (error) {
-    // 停止加载框
-    my.loading(false)
-    // 报错处理
-    console.log("makeContour()方法isDetermine分支出错：", error)
-    my.dialog({
-      theme: "danger",
-      header: "存储轮廓坐标操作报错",
-      body: error.message
-    })
-  }}
+    taskToStep4()
+  }
   // 完毕，销毁相关对象以回收内存
   // 销毁轮廓AOA数组
   metVectorContours.delete()
@@ -890,7 +1062,48 @@ function makeContour(matBinary, isDetermine = false) { try {
 }}
 
 /**
+ * 把轮廓点数组转换为AOA数组
+ * @param { import("@techstark/opencv-js").MatVector } metVectorContours OpenCV的轮廓AOA数组对象
+ */
+function contourPointsToAoa(metVectorContours) { try {
+  // 加载框
+  my.loading("正在存储轮廓坐标...")
+  // 声明一个数组用来接所有轮廓点
+  const contourPointAoa = []
+  // 用于收集所有轮廓点的纵坐标最小值，先用canvas的高度初始化（即最大值）
+  let contourYMin = canvasRef.value.height
+  // 遍历所有轮廓点
+  for (let i = 0; i < metVectorContours.size(); i++) {
+    // 挨个获取轮廓
+    const contour = metVectorContours.get(i)
+    for (let j = 0; j < contour.rows; j++) {
+      // 接X和Y坐标
+      const pointX = contour.data32S[j * 2]
+      const pointY = contour.data32S[j * 2 + 1]
+      // 装箱
+      contourPointAoa.push([pointX, pointY])
+      // 如果y坐标小于minY，则更新minY
+      if (pointY < contourYMin) { contourYMin = pointY }
+    }
+    // 删除轮廓释放内存
+    contour.delete()
+  }
+  // 把所有轮廓点数组、yMin存入全局变量
+  contactAngleObj.contourPointAoa = contourPointAoa
+  contactAngleObj.contourYMin = contourYMin
+  // 停止加载框
+  my.loading(false)
+} catch (error) {
+  // 停止加载框
+  my.loading(false)
+  // 报错处理
+  console.log("contourPointsToAoa()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
  * 轮廓粗细调的切换
+ * @note 会触发绘制轮廓
  */
 function contourCoarseToggle() {
   // 如果目前是细调，则要修改为粗调
@@ -909,12 +1122,14 @@ function contourCoarseToggle() {
       0, 85, 170, 255
     ]
     // 赋值
+    // （这一步会触发绘图）
     thresholdNumArrRef.value = thresholdNumArr
     // 更新标记：则切换为粗调
     isContourCoarseRef.value = true
   // 如果目前是粗调，要改为细调
   } else {
     // 刷新细调滑块
+    // （这一步会触发绘图）
     refreshContourFineSlider()
     // 更新标记：切换为细调
     isContourCoarseRef.value = false
@@ -922,14 +1137,10 @@ function contourCoarseToggle() {
 }
 
 /**
- * 刷新细调滑块
- * @param { Boolean } [isContourCoarse = false] 是否是粗调。如果是粗调，则直接退出
+ * 刷新步骤3里细调滑块的具体方法
+ * @note 会触发绘制轮廓
  */
-function refreshContourFineSlider(isContourCoarse = false) { try {
-  // 如果目前是粗调状态，则直接返回即可
-  if (isContourCoarse === true) {
-    return
-  }
+function refreshContourFineSlider() { try {
   // 接收主参数和辅助参数
   const mainParam = thresholdNumArrRef.value[0]
   const auxParam = thresholdNumArrRef.value[1]
@@ -955,32 +1166,196 @@ function refreshContourFineSlider(isContourCoarse = false) { try {
     auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12,
   ]
   // 赋值
+  // （这一步会触发绘图）
   thresholdNumArrRef.value = thresholdNumArr
 } catch (error) {
   throw Error(error)
 }}
 
 /**
- * 设置截距的回调方法
- * @param { Number[] } baselineNumArr 阈值数组
- * @param { Boolean } [isDetermine = false] 是否确定轮廓
- * 截距直接就是细调模式，通过点击canvas来粗调，然后用滑块来细调
+ * @步骤4
+ * @note 因为模板绑定，所以interceptNumArrRef.value一旦改变，就会触发绘图
+ * 用户有2种交互：点击canvas（粗调，单次）和拖动滑轨（细调，连续）。
+ * 粗调：修改滑轨的值 + 滑轨上下限等，进而触发绘图。
+ * 细调：
+ *   连续：修改滑轨的值，进而触发绘图。
+ *   单次：因为操作canvas，所以滑轨的change状态一直是被劫持的，没有end。
+ * 所以肯定会触发绘图，那就不用再考虑绘图了。
  */
-function slideBaseline(baselineNumArr, isDetermine = false) { try {
 
+/**
+ * 步骤4的初始化方法
+ * 步骤4的难点就在于：【canvas里，原点在左上角】
+ *   因为滑轨仍然要和用户思维统一，所以仅在绘制时把坐标轴翻转一下即可
+ */
+function taskToStep4() {
+  // 接收轮廓的纵坐标最小值
+  const contourYMin = contactAngleObj.contourYMin || 0
+  // canvas初始化
+  ctxSetting()
+  // 状态机切换到4
+  taskStatusRef.value = 4
+  // 用轮廓的纵坐标最小值来初始化细调滑块
+  // （这一步会触发绘图）
+  refreshBaselineFineSlider(contourYMin, contourYMin)
+}
 
+/**
+ * 步骤4里刷新滑块的具体方法
+ * @param { Number } [leftInterceptValue] 左截距
+ * @param { Number } [rightInterceptValue] 右截距
+ * @note 会触发绘制基线截距
+ */
+function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) {
+  // 接收左截距和右截距
+  const leftIntercept =
+    leftInterceptValue
+      ? Math.floor(leftInterceptValue)
+      : interceptNumArrRef.value[0]
+  const rightIntercept =
+    rightInterceptValue
+      ? Math.floor(rightInterceptValue)
+      : interceptNumArrRef.value[1]
+  // 接canvas高
+  const canvasHeight = canvasRef.value.height
+  // 根据高计算截距的上下限范围，目前以高的1/15为限度。
+  // 截距需能被6整除。所以是除以90。
+  // 整除后，乘以2是阶梯的宽度，乘以3是mark的宽度。
+  const delta = Math.floor(canvasHeight / 90)
+  // 找左截距的下限：左截距的下限必须不小于0，不大于canvas的高度
+  const leftParamMin = Math.max(0,
+    Math.min(canvasHeight, (leftIntercept - (delta * 3)))
+  )
+  // 找右截距的下限：右截距的下限必须不小于0，不大于canvas的高度
+  const rightParamMin = Math.max(0,
+    Math.min(canvasHeight, (rightIntercept - (delta * 3)))
+  )
+  // 细调的阈值数组
+  const interceptNumArr = [
+    // 左截距和右截距
+    leftIntercept, rightIntercept,
+    // 左截距的下限/上限
+    leftParamMin, leftParamMin + (delta * 6),
+    // 左截距的mark标记
+    leftParamMin, leftParamMin + (delta * 2),
+    leftParamMin + (delta * 4), leftParamMin + (delta * 6),
+    // 右截距的下限/上限
+    rightParamMin, rightParamMin + (delta * 6),
+    // 右截距的mark标记
+    rightParamMin, rightParamMin + (delta * 2),
+    rightParamMin + (delta * 4), rightParamMin + (delta * 6),
+  ]
+  // 赋值
+  // 这一步会触发绘图
+  interceptNumArrRef.value = interceptNumArr
+}
 
+/**
+ * 截距粗调的具体实现方法
+ * 把canvas分成3个区域：左区（0.35）、中区（0.30）、右区（0.35）。
+ * 中区则直接升降基线；左区和右区则升降各自部分的截距。
+ * @note 会触发绘制基线截距
+ */
+function chooseBaseline() {
+  // 点击位置的实际X、Y坐标：canvas视角
+  const realElementX = elementX.value * contactAngleObj.canvasScaling
+  const realElementY = elementY.value * contactAngleObj.canvasScaling
+  // 接收canvas宽度和高度
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+  // 转为用户视角Y坐标（X坐标的用户视角和canvas视角是一致的）
+  const userElementY = canvasHeight - realElementY
+  // 左区
+  if (realElementX < (canvasWidth * 0.35)) {
+    // 接目前的右截距
+    const rightIntercept = interceptNumArrRef.value[1]
+    // 计算左截距
+    // (左截距 - 右截距) / (userElementY - 右截距) = canvasWidth / (canvasWidth - realElementX)
+    const leftIntercept =
+      canvasWidth / (canvasWidth - realElementX)
+      * (userElementY - rightIntercept)
+      + rightIntercept
+    // 用左截距和右截距来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(leftIntercept, rightIntercept)
+  // 右区
+  } else if (realElementX > (canvasWidth * 0.65)) {
+    // 接目前的左截距
+    const leftIntercept = interceptNumArrRef.value[0]
+    // 计算右截距
+    // (右截距 - 左截距) / (userElementY - 左截距) = canvasWidth / realElementX
+    const rightIntercept =
+      canvasWidth / realElementX
+      * (userElementY - leftIntercept)
+      + leftIntercept
+    // 用左截距和右截距来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(leftIntercept, rightIntercept)
+  // 中区
+  } else {
+    // 直接拿着用户视角的Y坐标来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(userElementY, userElementY)
+  }
+}
 
-} catch (error) {
-  // 报错处理
-  console.log("slideBaseline()方法出错：", error)
-  my.dialog({
-    theme: "danger",
-    header: "截距设置操作报错",
-    body: error.message
-  })
-}}
+/**
+ * 绘制基线方法的防抖方法
+ * @note 给drawBaseline做了防抖处理，以防止频繁调用
+ */
+const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
 
+/**
+ * 步骤4里绘制基线的具体方法
+ */
+function drawBaseline() {
+  // 接收左截距和右截距
+  const leftIntercept = interceptNumArrRef.value[0]
+  const rightIntercept = interceptNumArrRef.value[1]
+  // 接canvas宽度和高度
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+  // 计算真正的截距（canvas视角的y值）
+  const leftY = canvasHeight - leftIntercept
+  const rightY = canvasHeight - rightIntercept
+  // 先对选框进行初始化
+  contactAngleObj.ctx.putImageData(contactAngleObj.imageDataContour, 0, 0)
+  // 然后直接绘图即可
+  contactAngleObj.ctx.beginPath()
+  // 起点坐标
+  contactAngleObj.ctx.moveTo(0, leftY)
+  // 终点坐标
+  contactAngleObj.ctx.lineTo(canvasWidth, rightY)
+  // 连线
+  contactAngleObj.ctx.stroke()
+}
+
+/**
+ * 步骤4里返回上一步的事件回调钩子
+ */
+function onBackToStep3(event) {
+  // 直接返回上一步即可
+  // 不能初始化上一步，如果初始化的话，已有轮廓数据的暂存参数设置就会丢失
+  taskStatusRef.value = 3
+}
+
+/**
+ * 步骤4里确认基线的事件回调钩子
+ */
+function onDetermineBaseline(event) {
+  // 接收左截距和右截距
+  const leftIntercept = interceptNumArrRef.value[0]
+  const rightIntercept = interceptNumArrRef.value[1]
+  // 接收轮廓点数组
+  const contourPointAoa = contactAngleObj.contourPointAoa
+  // 发个通知
+  const dialogString =
+    `已成功获取液滴数据。
+    轮廓数据点 ${ contourPointAoa.length } 个。
+    基线左截距坐标 ${ leftIntercept } px，右截距坐标 ${ rightIntercept } px。
+    后续功能敬请期待！`
+  my.dialog(dialogString)
+}
 
 
 
