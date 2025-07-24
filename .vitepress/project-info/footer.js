@@ -14,7 +14,7 @@ export default {
     copyright: 
       "版权 © 2025 司承运 保留所有权利"
         + "<br />"
-        + "本作品采用 <a href='https://license.coscl.org.cn/MulanPubL-2.0' target='_blank'>木兰公共许可证 第2版</a> 授权"
+        + "本作品采用 <a href='https://license.coscl.org.cn/MulanPSL2' target='_blank'>木兰宽松许可证 第2版</a> 授权"
         + "<br />"
         + "ICP备案：京ICP备2020036654号-9"
   },
@@ -25,7 +25,7 @@ export default {
     copyright:
       "Copyright © 2025 SI_Cheng-Yun. All rights reserved."
         + "<br />"
-        + "Licensed under <a href='https://license.coscl.org.cn/MulanPubL-2.0' target='_blank'>Mulan PubL v2</a>"
+        + "Licensed under <a href='https://license.coscl.org.cn/MulanPSL2' target='_blank'>Mulan PSL v2</a>"
         + "<br />"
         + "China ICP Code：京ICP备2020036654号-9"
   },

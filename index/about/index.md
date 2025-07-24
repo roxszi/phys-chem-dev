@@ -34,6 +34,11 @@
 
 [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 
-## 版权
+## 版权&许可证
 
-本在线软件（WebApp）的源码及文档，遵循 [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2) 协议。
+本在线软件（WebApp）的源码及文档，遵循 [木兰宽松许可证, 第2版](LICENSE) 协议。
+
+- 依赖的第三方库：
+
+  - [@techstark/opencv-js](https://github.com/tech-stark/opencv-js) ([Apache-2.0](public/LICENSES/LICENSE-2.0.txt))
+

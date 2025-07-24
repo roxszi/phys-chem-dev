@@ -134,3 +134,11 @@
 ## 4. 一些备份
 
 - [VitePress原生样式](https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css)
+
+## 版权&许可证
+
+- 本项目代码采用 [木兰宽松许可证, 第2版](LICENSE)
+
+- 依赖的第三方库：
+
+  - [@techstark/opencv-js](https://github.com/tech-stark/opencv-js) ([Apache-2.0](public/LICENSES/LICENSE-2.0.txt))
