@@ -1,12 +1,12 @@
 {
   "name": "cpu-phys-chem",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CPU物化助手",
   "author": "SI_Cheng-Yun",
   "license": "MulanPSL-2.0",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev",
+    "dev": "vitepress dev --port 8080",
     "build": "set VITE_BUILD_KIND=atomgit&& vitepress build",
     "preview": "vitepress preview"
   },
