@@ -1280,7 +1280,8 @@ function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { tr
   // 根据高计算截距的上下限范围，目前以高的1/15为限度。
   // 截距需能被6整除。所以是除以90。
   // 整除后，乘以2是阶梯的宽度，乘以3是mark的宽度。
-  const delta = Math.floor(canvasHeight / 90)
+  // 除此以外，得确保截距最小单位起码是1。
+  const delta = Math.max(Math.floor(canvasHeight / 90), 1)
   // 找左截距的下限：左截距的下限必须不小于0，不大于canvas的高度
   const leftParamMin = Math.max(0,
     Math.min(canvasHeight, (leftIntercept - (delta * 3)))
@@ -1333,6 +1334,7 @@ function chooseBaseline() { try {
     const rightIntercept = interceptNumArrRef.value[1]
     // 计算左截距
     // (左截距 - 右截距) / (userElementY - 右截距) = canvasWidth / (canvasWidth - realElementX)
+    // 计算公式中，没有除以0的情况，所以不用考虑bug
     const leftIntercept =
       canvasWidth / (canvasWidth - realElementX)
       * (userElementY - rightIntercept)
@@ -1346,6 +1348,7 @@ function chooseBaseline() { try {
     const leftIntercept = interceptNumArrRef.value[0]
     // 计算右截距
     // (右截距 - 左截距) / (userElementY - 左截距) = canvasWidth / realElementX
+    // 计算公式中，没有除以0的情况，所以不用考虑bug
     const rightIntercept =
       canvasWidth / realElementX
       * (userElementY - leftIntercept)
