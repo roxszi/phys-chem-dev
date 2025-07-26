@@ -12,13 +12,13 @@
   },
   "dependencies": {
     "@vueuse/core": "^13.5.0",
-    "tdesign-vue-next": "^1.14.2"
+    "tdesign-vue-next": "^1.15.1"
   },
   "devDependencies": {
     "@techstark/opencv-js": "^4.11.0-release.1",
     "unplugin-auto-import": "^19.3.0",
     "unplugin-vue-components": "^28.8.0",
     "vitepress": "^1.6.3",
-    "vue": "^3.5.17"
+    "vue": "^3.5.18"
   }
 }

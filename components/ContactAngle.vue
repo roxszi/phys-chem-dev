@@ -1126,29 +1126,183 @@ function contourPointsToAoa(metVectorContours) { try {
   my.loading("正在存储轮廓坐标...")
   // 声明一个数组用来接所有轮廓点
   const contourPointAoa = []
+
+  // 声明一个Map对象来验证重复点
+  const contourPointMap = new Map()
+
+
   // 用于收集所有轮廓点的纵坐标最小值，先用canvas的高度初始化（即最大值）
   let contourYMin = canvasRef.value.height
+
+
+  console.log("metVectorContours.size(): ", metVectorContours.size())
+  // console.log("someContour: ", metVectorContours.get(50))
+  
+  // 接收canvas的1%和99%的尺寸位置宽高
+  const canvasWidthPer1 = Math.ceil(canvasRef.value.width * 0.01)
+  const canvasHeightPer1 = Math.ceil(canvasRef.value.height * 0.01)
+  const canvasWidthPer99 = Math.floor(canvasRef.value.width * 0.99)
+  const canvasHeightPer99 = Math.floor(canvasRef.value.height * 0.99)
+  
   // 遍历所有轮廓点
-  for (let i = 0; i < metVectorContours.size(); i++) {
+  forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
     // 挨个获取轮廓
     const contour = metVectorContours.get(i)
-    for (let j = 0; j < contour.rows; j++) {
+    // 获取坐标
+    forEachContourPoint: for (let j = 0; j < contour.rows; j++) {
       // 接X和Y坐标
       const pointX = contour.data32S[j * 2]
       const pointY = contour.data32S[j * 2 + 1]
-      // 装箱
-      contourPointAoa.push([pointX, pointY])
-      // 如果y坐标小于minY，则更新minY
-      if (pointY < contourYMin) { contourYMin = pointY }
+      // 如果坐标点在边缘1%位置处，则忽略
+      if (
+        (pointX <= canvasWidthPer1)
+          || (pointY <= canvasHeightPer1)
+          || (pointX >= canvasWidthPer99)
+          || (pointY >= canvasHeightPer99)
+        ) {
+        // 跳过本次循环
+        continue forEachContourPoint
+      } else {
+        // 否则，继续处理
+
+        // // 直接装箱
+        // contourPointAoa.push([pointX, pointY])
+        // // 如果y坐标小于minY，则更新minY
+        // if (pointY < contourYMin) { contourYMin = pointY }
+
+        // 把X、Y点组合为一个整数，用于Map对象验证重复点
+        const pointForMap = pointX * 1000 + pointY
+        // 如果Map对象中不存在该点
+        if (contourPointMap.has(pointForMap) === false) {
+          // 则添加该点到Map对象中
+          contourPointMap.set(
+            pointForMap,
+            1
+          )
+          // 如果y坐标小于minY，则更新minY
+          if (pointY < contourYMin) { contourYMin = pointY }
+        // 如果Map对象中存在该点
+        } else {
+          // 则该点的value + 1
+          contourPointMap.set(
+            pointForMap,
+            contourPointMap.get(pointForMap) + 1
+          )
+        }
+
+      }
     }
     // 删除轮廓释放内存
     contour.delete()
+
   }
+
+  // 按照有效点的出现次数进行排序了
+  // 先建个数组用于接收点
+  const contourPointMapAoa = []
+  // 接收点
+  contourPointMap.forEach((value, key) => {
+    contourPointMapAoa.push([key, value])
+  })
+  // 按照出险次数排序
+  contourPointMapAoa.sort((contourPointMapA, contourPointMapB) => 
+    // 倒序，大的在前
+    contourPointMapB[1] - contourPointMapA[1]
+  )
+  // 选取排前的点
+  for (let i = 0; i < contourPointMapAoa.length; i++) {
+    // 获取点
+    const point = contourPointMapAoa[i][0]
+    // 拆箱：组X和Y坐标
+    const x = Math.floor(point / 1000)
+    const y = point % 1000
+    // 装箱
+    contourPointAoa.push([x, y])
+  }
+
+  console.log("contourPointAoa: ", contourPointAoa)
+
+  // metAllContours
+  // OpenCV工厂方法，把坐标点转为Mat对象
+  let metAllContours = new contactAngleObj.cv.matFromArray(
+    // rows，行数：双通道，所以行数就是[x, y]作为一个Point的行数
+    contourPointAoa.length,
+    // cols，列数：1列，即一个Point维度
+    1,
+    // type，数据类型：CV_32SC2，即32位有符号整数，但是有2个通道（x，y）
+    contactAngleObj.cv.CV_32SC2,
+    // array，用于创建Mat对象的数组
+    contourPointAoa.flat(),
+  )
+  console.log("metAllContours: ", metAllContours)
+
+  // 获取轮廓
+  let rotatedRectContours = contactAngleObj.cv.fitEllipseAMS(metAllContours)
+  console.log("rotatedRectContours: ", rotatedRectContours)
+
+  // 椭圆对象的属性：
+  // rotatedRectContours.angle
+  // rotatedRectContours.center.x | y
+  // rotatedRectContours.size.width | height
+
+  // 获取所拟合椭圆的最近点（以方便求解R²）
+  // contactAngleObj.cv.getClosestEllipsePoints()
+
+  // 拷贝一个原画布，用于绘制轮廓
+  let ellipseHandleMat = new contactAngleObj.cv.Mat()
+  contactAngleObj.matGray.copyTo(ellipseHandleMat)
+  // 定义椭圆的颜色为白色（8位图，255即为白色）
+  const ellipseColor = new contactAngleObj.cv.Scalar(255)
+  // 轮廓粗细
+  const ellipseThickness = 2 * contactAngleObj.canvasScaling
+
+  // 接size
+  const ellipseSize = rotatedRectContours.size
+  // 凑个新的axes
+  const ellipseAxes = new contactAngleObj.cv.Size(
+    // width
+    ellipseSize.width * 0.5,
+    // height
+    ellipseSize.height * 0.5
+  )
+
+  // 画椭圆
+  contactAngleObj.cv.ellipse(
+    // img：Mat对象
+    ellipseHandleMat,
+    // center：椭圆中心点坐标
+    rotatedRectContours.center,
+    // axes：主轴尺寸的一半
+    ellipseAxes,
+    // angle：椭圆旋转角度（以度为单位）
+    rotatedRectContours.angle,
+    // startAngle：椭圆弧的起始角度（以度为单位）
+    0,
+    // endAngle：椭圆弧的结束角度（以度为单位）
+    360,
+    // color：椭圆颜色
+    ellipseColor,
+    // thickness：椭圆线条粗细，如果为负值，则表示填充椭圆
+    ellipseThickness,
+    // lineType：线条类型
+    contactAngleObj.cv.LINE_AA
+  )
+  // 渲染椭圆到画布上
+  contactAngleObj.cv.imshow(
+    canvasRef.value,
+    ellipseHandleMat
+  )
+
+  debugger
+
   // 把所有轮廓点数组、yMin存入全局变量
   contactAngleObj.contourPointAoa = contourPointAoa
   contactAngleObj.contourYMin = contourYMin
   // 停止加载框
   my.loading(false)
+
+  debugger
+
 } catch (error) {
   // 停止加载框
   my.loading(false)
@@ -1438,7 +1592,58 @@ function onDetermineBaseline(event) { try {
   errorDialog()
 }}
 
+/**
+ * 椭圆拟合
+ * OpenCV.js的椭圆拟合方法：fitEllipse()、fitEllipseAMS()和fitEllipseDirect()：
+ * fitEllipse()：基于最小二乘法拟合旋转矩形，再转换为椭圆参数；无显式椭圆约束；可能输出非椭圆结果。
+ * fitEllipseAMS()：近似均方（Approximate Mean Square, AMS）方法求解，可迭代优化，最小化几何距离误差；
+ *     强制满足椭圆判别式（B² - 4AC < 0）；严格保证椭圆解。
+ * fitEllipseDirect()：直接最小二乘法（Direct Least Squares）求解（基于Fitzgibbon 1991的闭式解）。
+ *     通过约束（4AC - B² = 1）以消除尺度模糊性；严格保证椭圆解。
+ * 详见：https://docs.opencv.ac.cn/4.12.0/d3/dc0/group__imgproc__shape.html
+ */
+function ellipseFit(points) {
 
+  contactAngleObj.cv.fitEllipseAMS()
+
+
+  
+}
+
+// const a = new cv.Mat(1, 1, cv.CV_32FC2, new cv.Point2(1, 2))
+
+function mergeMats(matVector) {
+    // 计算总点数
+    let totalPoints = 0;
+    for (let i = 0; i < matVector.size(); i++) {
+        let mat = matVector.get(i);
+        // 每个Mat应该是2通道，单列，所以行数就是点数
+        totalPoints = totalPoints + mat.rows;
+    }
+
+    // 创建合并后的Mat，行数为总点数，列数为1，类型为CV_32FC2
+    let mergedMat = new cv.Mat(totalPoints, 1, cv.CV_32FC2);
+
+    // 获取合并后Mat的数据（Float32Array视图）
+    let mergedData = mergedMat.data32F;
+
+    let offset = 0; // 数据偏移量（以浮点数计，每两个浮点数一个点）
+    for (let i = 0; i < matVector.size(); i++) {
+        let mat = matVector.get(i);
+        // 获取当前Mat的数据（Float32Array）
+        let data = mat.data32F;
+        // 将当前Mat的数据复制到mergedData的相应位置
+        mergedData.set(data, offset);
+        // 更新偏移量：当前Mat有mat.rows个点，每个点2个浮点数，所以增加mat.rows * 2
+        offset += mat.rows * 2;
+    }
+
+    // 注意：我们不需要删除matVector中的Mat，因为matVector只是引用，我们通过get获取的Mat需要手动删除吗？
+    // 在OpenCV.js中，我们需要注意内存管理。但是，在这个函数中，我们只是读取matVector中的Mat，并没有创建新的Mat（除了mergedMat），所以不需要删除它们。
+    // 但是，调用者应该负责matVector中Mat的释放。
+
+    return mergedMat;
+}
 
 </script>
 

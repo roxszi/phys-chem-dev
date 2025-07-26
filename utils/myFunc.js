@@ -1,7 +1,7 @@
 "use strict"
 
 /**
- * @插件
+ * 插件
  */
 
 // 引入TDesign插件

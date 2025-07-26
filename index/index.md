@@ -29,9 +29,9 @@ hero:
     - theme: alt
       text: 关于
       link: about/
-    # - theme: alt
-    #   text: 测试
-    #   link: test
+    - theme: alt
+      text: 测试
+      link: test
 
 # 主页特性部分
 features:
