@@ -291,6 +291,8 @@ import { ref, watch } from "vue"
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
 import my from "@/utils/myFunc.js"
+// 导入OpenCV.js加载器
+import { loadOpenCV } from "@/utils/opencvLoader.js"
 
 // 一上来就要先调用加载框，防止用户操作
 // 等到<canvas>元素块和OpenCV.js都加载完毕后，才能停止加载框
@@ -439,17 +441,24 @@ const { stop: stopWatch } = watch(
       stopWatch()
       // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
       canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
+      // // 第二步：导入OpenCV.js库
+      // const cvImportPromise = import("@techstark/opencv-js")
+      // // 等待OpenCV.js加载完成
+      // cvImportPromise.then((cvReadyPromise) => {
+      //   // 动态导入钩子里面仍是个Promise对象，需要再then
+      //   cvReadyPromise.default.then((cv) => {
+      //     // 赋值给全局变量cv
+      //     contactAngleObj.cv = cv
+      //     // 停止加载框
+      //     my.loading(false)
+      //   })
+      // })
       // 第二步：导入OpenCV.js库
-      const cvImportPromise = import("@techstark/opencv-js")
-      // 等待OpenCV.js加载完成
-      cvImportPromise.then((cvReadyPromise) => {
-        // 动态导入钩子里面仍是个Promise对象，需要再then
-        cvReadyPromise.default.then((cv) => {
-          // 赋值给全局变量cv
-          contactAngleObj.cv = cv
-          // 停止加载框
-          my.loading(false)
-        })
+      loadOpenCV().then((cvReady) => {
+        // 赋值给全局变量cv
+        contactAngleObj.cv = cvReady
+        // 停止加载框
+        my.loading(false)
       })
     }
   }
@@ -1135,7 +1144,7 @@ function contourPointsToAoa(metVectorContours) { try {
   let contourYMin = canvasRef.value.height
 
 
-  console.log("metVectorContours.size(): ", metVectorContours.size())
+  // console.log("metVectorContours.size(): ", metVectorContours.size())
   // console.log("someContour: ", metVectorContours.get(50))
   
   // 接收canvas的1%和99%的尺寸位置宽高
@@ -1220,7 +1229,7 @@ function contourPointsToAoa(metVectorContours) { try {
     contourPointAoa.push([x, y])
   }
 
-  console.log("contourPointAoa: ", contourPointAoa)
+  // console.log("contourPointAoa: ", contourPointAoa)
 
   // metAllContours
   // OpenCV工厂方法，把坐标点转为Mat对象
@@ -1234,7 +1243,7 @@ function contourPointsToAoa(metVectorContours) { try {
     // array，用于创建Mat对象的数组
     contourPointAoa.flat(),
   )
-  console.log("metAllContours: ", metAllContours)
+  // console.log("metAllContours: ", metAllContours)
 
   // 获取轮廓
   let rotatedRectContours = contactAngleObj.cv.fitEllipseAMS(metAllContours)
@@ -1245,8 +1254,13 @@ function contourPointsToAoa(metVectorContours) { try {
   // rotatedRectContours.center.x | y
   // rotatedRectContours.size.width | height
 
+  // 如果angle大于90度，则width和height不如互换了
+
+
+
+
   // 获取所拟合椭圆的最近点（以方便求解R²）
-  // contactAngleObj.cv.getClosestEllipsePoints()
+
 
   // 拷贝一个原画布，用于绘制轮廓
   let ellipseHandleMat = new contactAngleObj.cv.Mat()
@@ -1293,15 +1307,15 @@ function contourPointsToAoa(metVectorContours) { try {
     ellipseHandleMat
   )
 
-  debugger
 
+  debugger
   // 把所有轮廓点数组、yMin存入全局变量
   contactAngleObj.contourPointAoa = contourPointAoa
   contactAngleObj.contourYMin = contourYMin
   // 停止加载框
   my.loading(false)
 
-  debugger
+  
 
 } catch (error) {
   // 停止加载框

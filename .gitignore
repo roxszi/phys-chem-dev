@@ -3,10 +3,6 @@
 # Node包
 node_modules/
 
-# IDE目录
-.vscode/*
-!.vscode/extensions.json
-
 # VitePress缓存
 .vitepress/cache
 
