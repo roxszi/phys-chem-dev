@@ -289,7 +289,7 @@
 
   <!--
     canvas脚-步骤5
-    数据结果的呈现
+    数据结果的呈现：数据表格、下载按钮
    -->
   <mySpace
     v-if="resultRef[0]"
@@ -303,7 +303,7 @@
           <th>序号</th>
           <th>文件名</th>
           <th>接触角 (°)</th>
-          <th>RD</th>
+          <th>RD (%)</th>
         </tr>
       </thead>
       <!-- 表格体 -->
@@ -312,7 +312,7 @@
           <td>{{ resultsIndex + 1 }}</td>
           <td>{{ resultArr[0] }}</td>
           <td>{{ resultArr[1].toFixed(2) }}</td>
-          <td>{{ resultArr[4].toFixed(2) }}</td>
+          <td>{{ (resultArr[4] * 100).toFixed(2) }}</td>
         </tr>
       </tbody>
     </table></div>
@@ -548,10 +548,10 @@ function onCanvasLongPress(event) { try {
  * 步骤4：绘制基线
  */
 function onCanvasClick(event) { try {
-  console.log(
-    `canvas点击：
-    (${ elementX.value * contactAngleObj.canvasScaling }, ${ elementY.value * contactAngleObj.canvasScaling })`
-  )
+  // console.log(
+  //   `canvas点击：
+  //   (${ elementX.value * contactAngleObj.canvasScaling }, ${ elementY.value * contactAngleObj.canvasScaling })`
+  // )
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2时，即选框绘制阶段，则调用选框方法
@@ -2022,10 +2022,19 @@ function calculateContactAngle() { try {
 function downloadResult(event) { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
   const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "RD", "椭圆拟合R²"]]
-  // 填充数据
-  resultAoa.push(...resultRef.value)
-  // AOA对象转成xlsx文件
-  const workbook = aoaMapToWorkbook(resultAoa)
+  // 填充数据：遍历resultRef.value
+  for (const resultArrProxy of resultRef.value) {
+    // 将代理对象转成普通数组
+    const resultArr = [...resultArrProxy]
+    // 将结果数组推入AOA对象
+    resultAoa.push(resultArr)
+  }
+  // 建立工作表文件的Map对象
+  const resultMap = new Map()
+  // 把数据结果AOA数组加进Map里
+  resultMap.set("接触角数据", resultAoa)
+  // AOA数据的Map对象转成xlsx文件
+  const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
   downloadXlsx(workbook, "接触角数据.xlsx")
 } catch (error) {
