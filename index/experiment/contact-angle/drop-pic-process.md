@@ -9,4 +9,6 @@
 ## 液滴照片处理
 
 <!-- 接触角处理组件 -->
-<ContactAngle />
+<ClientOnly>
+  <ContactAngle />
+</ClientOnly>
