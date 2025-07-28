@@ -49,7 +49,7 @@ export default defineConfig({
         // TDesign的"vue-next"组件库
         TDesignResolver({ library: "vue-next" })
       ]})
-    ]
+    ],
   },
 
   /**

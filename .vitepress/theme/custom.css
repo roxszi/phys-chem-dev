@@ -31,3 +31,9 @@ mjx-container {
   /* 同时隐藏水平和垂直滚动条 */
   overflow: hidden;
 }
+
+/* t-slider滑轨按钮的尺寸 */
+.t-slider__button {
+  width: var(--td-comp-size-xs) !important;
+  height: var(--td-comp-size-xs) !important;
+}
