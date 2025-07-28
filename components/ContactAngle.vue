@@ -12,23 +12,30 @@
       此步骤将覆盖保存Mat图像，即用裁剪后的灰度Mat图像替换原Mat图像。
       同时，也将保存canvas的imageData对象，以便后续使用。
   3.  寻找液滴的最佳轮廓。
-      有2个算法（其实默认的Canny算法更好），调节switch开关以切换。
-      每个算法都2个参数（2个滑轨），调节滑轨可实时查看轮廓效果（灰度图叠加轮廓线）。
-      设置了粗调、细调的切换。可更改滑轨的范围值。
+      有2个算法（默认的Canny算法更好），调节switch开关以切换。
+      Canny算法有2个参数（2个滑轨），阈值化方法有1个参数（1个滑轨）。
+      调节滑轨可实时查看轮廓效果（灰度图叠加轮廓线）。
+      设置了粗调、细调的切换。切换后可细化/粗化滑轨的范围值。
       长按canvas可清空效果。
-      此步骤结束时将保存轮廓数据为坐标数组。在遍历提取轮廓数组时，会找到y坐标最小值。
-      并保存叠加图的imageData对象，以便下一步使用。
+      此步骤结束时将保存轮廓数据为坐标数组，然后迭代优化获得椭圆对象。
+      然后会将椭圆对象绘制在canvas上，并保存灰度图+拟合椭圆的imageData对象，以便下一步使用。
   4.  寻找基线。
-      在第3步叠加imageData基础上寻找基线。先以上一步得到的y坐标最小值绘制平直线。
-      设置左、右调节滑轨，可微调左右截距，并实时查看基线效果。
+      在第3步叠加imageData基础上寻找基线。
+      点击canvas将粗调基线。canvas分左中右3个部分，左右用于调整单边截距，中间用于调整双截距。
+      同时设置了左、右调节滑轨，可微调左右截距，并实时查看基线效果。
       此步骤结束时将获得基线的截距。
-  5.  计算接触角。此处不用再有交互。
-  这里有一个坑点，就是计算机的Y轴是向下为正的。
+  5.  计算接触角。此处不用再有复杂交互。
+      得到接触角后，将出现结果表格，以及下载按钮，可以以excel表格格式下载数据结果。
  -->
 
 <!--
   版权说明：
   使用了 Apache-2.0 许可的 @techstark/opencv-js 库
+ -->
+
+<!--
+  特别的注意事项/开发札记：
+  这里有一个巨大的坑点，就是计算机的Y轴是以向下为正的。
  -->
 
 <!--
@@ -279,8 +286,45 @@
       </myButton>
     </div>
   </mySpace>
-</MySpace></template>
 
+  <!--
+    canvas脚-步骤5
+    数据结果的呈现
+   -->
+  <mySpace
+    v-if="resultRef[0]"
+    size="small"
+  >
+    <!-- 接触角数据 -->
+    <div class="center"><table>
+      <!-- 表头 -->
+      <thead>
+        <tr>
+          <th>序号</th>
+          <th>文件名</th>
+          <th>接触角 (°)</th>
+          <th>RD</th>
+        </tr>
+      </thead>
+      <!-- 表格体 -->
+      <tbody>
+        <tr v-for="(resultArr, resultsIndex) in resultRef" :key="resultsIndex">
+          <td>{{ resultsIndex + 1 }}</td>
+          <td>{{ resultArr[0] }}</td>
+          <td>{{ resultArr[1].toFixed(2) }}</td>
+          <td>{{ resultArr[4].toFixed(2) }}</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <!-- 容器（按钮容器） -->
+    <div class="center"><myButton
+      @click="downloadResult"
+      :block="false" theme="primary"
+    >
+      下载结果
+    </myButton></div>
+  </mySpace>
+</MySpace></template>
 
 <!--
   逻辑层
@@ -292,6 +336,8 @@ import { ref, watch } from "vue"
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
 import my from "@/utils/myFunc.js"
+// 导入xlsx相关方法
+import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 // 导入OpenCV.js加载器
 import { loadOpenCV } from "@/utils/opencvLoader.js"
 
@@ -306,6 +352,7 @@ my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
  * 3 - 完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
  * 4 - 完成了轮廓寻找，得到了液滴轮廓坐标。正在寻找基线；
  * 5 - 完成了基线寻找，得到了基线坐标。正在计算接触角。
+ *     其实并不存在状态5，因为计算接触角是最后一步，没有下一步了。
  * @type { import("vue").Ref<Number> }
  */
 const taskStatusRef = ref(1)
@@ -365,11 +412,18 @@ const isContourCoarseRef = ref(true)
  * @note 不能轻易赋值，因为在步骤4，一旦赋值，就会触发绘制基线等回调
  */
 const interceptNumArrRef =  ref([0, 0])
+/**
+ * 第五步计算接触角的最终结果
+ * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number][]> }
+ * 分别是：文件名、接触角均值、左接触角，右接触角，接触角RD，椭圆拟合的决定系数R²
+ */
+const resultRef = ref([])
 
 /**
  * 接触角业务的全局对象
  * @typedef { Object } ContactAngle
  * @property { import("@techstark/opencv-js") } cv OpenCV.js对象
+ * @property { String } filename 所上传文件的文件名
  * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
  * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
  * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
@@ -378,9 +432,9 @@ const interceptNumArrRef =  ref([0, 0])
  * @property { Number } rectYmax canvas元素块选框的Y坐标大值
  * @property { Number } rectXmin canvas元素块选框的X坐标小值
  * @property { Number } rectYmin canvas元素块选框的Y坐标小值
- * @property { ImageData } imageDataContour 轮廓图的canvas的图像数据
- * @property { import("@techstark/opencv-js").MatVector } metVectorContours 轮廓点集MatVector对象
- * @property { Number[][] } contourPointAoa 轮廓点坐标数组
+ * @property { import("@techstark/opencv-js").RotatedRect } ellipseObj 拟合得到的椭圆对象
+ * @property { Number } ellipseR2 椭圆拟合的决定系数R²
+ * @property { ImageData } imageDataEllipse 椭圆的canvas的图像数据
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上
@@ -388,6 +442,7 @@ const interceptNumArrRef =  ref([0, 0])
 /** 接触角业务的全局对象 @type { ContactAngle } */
 const contactAngleObj = {
   cv: null,
+  filename: null,
   ctx: null,
   canvasScaling: 0.0,
   matGray: null,
@@ -396,9 +451,9 @@ const contactAngleObj = {
   rectYmax: null,
   rectXmin: null,
   rectYmin: null,
-  imageDataContour: null,
-  metVectorContours: null,
-  contourPointAoa: [],
+  ellipseObj: null,
+  ellipseR2: null,
+  imageDataEllipse: null
 }
 
 /**
@@ -579,14 +634,14 @@ function onContourSlideChangeEnd(event) { try {
 
 /**
  * 报错的通知方法
- * 这个就不进行外部try...catch了
+ * 这是个统一化的报错通知，这个就不进行外部try...catch了
  */
 function errorDialog() {
   // 直接对话框报错
   my.dialog({
     theme: "danger",
-    header: "报错",
-    body: "请联系软件开发人员"
+    header: "程序报错",
+    body: "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
   // 链式调用catch，防止出错
   }).catch((error) => {
     console.log("errorDialog()报错：", error)
@@ -622,6 +677,8 @@ async function onPicChange(event) { try {
   }
   // 加载框
   my.loading("正在读取照片...")
+  // 接收文件名
+  contactAngleObj.filename = event[0].name
   // 从第一个对象获取文件url
   const fileURL = URL.createObjectURL(event[0].raw)
   // 构造<img>元素
@@ -669,7 +726,7 @@ async function onPicChange(event) { try {
   contactAngleObj.ctx = canvasRef.value.getContext(
     // CanvasRenderingContext2D接口的2D渲染上下文
     "2d",
-    // 为频繁读取做优化。仅Gecko内核（FireFox浏览器）支持，就不再专门设置了
+    // 为频繁读取做优化。但仅Gecko内核（FireFox浏览器）支持，就不再专门设置了
     // { willReadFrequently: true },
   )
   // 对ctx做简要设置并保存设置
@@ -927,6 +984,12 @@ function sureRect(isDetermine = false) { try {
  */
 
 /**
+ * 这一步很重要
+ * 这一步有2个选择轮廓算法，有粗调和细调
+ * 选择完成后，就要迭代确定轮廓，并绘制出来
+ */
+
+/**
  * 任务进度切换到步骤3
  */
 function taskToStep3() { try {
@@ -950,6 +1013,8 @@ function taskToStep3() { try {
   contourAlgorithmSwitchRef.value = false
   // 切换到状态3
   taskStatusRef.value = 3
+  // 用轮廓查找方法刷新一次轮廓渲染
+  slideContour(false)
 } catch (error) {
   console.log("taskToStep3()方法出错：", error)
   throw Error(error)
@@ -1041,14 +1106,13 @@ function slideContour(isDetermine = false) { try {
   matBinary.delete()
 } catch (error) {
   console.log("slideContour()方法出错：", error)
-  errorDialog()
+  throw Error(error)
 }}
 
 /**
  * 寻找并处理轮廓
  * @param { import("@techstark/opencv-js").Mat } matBinary 二值化的Mat图像
  * @param { Boolean } [isDetermine = false] 是否确定轮廓
- * @note 专门被调用的
  */
 function makeContour(matBinary, isDetermine = false) { try {
   // 先寻找轮廓
@@ -1079,396 +1143,69 @@ function makeContour(matBinary, isDetermine = false) { try {
     // CHAIN_APPROX_NONE => chain approx none - 不作近似处理，存储所有轮廓点
     contactAngleObj.cv.CHAIN_APPROX_NONE
   )
-  // 然后开始处理轮廓数据
-  // 拷贝一个原画布，用于绘制轮廓
-  let contoursHandleMat = new contactAngleObj.cv.Mat()
-  contactAngleObj.matGray.copyTo(contoursHandleMat)
-  // 定义最小外接圆的颜色为白色（8位图，255即为白色）
-  const contoursColor = new contactAngleObj.cv.Scalar(255)
-  // 轮廓粗细
-  const contoursThickness = 2 * contactAngleObj.canvasScaling
-  // 在画布上绘制所有轮廓（轮廓索引传参为-1即可）
-  contactAngleObj.cv.drawContours(
-    // Mat画布
-    contoursHandleMat,
-    // 轮廓组
-    metVectorContours,
-    // 轮廓索引（-1就是全部）
-    -1,
-    // 轮廓颜色
-    contoursColor,
-    // 轮廓线条粗细
-    contoursThickness,
-    // 轮廓线条类型，维持默认即可
-    undefined,
-    // 轮廓层次结构
-    metHierarchy,
-    // 轮廓层数，本次不存在层次结构，维持默认即可
-    undefined,
-  )
-  // 把画布图案绘制在canvas上
-  contactAngleObj.cv.imshow(canvasRef.value, contoursHandleMat)
+  // 如果没确定轮廓
+  if (isDetermine === false) {
+    // 那就绘制渲染轮廓图
+    // 拷贝一个原画布，用于绘制轮廓
+    let contoursHandleMat = new contactAngleObj.cv.Mat()
+    contactAngleObj.matGray.copyTo(contoursHandleMat)
+    // 定义最小外接圆的颜色为白色（8位图，255即为白色）
+    const contoursColor = new contactAngleObj.cv.Scalar(255)
+    // 轮廓粗细
+    const contoursThickness = 2 * contactAngleObj.canvasScaling
+    // 在画布上绘制所有轮廓（轮廓索引传参为-1即可）
+    contactAngleObj.cv.drawContours(
+      // Mat画布
+      contoursHandleMat,
+      // 轮廓组
+      metVectorContours,
+      // 轮廓索引（-1就是全部）
+      -1,
+      // 轮廓颜色
+      contoursColor,
+      // 轮廓线条粗细
+      contoursThickness,
+      // 轮廓线条类型，维持默认即可
+      undefined,
+      // 轮廓层次结构
+      metHierarchy,
+      // 轮廓层数，本次不存在层次结构，维持默认即可
+      undefined,
+    )
+    // 把画布图案绘制在canvas上
+    contactAngleObj.cv.imshow(canvasRef.value, contoursHandleMat)
+    // 绘制完毕，销毁画布
+    contoursHandleMat.delete()
+  // 如果确定了轮廓
+  } else {
+    // 初始化轮廓点
+    // 在初始化轮廓点的方法中，也会调用椭圆迭代、绘制椭圆轮廓的方法
+    // 这旨在在初始化轮廓点的方法中实现加载框
+    initializeContourPointSet(metVectorContours)
+    // 以初始化的轮廓点进行椭圆迭代，并绘制椭圆
+    // 状态机切换到4
+    taskToStep4()
+  }
   // 完毕，销毁相关对象以回收内存
   // 销毁轮廓层次结构
   metHierarchy.delete()
-  // 销毁画布
-  contoursHandleMat.delete()
-  // 如果确定了轮廓
-  if (isDetermine === true) {
-    // 销毁旧的全局轮廓点MetVector数据（如果有的话）
-    contactAngleObj.metVectorContours?.delete()
-    // 储存新的全局轮廓点MetVector数据
-    contactAngleObj.metVectorContours = metVectorContours
-    metVectorContours = null
-    // canvas保存一下方便后面恢复
-    contactAngleObj.imageDataContour = contactAngleObj.ctx.getImageData(
-      0, 0, canvasRef.value.width, canvasRef.value.height
-    )
-    // 状态机切换到4
-    taskToStep4()
-  // 如果没确定轮廓
-  } else {
-    // 销毁本地轮廓点AOA数组的MetVector数据
-    metVectorContours.delete()
-  }
+  // 销毁本地轮廓点AOA数组的MetVector数据
+  metVectorContours.delete()
 } catch (error) {
   console.log("makeContour()方法出错：", error)
   throw Error(error)
 }}
 
 /**
- * 轮廓粗细调的切换
- * @note 会触发绘制轮廓
- */
-function contourCoarseToggle() { try {
-  // 如果目前是细调，则要修改为粗调
-  if (isContourCoarseRef.value === false) {
-    // 粗调的阈值数组
-    const thresholdNumArr = [
-      // 主参数和辅助参数
-      thresholdNumArrRef.value[0], thresholdNumArrRef.value[1],
-      // 主参数的下限/上限
-      0, 255,
-      // 主参数的mark标记
-      0, 85, 170, 255,
-      // 辅助参数的下限/上限
-      0, 255,
-      // 辅助参数的mark标记
-      0, 85, 170, 255
-    ]
-    // 赋值
-    // （这一步会触发绘图）
-    thresholdNumArrRef.value = thresholdNumArr
-    // 更新标记：则切换为粗调
-    isContourCoarseRef.value = true
-  // 如果目前是粗调，要改为细调
-  } else {
-    // 刷新细调滑块
-    // （这一步会触发绘图）
-    refreshContourFineSlider()
-    // 更新标记：切换为细调
-    isContourCoarseRef.value = false
-  }
-} catch (error) {
-  console.log("contourCoarseToggle()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 刷新步骤3里细调滑块的具体方法
- * @note 会触发绘制轮廓
- */
-function refreshContourFineSlider() { try {
-  // 接收主参数和辅助参数
-  const mainParam = thresholdNumArrRef.value[0]
-  const auxParam = thresholdNumArrRef.value[1]
-  // 找主参数的下限：主参数的下限必须不小于0，不大于243
-  const mainParamMin = Math.max(0,
-    Math.min(243, (mainParam - 6))
-  )
-  // 找辅助参数的下限：辅助参数的下限必须不小于0，不大于243
-  const auxParamMin = Math.max(0,
-    Math.min(243, (auxParam - 6))
-  )
-  // 细调的阈值数组
-  const thresholdNumArr = [
-    // 主参数和辅助参数
-    mainParam, auxParam,
-    // 主参数的下限/上限
-    mainParamMin, mainParamMin + 12,
-    // 主参数的mark标记
-    mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12,
-    // 辅助参数的下限/上限
-    auxParamMin, auxParamMin + 12,
-    // 辅助参数的mark标记
-    auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12,
-  ]
-  // 赋值
-  // （这一步会触发绘图）
-  thresholdNumArrRef.value = thresholdNumArr
-} catch (error) {
-  console.log("refreshContourFineSlider()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * @步骤4 选择基线
- */
-
-/**
- * @note 因为模板绑定，所以interceptNumArrRef.value一旦改变，就会触发绘图
- * 用户有2种交互：点击canvas（粗调，单次）和拖动滑轨（细调，连续）。
- * 粗调：修改滑轨的值 + 滑轨上下限等，进而触发绘图。
- * 细调：
- *   连续：修改滑轨的值，进而触发绘图。
- *   单次：因为操作canvas，所以滑轨的change状态一直是被劫持的，没有end。
- * 所以肯定会触发绘图，那就不用再考虑绘图了。
- * @note 步骤4的难点就在于：【canvas里，原点在左上角】
- *   因为滑轨仍然要和用户思维统一，所以仅在绘制时把坐标轴翻转一下即可
- */
-
-/**
- * 步骤4的初始化方法
- */
-function taskToStep4() { try {
-  // canvas初始化
-  ctxSetting()
-  // 状态机切换到4
-  taskStatusRef.value = 4
-} catch (error) {
-  console.log("taskToStep4()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 步骤4里刷新滑块的具体方法
- * @param { Number } [leftInterceptValue] 左截距
- * @param { Number } [rightInterceptValue] 右截距
- * @note 会触发绘制基线截距
- */
-function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { try {
-  // 接收左截距和右截距
-  const leftIntercept =
-    leftInterceptValue
-      ? Math.floor(leftInterceptValue)
-      : interceptNumArrRef.value[0]
-  const rightIntercept =
-    rightInterceptValue
-      ? Math.floor(rightInterceptValue)
-      : interceptNumArrRef.value[1]
-  // 接canvas高
-  const canvasHeight = canvasRef.value.height
-  // 根据高计算截距的上下限范围，目前以高的1/15为限度。
-  // 截距需能被6整除。所以是除以90。
-  // 整除后，乘以2是阶梯的宽度，乘以3是mark的宽度。
-  // 除此以外，得确保截距最小单位起码是1。
-  const delta = Math.max(Math.floor(canvasHeight / 90), 1)
-  // 找左截距的下限：左截距的下限必须不小于0，不大于canvas的高度
-  const leftParamMin = Math.max(0,
-    Math.min(canvasHeight, (leftIntercept - (delta * 3)))
-  )
-  // 找右截距的下限：右截距的下限必须不小于0，不大于canvas的高度
-  const rightParamMin = Math.max(0,
-    Math.min(canvasHeight, (rightIntercept - (delta * 3)))
-  )
-  // 细调的阈值数组
-  const interceptNumArr = [
-    // 左截距和右截距
-    leftIntercept, rightIntercept,
-    // 左截距的下限/上限
-    leftParamMin, leftParamMin + (delta * 6),
-    // 左截距的mark标记
-    leftParamMin, leftParamMin + (delta * 2),
-    leftParamMin + (delta * 4), leftParamMin + (delta * 6),
-    // 右截距的下限/上限
-    rightParamMin, rightParamMin + (delta * 6),
-    // 右截距的mark标记
-    rightParamMin, rightParamMin + (delta * 2),
-    rightParamMin + (delta * 4), rightParamMin + (delta * 6),
-  ]
-  // 赋值
-  // 这一步会触发绘图
-  interceptNumArrRef.value = interceptNumArr
-} catch (error) {
-  console.log("refreshBaselineFineSlider()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 截距粗调的具体实现方法
- * 把canvas分成3个区域：左区（0.35）、中区（0.30）、右区（0.35）。
- * 中区则直接升降基线；左区和右区则升降各自部分的截距。
- * 这里以用户视角来设置截距值，所以要用canvasRef.value.height - realElementY
- * @note 会触发绘制基线截距
- */
-function chooseBaseline() { try {
-  // 点击位置的实际X、Y坐标：canvas视角
-  const realElementX = elementX.value * contactAngleObj.canvasScaling
-  const realElementY = elementY.value * contactAngleObj.canvasScaling
-  // 接收canvas宽度和高度
-  const canvasWidth = canvasRef.value.width
-  const canvasHeight = canvasRef.value.height
-  // 转为用户视角Y坐标（X坐标的用户视角和canvas视角是一致的）
-  const userElementY = canvasHeight - realElementY
-  // 左区
-  if (realElementX < (canvasWidth * 0.35)) {
-    // 接目前的右截距
-    const rightIntercept = interceptNumArrRef.value[1]
-    // 计算左截距
-    // (左截距 - 右截距) / (userElementY - 右截距) = canvasWidth / (canvasWidth - realElementX)
-    // 计算公式中，没有除以0的情况，所以不用考虑bug
-    const leftIntercept =
-      canvasWidth / (canvasWidth - realElementX)
-      * (userElementY - rightIntercept)
-      + rightIntercept
-    // 用左截距和右截距来刷新细调滑块
-    // （这一步会触发绘图）
-    refreshBaselineFineSlider(leftIntercept, rightIntercept)
-  // 右区
-  } else if (realElementX > (canvasWidth * 0.65)) {
-    // 接目前的左截距
-    const leftIntercept = interceptNumArrRef.value[0]
-    // 计算右截距
-    // (右截距 - 左截距) / (userElementY - 左截距) = canvasWidth / realElementX
-    // 计算公式中，没有除以0的情况，所以不用考虑bug
-    const rightIntercept =
-      canvasWidth / realElementX
-      * (userElementY - leftIntercept)
-      + leftIntercept
-    // 用左截距和右截距来刷新细调滑块
-    // （这一步会触发绘图）
-    refreshBaselineFineSlider(leftIntercept, rightIntercept)
-  // 中区
-  } else {
-    // 直接拿着用户视角的Y坐标来刷新细调滑块
-    // （这一步会触发绘图）
-    refreshBaselineFineSlider(userElementY, userElementY)
-  }
-} catch (error) {
-  console.log("chooseBaseline()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 绘制基线方法的防抖方法
- * @note 给drawBaseline做了防抖处理，以防止频繁调用
- */
-const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
-
-/**
- * 步骤4里绘制基线的具体方法
- */
-function drawBaseline() { try {
-  // 接收左截距和右截距
-  const leftIntercept = interceptNumArrRef.value[0]
-  const rightIntercept = interceptNumArrRef.value[1]
-  // 接canvas宽度和高度
-  const canvasWidth = canvasRef.value.width
-  const canvasHeight = canvasRef.value.height
-  // 计算真正的截距（canvas视角的y值）
-  const realLeftY = canvasHeight - leftIntercept
-  const realRightY = canvasHeight - rightIntercept
-  // 先对选框进行初始化
-  contactAngleObj.ctx.putImageData(contactAngleObj.imageDataContour, 0, 0)
-  // 然后直接绘图即可
-  contactAngleObj.ctx.beginPath()
-  // 起点坐标
-  contactAngleObj.ctx.moveTo(0, realLeftY)
-  // 终点坐标
-  contactAngleObj.ctx.lineTo(canvasWidth, realRightY)
-  // 连线
-  contactAngleObj.ctx.stroke()
-} catch (error) {
-  console.log("drawBaseline()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 步骤4里返回上一步的事件回调钩子
- */
-function onBackToStep3(event) { try {
-  // 直接返回上一步即可
-  // 不能初始化上一步，如果初始化的话，已有轮廓数据的暂存参数设置就会丢失
-  taskStatusRef.value = 3
-} catch (error) {
-  console.log("onBackToStep3()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * @步骤5 计算接触角
- */
-
-/**
- * 椭圆拟合
- * OpenCV.js的椭圆拟合方法：fitEllipse()、fitEllipseAMS()和fitEllipseDirect()：
- * fitEllipse()：基于最小二乘法拟合旋转矩形，再转换为椭圆参数；无显式椭圆约束；可能输出非椭圆结果。
- * fitEllipseAMS()：近似均方（Approximate Mean Square, AMS）方法求解，可迭代优化，最小化几何距离误差；
- *     强制满足椭圆判别式（B² - 4AC < 0）；严格保证椭圆解。
- * fitEllipseDirect()：直接最小二乘法（Direct Least Squares）求解（基于Fitzgibbon 1991的闭式解）。
- *     通过约束（4AC - B² = 1）以消除尺度模糊性；严格保证椭圆解。
- * 详见：https://docs.opencv.ac.cn/4.12.0/d3/dc0/group__imgproc__shape.html
- */
-
-/**
- * 步骤：
- * 5.1 initializeContourPointSet() 初始化轮廓点
- *     读取基线，读取轮廓点。
- *     先用基线、canvas边缘条件等过滤掉一批轮廓点，剩下的轮廓点为集合P(0)。
- *     P(0)得存起来，后面迭代也要用到。
- * 5.2 用轮廓点集合P(0)拟合出椭圆方程F(0)。
- *     以集合P(0)为参考点，计算出每个参考点相对于椭圆方程F0圆点的方向和距离r(个体值)，
- *     然后进一步以方向计算出椭圆方程F0在该角度方向上的半径r(拟合值)，
- *     并进一步计算出当前的R²(0)。
- *     
- * 5.5 从集合P(0)中淘汰掉(r个体值 - r拟合值)²较大的轮廓点，剩下的轮廓点为集合P(1)
- * 5.6 迭代：集合P(1) => 椭圆方程F(1) => R²(1) => 集合P(2) => ...
- * 5.7 当R²(n) - R²(n-1) < 0.0010时，或迭代次数超过100次时，停止迭代
- * 5.8 椭圆作图，输出拟合参数等。
- * 5.9 计算接触角。
- * --------
- * 椭圆方程：
- *   [x / (w/2)]² + [y / (h/2)]² = 1
- *   以 x = r·cosθ ，y = r·sinθ 代入，得：
- *   r²·{[(2·cosθ)/w]²+[(2·sinθ)/h]²} = 1
- * 一些公式：
- *   R² = SSR / SST
- *      = 平方和[(r拟合值 - r均值)²] / 平方和[(r个体值 - r均值)²]
- *   SST = SSR + SSE
- *   平方和[(r个体值 - r均值)²] = 平方和[(r拟合值 - r均值)²] + 平方和[(r个体值 - r拟合值)²]
- */
-
-
-/**
- * 步骤4-5里确认基线的事件回调钩子
- */
-function onDetermineBaseline(event) { try {
-  // 初始化轮廓点
-  initializeContourPointSet()
-  // 拿初始化了的轮廓点进行椭圆点的迭代
-  const { R2Arr, ellipse } = ellipsePointIterate(contactAngleObj.contourPointAoa)
-  // 拿优化得到的椭圆计算接触角
-  calculateContactAngle(ellipse)
-  // 绘制椭圆
-  drawEllipse(ellipse)
-
-  // 发个通知
-  const dialogString = "OK"
-  my.dialog(dialogString)
-} catch (error) {
-  console.log("onDetermineBaseline()方法出错：", error)
-  errorDialog()
-}}
-
-
-/**
  * 初始化轮廓点
- * 用基线截距来扣除轮廓点中，显然在基线下面的点
- * 剩余的点作为初始轮廓点集合P(0)，存入全局对象
+ * @param { import("@techstark/opencv-js").MatVector } metVectorContours 轮廓点的MatVector对象
+ * 从metVectorContours中遍历读取轮廓点，过滤掉1%边框位置的点，剩下的点进行下一步椭圆轮廓迭代。
  */
-function initializeContourPointSet() { try {
-  // 接收轮廓点Mat对象
-  const metVectorContours = contactAngleObj.metVectorContours
+function initializeContourPointSet(metVectorContours) { try {
+  // 加载框
+  my.loading({
+    content: "正在拟合液滴轮廓……",
+  })
   // 声明一个数组用来接所有轮廓点，即集合P(0)
   const contourPointAoa = []
   // 接canvas的宽、高，以及1%和99%的尺寸位置宽高
@@ -1509,6 +1246,9 @@ function initializeContourPointSet() { try {
   // 报错检查：轮廓点集合P(0)是否为空
   if (contourPointAoa.length === 0) {
     // 是，则报错处理
+    // 关闭加载框
+    my.loading(false)
+    // 报错提示
     my.message({
       type: "error",
       content: "轮廓点数据不够，无法拟合。",
@@ -1517,24 +1257,29 @@ function initializeContourPointSet() { try {
     throw Error("轮廓点数据不够，无法拟合。")
   // 否则
   } else {
-    // 把所有轮廓点数组存入全局变量
-    contactAngleObj.contourPointAoa = contourPointAoa
+    // 继续进行椭圆迭代，以及绘制椭圆轮廓
+    ellipsePointIterate(contourPointAoa)
+    // 关闭加载框
+    my.loading(false)
   }
 } catch (error) {
   // 报错处理
   console.log("initializeContourPointSet()方法出错：", error)
+  // 关闭加载框
+  my.loading(false)
   throw Error(error)
 }}
 
 /**
  * 椭圆点的迭代
  * @param { Number[][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
- * @returns {{ 
- *   R2Arr: Number[],
- *   ellipse: import("@techstark/opencv-js").RotatedRect,
- * }} 椭圆拟合的R²数组，以及最后一次椭圆对象
- * 要先把轮廓坐标点根据椭圆中心点、旋转角迁移到到标准椭圆到坐标系下，再计算各类参数。
- * 这里有个难点，就是OpenCV的旋转，以顺时针为正；而数学的旋转，以逆时针为正。
+ * @note 会将ellipseObj、ellipseR2写入全局对象
+ * 每次迭代，都会拟合得到椭圆方程（参数）。
+ * 然后以椭圆中心坐标系，平移旋转拟合点。
+ * 然后过滤拟合度差点拟合点，并从上一轮过滤掉的拟合点里选择拟合度好的点，作为下一轮的拟合点。
+ * 反复迭代，直到收敛。
+ * 收敛条件：迭代次数达100次，或者R²大于0.99。
+ * 迭代过程中，也会逐渐缩小过滤阈值。
  */
 function ellipsePointIterate(contourPointAoa) { try {
   // --------设置参数--------
@@ -1554,8 +1299,8 @@ function ellipsePointIterate(contourPointAoa) { try {
   // 接阳性点数组、阴性点数组
   const positivePointAoa = contourPointAoa
   const negativePointAoa = []
-  // 每次迭代的R²值
-  const R2Arr = []
+  // 迭代所得的R²值
+  let R2 = null
   // 迭代收敛指针
   let isConverge = false
   // 迭代次数指针
@@ -1713,9 +1458,8 @@ function ellipsePointIterate(contourPointAoa) { try {
       // SST
       SST = SST + ((newPointR - pointRAve) ** 2)
     }
-    // 计算R²并推入数组
-    const R2 = SSR / SST
-    R2Arr.push(R2)
+    // 计算R²
+    R2 = SSR / SST
     // 看一看当前条件下的迭代是否收敛，即看看错误的数组是否为空
     if ((PFPointAoa.length === 0) && (NFPointAoa.length === 0)) {
       // 如果当前收敛了，就再看看R²是否满足要求，筛选容差还能不能再降
@@ -1736,11 +1480,11 @@ function ellipsePointIterate(contourPointAoa) { try {
       negativePointAoa.push(...PFPointAoa, ...NTPointAoa)
     }
   }
-  // 迭代完毕，返回R²数组，以及最后一次的椭圆参数
-  return {
-    R2Arr: R2Arr,
-    ellipse: ellipse,
-  }
+  // 迭代完毕，绘制椭圆轮廓
+  drawEllipse(ellipse)
+  // 把最后一次的R²、椭圆参数返回给全局对象
+  contactAngleObj.ellipseR2 = R2
+  contactAngleObj.ellipseObj = ellipse
 } catch (error) {
   // 报错处理
   console.log("ellipsePointIterate()方法出错：", error)
@@ -1748,195 +1492,10 @@ function ellipsePointIterate(contourPointAoa) { try {
 }}
 
 /**
- * 把点化归到以标准椭圆为坐标系的坐标内
- * @param { import("@techstark/opencv-js").RotatedRect } ellipse OpenCV的椭圆对象
- * @param { Number[] } pointArr x、y坐标数组
- * @returns { Number[] } 新的x、y坐标数组
- */
-function pointToEllipse(ellipse, pointArr) { try {
-  // 接椭圆中心点坐标
-  const ellipseCenterX = ellipse.center.x
-  const ellipseCenterY = ellipse.center.y
-  // 接椭圆旋转角
-  // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
-  const ellipseAngle = - ellipse.angle
-  // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
-  const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
-  const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
-  // 接X和Y坐标值
-  const pointX = pointArr[0]
-  const pointY = pointArr[1]
-  // 去中心化
-  const pointXCentered = pointX - ellipseCenterX
-  const pointYCentered = pointY - ellipseCenterY
-  // 旋转迁移：
-  // x' = xcosθ - ysinθ
-  // y' = xsinθ + ycosθ
-  const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
-  const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
-  // 返回新的坐标值
-  return [newPointX, newPointY]
-} catch (error) {
-  // 报错处理
-  console.log("pointToEllipse()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 计算接触角
- * @param { import("@techstark/opencv-js").RotatedRect } ellipse openCV的椭圆对象
- * @note 会读取interceptNumArrRef截距值、canvasRef画布对象的宽度值
- * 步骤：
- * 1.  把椭圆的2个截距点化归到以标准椭圆为坐标系的坐标内
- * 2.  以2个截距点坐标求解一个 y = ax + b 的方程
- * 3.  y = ax + b => r ~ θ关系的方程
- * 4.  椭圆方程：r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
- * 5.  解3和4的方程，得到θ（应该有2个解）
- * 6.  右θ得到两边的切线斜率
- *     斜率 = - (1 / tanθ) · (h / w)²
- * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
- */
-function calculateContactAngle(ellipse) {
-  // 先把2个截距点化归到以标准椭圆为坐标系的坐标内
-  // 接椭圆中心点坐标
-  const ellipseCenterX = ellipse.center.x
-  const ellipseCenterY = ellipse.center.y
-  // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
-  const ellipseAngle = - ellipse.angle
-  // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
-  const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
-  const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
-
-  console.log("椭圆：", ellipse)
-
-  // 接canvas高度
-  const canvasHeight = canvasRef.value.height
-  // 接截距点坐标
-  const interceptPoint1X = 0
-  const interceptPoint1Y = canvasHeight - interceptNumArrRef.value[0]
-  const interceptPoint2X = canvasRef.value.width
-  const interceptPoint2Y = canvasHeight - interceptNumArrRef.value[1]
-  // 去中心化
-  const interceptPoint1XCentered = interceptPoint1X - ellipseCenterX
-  const interceptPoint1YCentered = interceptPoint1Y - ellipseCenterY
-  const interceptPoint2XCentered = interceptPoint2X - ellipseCenterX
-  const interceptPoint2YCentered = interceptPoint2Y - ellipseCenterY
-  // 旋转迁移：
-  // x' = x·cosθ - y·sinθ
-  // y' = x·sinθ + y·cosθ
-  const newInterceptPoint1X = interceptPoint1XCentered * ellipseAngleCos - interceptPoint1YCentered * ellipseAngleSin
-  const newInterceptPoint1Y = interceptPoint1XCentered * ellipseAngleSin + interceptPoint1YCentered * ellipseAngleCos
-  const newInterceptPoint2X = interceptPoint2XCentered * ellipseAngleCos - interceptPoint2YCentered * ellipseAngleSin
-  const newInterceptPoint2Y = interceptPoint2XCentered * ellipseAngleSin + interceptPoint2YCentered * ellipseAngleCos
-  console.log(
-    `截距点化归到标准椭圆坐标系后的坐标：
-    (${ newInterceptPoint1X.toFixed(1) }, ${ newInterceptPoint1Y.toFixed(1) }),
-    (${ newInterceptPoint2X.toFixed(1) }, ${ newInterceptPoint2Y.toFixed(1) })`
-  )
-
-  // 解方程计算θ
-  // 基线截距的方程形式：(y - p1y) / (x - p1x) = (p2y - p1y) / (p2x - p1x)
-  // 防止分母为0，则更安全的写法为：(y - p1y) · (p2x - p1x) = (p2y - p1y) · (x - p1x)
-  // 令：kx = p2x - p1x；ky = p2y - p1y，则：
-  // kx · (y - p1y) = ky · (x - p1x)
-  // 又有：x = r · cosθ，y = r · sinθ，则有：
-  // kx · (r · sinθ - p1y) = ky · (r · cosθ - p1x)
-  // 化简得式①：r · (kx · sinθ - ky · cosθ) = (kx · p1y - ky · p1x)
-  // 而椭圆自身方程式②： 4 · r² · [(cosθ / w)² + (sinθ / h)²] = 1
-  // r必不为0，则①、②两式联立消除r，然后把sinθ、cosθ合并为cotθ，得：
-  // 在一个 a · cot²θ + b · cotθ + c = 0 的二次方程中：
-  //   a = (p2y - p1y)² - 4 · (p2x · p1y - p1x · p2y)² / w²
-  //   b = - 2 · (p2x - p1x) · (p2y - p1y)
-  //   c = (p2x - p1x)² - 4 · (p2x · p1y - p1x · p2y)² / h²
-  // 这里面，(p2x - p1x)、(p2y - p1y)、(p2x · p1y - p1x · p2y)²都是可复用的
-  // 令：
-  //   kx = p2x - p1x；
-  //   ky = p2y - p1y；
-  //   kmix = p2x · p1y - p1x · p2y；
-  // 则有：
-  //   a = ky² - (2 · kmix / w)²
-  //   b = - 2 · kx · ky
-  //   c = kx² - (2 · kmix / h)²
-  // 接参数，现在要尽可能简化参数名称
-  const w = ellipse.size.width
-  const h = ellipse.size.height
-  const kx = newInterceptPoint2X - newInterceptPoint1X
-  const ky = newInterceptPoint2Y - newInterceptPoint1Y
-  const kmix = newInterceptPoint2X * newInterceptPoint1Y - newInterceptPoint1X * newInterceptPoint2Y
-  const a = (ky ** 2) - ((2 * kmix / w) ** 2)
-  const b = - 2 * kx * ky
-  const c = (kx ** 2) - ((2 * kmix / h) ** 2)
-  // 然后开始解方程
-  // 对于 ax² + bx + c = 0 的二次方程：
-  // 判别式：Δ = delta = b² - 4ac
-  // 求根公式：(-b ± sqrt(delta)) / 2a
-  const delta = b ** 2 - (4 * a * c)
-  // 如果判别式小于0，则方程无解；等于0，有1个解，都不行
-  if (delta <= 0) {
-    console.log("方程没有2个解，delta: ", delta)
-  // 如果判别式大于0，则方程有2个解
-  } else {
-    // 先确认接触角是否大于90°
-    // 以原始基线而言，其x=椭圆圆心时，y是在椭圆圆心上方还是下方
-    // 如果y在椭圆圆心上方，即差值<0，则接触角小于90°；如果y在椭圆圆心下方，即差值>0，则接触角大于90°
-    const isContactAngleObtuse =
-      (interceptPoint2Y - interceptPoint1Y)
-        / interceptPoint2X
-        * ellipseCenterX
-        + interceptPoint1Y
-        - ellipseCenterY
-    // 获取cot(θ)的2个解
-    const cotPositive = (- b + Math.sqrt(delta)) / (2 * a)
-    const cotNegative = (- b - Math.sqrt(delta)) / (2 * a)
-    // 计算切线斜率
-    // 切线斜率 = - (1 / tanθ) · (h / w)² = - cotθ · (h / w)²
-    const slopePositive = - cotPositive * ((h / w) ** 2)
-    const slopeNegative = - cotNegative * ((h / w) ** 2)
-    // 基线斜率
-    const baselineSlope = ky / kx
-    // 基线及切线角度
-    const anglePositive = Math.atan(slopePositive) * 180 / Math.PI
-    const angleNegative = Math.atan(slopeNegative) * 180 / Math.PI
-    const angleBaseline = Math.atan(baselineSlope) * 180 / Math.PI
-    // 根据切线斜率计算角度：Math.atan()方法返回[-90°, 90°]的弧度值
-    // 所以需要判断情况：
-    // 对于基线为负、接触角小于90°的情况：
-    //   左侧切线角度为负，右侧切线角度为正：
-    //   左接触角 =  - (-基线角度(负)) + (-左侧切线角度(负)) = + 基线角度(负) - 左侧切线角度(负)
-    //   右接触角 =  + (-基线角度(负)) + (+右侧切线角度(正)) = - 基线角度(负) + 右侧切线角度(正)
-    // 对于基线为正、接触角小于90°的情况：
-    //   左侧切线角度为负，右侧切线角度为正：
-    //   左接触角 =  + (+基线角度(正)) + (-左侧切线角度(负)) = + 基线角度(正) - 左侧切线角度(负)
-    //   右接触角 =  - (+基线角度(正)) + (+右侧切线角度(正)) = - 基线角度(正) + 右侧切线角度(正)
-    // --------
-    // 对于基线为负、接触角大于90°的情况：
-    //   左侧切线角度为正，右侧切线角度为负：
-    //   左接触角 = 180 - (-基线角度(负)) - (+左侧切线角度(正)) = 180 + 基线角度(负) - 左侧切线角度(正)
-    //   右接触角 = 180 + (-基线角度(负)) - (-右侧切线角度(负)) = 180 - 基线角度(负) + 右侧切线角度(负)
-    // 对于基线为正、接触角大于90°的情况：
-    //   左侧切线角度为正，右侧切线角度为负：
-    //   左接触角 = 180 + (+基线角度(正)) - (+左侧切线角度(正)) = 180 + 基线角度(正) - 左侧切线角度(正)
-    //   右接触角 = 180 - (+基线角度(正)) - (-右侧切线角度(负)) = 180 - 基线角度(正) + 右侧切线角度(负)
-    // 左接触角：
-    const angleLeft =
-      (isContactAngleObtuse <= 0)
-        ? (angleBaseline - angleNegative)
-        : (180 + angleBaseline - anglePositive)
-    // 右接触角：
-    const angleRight =
-      (isContactAngleObtuse <= 0)
-        ? (- angleBaseline + anglePositive)
-        : 180 - angleBaseline + angleNegative
-    console.log("左接触角 = ", angleLeft)
-    console.log("右接触角 = ", angleRight)
-  }
-}
-
-/**
  * 绘制椭圆
  */
 function drawEllipse(rotatedRectEllipse) { try {
-  // 拷贝一个原画布，用于绘制轮廓
+  // 拷贝一个灰度图的原画布Mat对象，用于绘制轮廓
   let ellipseHandleMat = new contactAngleObj.cv.Mat()
   contactAngleObj.matGray.copyTo(ellipseHandleMat)
   // 定义椭圆的颜色为白色（8位图，255即为白色）
@@ -1978,6 +1537,12 @@ function drawEllipse(rotatedRectEllipse) { try {
     canvasRef.value,
     ellipseHandleMat
   )
+  // 绘制完成，恢复绘图上下文ctx设置
+  ctxSetting()
+  // 把canvas的原图保存好，以方便恢复
+  contactAngleObj.imageDataEllipse = contactAngleObj.ctx.getImageData(
+    0, 0, canvasRef.value.width, canvasRef.value.height
+  )
   // 释放Mat对象
   ellipseHandleMat.delete()
 } catch (error) {
@@ -1986,6 +1551,488 @@ function drawEllipse(rotatedRectEllipse) { try {
   throw Error(error)
 }}
 
+/**
+ * 轮廓粗细调的切换
+ * @note 会触发绘制轮廓
+ */
+function contourCoarseToggle() { try {
+  // 如果目前是细调，则要修改为粗调
+  if (isContourCoarseRef.value === false) {
+    // 粗调的阈值数组
+    const thresholdNumArr = [
+      // 主参数和辅助参数
+      thresholdNumArrRef.value[0], thresholdNumArrRef.value[1],
+      // 主参数的下限/上限
+      0, 255,
+      // 主参数的mark标记
+      0, 85, 170, 255,
+      // 辅助参数的下限/上限
+      0, 255,
+      // 辅助参数的mark标记
+      0, 85, 170, 255
+    ]
+    // 赋值
+    // （这一步会触发绘图）
+    thresholdNumArrRef.value = thresholdNumArr
+    // 更新标记：则切换为粗调
+    isContourCoarseRef.value = true
+  // 如果目前是粗调，要改为细调
+  } else {
+    // 刷新细调滑块
+    // （这一步会触发绘图）
+    refreshContourFineSlider()
+    // 更新标记：切换为细调
+    isContourCoarseRef.value = false
+  }
+} catch (error) {
+  console.log("contourCoarseToggle()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 步骤3里刷新细调滑块的具体方法
+ * @note 会触发绘制轮廓
+ */
+function refreshContourFineSlider() { try {
+  // 接收主参数和辅助参数
+  const mainParam = thresholdNumArrRef.value[0]
+  const auxParam = thresholdNumArrRef.value[1]
+  // 找主参数的下限：主参数的下限必须不小于0，不大于243
+  const mainParamMin = Math.max(0,
+    Math.min(243, (mainParam - 6))
+  )
+  // 找辅助参数的下限：辅助参数的下限必须不小于0，不大于243
+  const auxParamMin = Math.max(0,
+    Math.min(243, (auxParam - 6))
+  )
+  // 细调的阈值数组
+  const thresholdNumArr = [
+    // 主参数和辅助参数
+    mainParam, auxParam,
+    // 主参数的下限/上限
+    mainParamMin, mainParamMin + 12,
+    // 主参数的mark标记
+    mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12,
+    // 辅助参数的下限/上限
+    auxParamMin, auxParamMin + 12,
+    // 辅助参数的mark标记
+    auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12,
+  ]
+  // 赋值
+  // （这一步会触发绘图）
+  thresholdNumArrRef.value = thresholdNumArr
+} catch (error) {
+  console.log("refreshContourFineSlider()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * @步骤4 选择基线
+ */
+
+/**
+ * @note 因为模板绑定，所以interceptNumArrRef.value一旦改变，就会触发绘图
+ * 用户有2种交互：点击canvas（粗调，单次）和拖动滑轨（细调，连续）。
+ * 粗调：修改滑轨的值 + 滑轨上下限等，进而触发绘图。
+ * 细调：
+ *   连续：修改滑轨的值，进而触发绘图。
+ *   单次：因为操作canvas，所以滑轨的change状态一直是被劫持的，没有end。
+ * 所以肯定会触发绘图，那就不用再考虑绘图了。
+ * @note 步骤4的难点就在于：canvas里，原点在左上角
+ *   因为滑轨仍然要和用户思维统一，所以仅在绘制时把坐标轴翻转一下即可
+ */
+
+/**
+ * 步骤4的初始化方法
+ */
+function taskToStep4() { try {
+  // canvas初始化
+  ctxSetting()
+  // 状态机切换到4
+  taskStatusRef.value = 4
+} catch (error) {
+  console.log("taskToStep4()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 步骤4里刷新滑块的具体方法
+ * @param { Number } [leftInterceptValue] 左截距
+ * @param { Number } [rightInterceptValue] 右截距
+ * @note 会触发绘制基线截距
+ */
+function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { try {
+  // 接收左截距和右截距
+  const leftIntercept =
+    leftInterceptValue
+      ? Math.floor(leftInterceptValue)
+      : interceptNumArrRef.value[0]
+  const rightIntercept =
+    rightInterceptValue
+      ? Math.floor(rightInterceptValue)
+      : interceptNumArrRef.value[1]
+  // 接canvas高
+  const canvasHeight = canvasRef.value.height
+  // 根据高计算截距的上下限范围，目前以高的1/15为限度。
+  // 截距需能被6整除。所以是除以90。
+  // 整除后，乘以2是阶梯的宽度，乘以3是mark的宽度。
+  // 除此以外，得确保截距最小单位起码是1。
+  const delta = Math.max(Math.floor(canvasHeight / 90), 1)
+  // 找左截距的下限：左截距的下限必须不小于0，不大于canvas的高度
+  const leftParamMin = Math.max(0,
+    Math.min(canvasHeight, (leftIntercept - (delta * 3)))
+  )
+  // 找右截距的下限：右截距的下限必须不小于0，不大于canvas的高度
+  const rightParamMin = Math.max(0,
+    Math.min(canvasHeight, (rightIntercept - (delta * 3)))
+  )
+  // 细调的阈值数组
+  const interceptNumArr = [
+    // 左截距和右截距
+    leftIntercept, rightIntercept,
+    // 左截距的下限/上限
+    leftParamMin, leftParamMin + (delta * 6),
+    // 左截距的mark标记
+    leftParamMin, leftParamMin + (delta * 2),
+    leftParamMin + (delta * 4), leftParamMin + (delta * 6),
+    // 右截距的下限/上限
+    rightParamMin, rightParamMin + (delta * 6),
+    // 右截距的mark标记
+    rightParamMin, rightParamMin + (delta * 2),
+    rightParamMin + (delta * 4), rightParamMin + (delta * 6),
+  ]
+  // 赋值
+  // 这一步会触发绘图
+  interceptNumArrRef.value = interceptNumArr
+} catch (error) {
+  console.log("refreshBaselineFineSlider()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 截距粗调的具体实现方法
+ * 把canvas分成3个区域：左区（0.35）、中区（0.30）、右区（0.35）。
+ * 中区则直接升降基线；左区和右区则升降各自部分的截距。
+ * 这里以用户视角来设置截距值，所以要用canvasRef.value.height - realElementY
+ * @note 会触发绘制基线截距
+ */
+function chooseBaseline() { try {
+  // 点击位置的实际X、Y坐标：canvas视角
+  const realElementX = elementX.value * contactAngleObj.canvasScaling
+  const realElementY = elementY.value * contactAngleObj.canvasScaling
+  // 接收canvas宽度和高度
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+  // 转为用户视角Y坐标（X坐标的用户视角和canvas视角是一致的）
+  const userElementY = canvasHeight - realElementY
+  // 左区
+  if (realElementX < (canvasWidth * 0.35)) {
+    // 接目前的右截距
+    const rightIntercept = interceptNumArrRef.value[1]
+    // 计算左截距
+    // (左截距 - 右截距) / (userElementY - 右截距) = canvasWidth / (canvasWidth - realElementX)
+    // 计算公式中，没有除以0的情况，所以不用考虑bug
+    const leftIntercept =
+      canvasWidth / (canvasWidth - realElementX)
+      * (userElementY - rightIntercept)
+      + rightIntercept
+    // 用左截距和右截距来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(leftIntercept, rightIntercept)
+  // 右区
+  } else if (realElementX > (canvasWidth * 0.65)) {
+    // 接目前的左截距
+    const leftIntercept = interceptNumArrRef.value[0]
+    // 计算右截距
+    // (右截距 - 左截距) / (userElementY - 左截距) = canvasWidth / realElementX
+    // 计算公式中，没有除以0的情况，所以不用考虑bug
+    const rightIntercept =
+      canvasWidth / realElementX
+      * (userElementY - leftIntercept)
+      + leftIntercept
+    // 用左截距和右截距来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(leftIntercept, rightIntercept)
+  // 中区
+  } else {
+    // 直接拿着用户视角的Y坐标来刷新细调滑块
+    // （这一步会触发绘图）
+    refreshBaselineFineSlider(userElementY, userElementY)
+  }
+} catch (error) {
+  console.log("chooseBaseline()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 绘制基线方法的防抖方法
+ * @note 给drawBaseline做了防抖处理，以防止频繁调用
+ */
+const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
+
+/**
+ * 步骤4里绘制基线的具体方法
+ */
+function drawBaseline() { try {
+  // 接收左截距和右截距
+  const leftIntercept = interceptNumArrRef.value[0]
+  const rightIntercept = interceptNumArrRef.value[1]
+  // 接canvas宽度和高度
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+  // 计算真正的截距（canvas视角的y值）
+  const realLeftY = canvasHeight - leftIntercept
+  const realRightY = canvasHeight - rightIntercept
+  // 先对选框进行初始化
+  contactAngleObj.ctx.putImageData(contactAngleObj.imageDataEllipse, 0, 0)
+  // 然后直接绘图即可
+  contactAngleObj.ctx.beginPath()
+  // 起点坐标
+  contactAngleObj.ctx.moveTo(0, realLeftY)
+  // 终点坐标
+  contactAngleObj.ctx.lineTo(canvasWidth, realRightY)
+  // 连线
+  contactAngleObj.ctx.stroke()
+} catch (error) {
+  console.log("drawBaseline()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 步骤4里返回上一步的事件回调钩子
+ */
+function onBackToStep3(event) { try {
+  // 直接返回上一步即可
+  // 不能初始化上一步，如果初始化的话，已有轮廓数据的暂存参数设置就会丢失
+  taskStatusRef.value = 3
+} catch (error) {
+  console.log("onBackToStep3()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * @步骤5 计算接触角
+ */
+
+/**
+ * 椭圆拟合
+ * OpenCV.js的椭圆拟合方法：fitEllipse()、fitEllipseAMS()和fitEllipseDirect()：
+ * fitEllipse()：基于最小二乘法拟合旋转矩形，再转换为椭圆参数；无显式椭圆约束；可能输出非椭圆结果。
+ * fitEllipseAMS()：近似均方（Approximate Mean Square, AMS）方法求解，可迭代优化，最小化几何距离误差；
+ *     强制满足椭圆判别式（B² - 4AC < 0）；严格保证椭圆解。
+ * fitEllipseDirect()：直接最小二乘法（Direct Least Squares）求解（基于Fitzgibbon 1991的闭式解）。
+ *     通过约束（4AC - B² = 1）以消除尺度模糊性；严格保证椭圆解。
+ * 详见：https://docs.opencv.ac.cn/4.12.0/d3/dc0/group__imgproc__shape.html
+ */
+
+/**
+ * 椭圆方程：
+ *   [x / (w/2)]² + [y / (h/2)]² = 1
+ *   以 x = r·cosθ ，y = r·sinθ 代入，得：
+ *   r²·{[(2·cosθ)/w]²+[(2·sinθ)/h]²} = 1
+ * 一些公式：
+ *   R² = SSR / SST
+ *      = 平方和[(r拟合值 - r均值)²] / 平方和[(r个体值 - r均值)²]
+ *   SST = SSR + SSE
+ *   平方和[(r个体值 - r均值)²] = 平方和[(r拟合值 - r均值)²] + 平方和[(r个体值 - r拟合值)²]
+ */
+
+/**
+ * 步骤4-5里确认基线的事件回调钩子
+ */
+function onDetermineBaseline(event) { try {
+  // 拿上一步优化得到的椭圆计算接触角
+  const contactAngle = calculateContactAngle(contactAngleObj.ellipseObj)
+  // 发个通知
+  my.dialog(
+    `本次所测得接触角为 ${ contactAngle.toFixed(2) }° 。可调整参数多次测量，具体结果详见下方数据表格。`
+  )
+} catch (error) {
+  console.log("onDetermineBaseline()方法出错：", error)
+  errorDialog()
+}}
+
+/**
+ * 计算接触角
+ * @note 会读取contactAngleObj.ellipseObj椭圆对象，interceptNumArrRef截距值，canvasRef画布对象的宽度值
+ * 步骤：
+ * 1.  把椭圆的2个截距点化归到以标准椭圆为坐标系的坐标内
+ * 2.  以2个截距点坐标求解一个 y = ax + b 的方程
+ * 3.  y = ax + b => r ~ θ关系的方程
+ * 4.  椭圆方程：r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
+ * 5.  解3和4的方程，得到θ（应该有2个解）
+ * 6.  右θ得到两边的切线斜率
+ *     斜率 = - (1 / tanθ) · (h / w)²
+ * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
+ */
+function calculateContactAngle() { try {
+  /** 接椭圆对象 @type { import("@techstark/opencv-js").RotatedRect } */
+  const ellipse = contactAngleObj.ellipseObj
+  // 先把2个截距点化归到以标准椭圆为坐标系的坐标内
+  // 接椭圆中心点坐标
+  const ellipseCenterX = ellipse.center.x
+  const ellipseCenterY = ellipse.center.y
+  // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
+  const ellipseAngle = - ellipse.angle
+  // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
+  const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
+  const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
+  // 接canvas高度
+  const canvasHeight = canvasRef.value.height
+  // 接截距点坐标
+  const interceptPoint1X = 0
+  const interceptPoint1Y = canvasHeight - interceptNumArrRef.value[0]
+  const interceptPoint2X = canvasRef.value.width
+  const interceptPoint2Y = canvasHeight - interceptNumArrRef.value[1]
+  // 去中心化
+  const interceptPoint1XCentered = interceptPoint1X - ellipseCenterX
+  const interceptPoint1YCentered = interceptPoint1Y - ellipseCenterY
+  const interceptPoint2XCentered = interceptPoint2X - ellipseCenterX
+  const interceptPoint2YCentered = interceptPoint2Y - ellipseCenterY
+  // 旋转迁移：
+  // x' = x·cosθ - y·sinθ
+  // y' = x·sinθ + y·cosθ
+  const newInterceptPoint1X = interceptPoint1XCentered * ellipseAngleCos - interceptPoint1YCentered * ellipseAngleSin
+  const newInterceptPoint1Y = interceptPoint1XCentered * ellipseAngleSin + interceptPoint1YCentered * ellipseAngleCos
+  const newInterceptPoint2X = interceptPoint2XCentered * ellipseAngleCos - interceptPoint2YCentered * ellipseAngleSin
+  const newInterceptPoint2Y = interceptPoint2XCentered * ellipseAngleSin + interceptPoint2YCentered * ellipseAngleCos
+  // 解方程计算θ
+  // 基线截距的方程形式：(y - p1y) / (x - p1x) = (p2y - p1y) / (p2x - p1x)
+  // 防止分母为0，则更安全的写法为：(y - p1y) · (p2x - p1x) = (p2y - p1y) · (x - p1x)
+  // 令：kx = p2x - p1x；ky = p2y - p1y，则：
+  // kx · (y - p1y) = ky · (x - p1x)
+  // 又有：x = r · cosθ，y = r · sinθ，则有：
+  // kx · (r · sinθ - p1y) = ky · (r · cosθ - p1x)
+  // 化简得式①：r · (kx · sinθ - ky · cosθ) = (kx · p1y - ky · p1x)
+  // 而椭圆自身方程式②： 4 · r² · [(cosθ / w)² + (sinθ / h)²] = 1
+  // r必不为0，则①、②两式联立消除r，然后把sinθ、cosθ合并为cotθ，得：
+  // 在一个 a · cot²θ + b · cotθ + c = 0 的二次方程中：
+  //   a = (p2y - p1y)² - 4 · (p2x · p1y - p1x · p2y)² / w²
+  //   b = - 2 · (p2x - p1x) · (p2y - p1y)
+  //   c = (p2x - p1x)² - 4 · (p2x · p1y - p1x · p2y)² / h²
+  // 这里面，(p2x - p1x)、(p2y - p1y)、(p2x · p1y - p1x · p2y)²都是可复用的
+  // 令：
+  //   kx = p2x - p1x；
+  //   ky = p2y - p1y；
+  //   kmix = p2x · p1y - p1x · p2y；
+  // 则有：
+  //   a = ky² - (2 · kmix / w)²
+  //   b = - 2 · kx · ky
+  //   c = kx² - (2 · kmix / h)²
+  // 接参数，现在要尽可能简化参数名称
+  const w = ellipse.size.width
+  const h = ellipse.size.height
+  const kx = newInterceptPoint2X - newInterceptPoint1X
+  const ky = newInterceptPoint2Y - newInterceptPoint1Y
+  const kmix = newInterceptPoint2X * newInterceptPoint1Y - newInterceptPoint1X * newInterceptPoint2Y
+  const a = (ky ** 2) - ((2 * kmix / w) ** 2)
+  const b = - 2 * kx * ky
+  const c = (kx ** 2) - ((2 * kmix / h) ** 2)
+  // 然后开始解方程
+  // 对于 ax² + bx + c = 0 的二次方程：
+  // 判别式：Δ = delta = b² - 4ac
+  // 求根公式：(-b ± sqrt(delta)) / 2a
+  const delta = b ** 2 - (4 * a * c)
+  // 如果判别式小于0，则方程无解；等于0，有1个解，都不行
+  if (delta <= 0) {
+    // 报错
+    console.log("方程没有2个解，delta: ", delta)
+    my.message({
+      type: "error",
+      content: "计算出错，拟合轮廓与基线无交点。",
+      duration: 10000
+    })
+    throw Error("方程没有2个解")
+  // 如果判别式大于0，则方程有2个解
+  } else {
+    // 获取cot(θ)的2个解
+    const cotPositive = (- b + Math.sqrt(delta)) / (2 * a)
+    const cotNegative = (- b - Math.sqrt(delta)) / (2 * a)
+    // 计算切线斜率
+    // 切线斜率 = - (1 / tanθ) · (h / w)² = - cotθ · (h / w)²
+    const slopePositive = - cotPositive * ((h / w) ** 2)
+    const slopeNegative = - cotNegative * ((h / w) ** 2)
+    // 基线斜率
+    const baselineSlope = ky / kx
+    // 基线及切线角度
+    const anglePositive = Math.atan(slopePositive) * 180 / Math.PI
+    const angleNegative = Math.atan(slopeNegative) * 180 / Math.PI
+    const angleBaseline = Math.atan(baselineSlope) * 180 / Math.PI
+    // 根据切线斜率计算角度：Math.atan()方法返回[-90°, 90°]的弧度值
+    // 所以需要判断情况：
+    // 对于基线为负、接触角小于90°的情况：
+    //   左侧切线角度为负，右侧切线角度为正：
+    //   左接触角 =  - (-基线角度(负)) + (-左侧切线角度(负)) = + 基线角度(负) - 左侧切线角度(负)
+    //   右接触角 =  + (-基线角度(负)) + (+右侧切线角度(正)) = - 基线角度(负) + 右侧切线角度(正)
+    // 对于基线为正、接触角小于90°的情况：
+    //   左侧切线角度为负，右侧切线角度为正：
+    //   左接触角 =  + (+基线角度(正)) + (-左侧切线角度(负)) = + 基线角度(正) - 左侧切线角度(负)
+    //   右接触角 =  - (+基线角度(正)) + (+右侧切线角度(正)) = - 基线角度(正) + 右侧切线角度(正)
+    // --------
+    // 对于基线为负、接触角大于90°的情况：
+    //   左侧切线角度为正，右侧切线角度为负：
+    //   左接触角 = 180 - (-基线角度(负)) - (+左侧切线角度(正)) = 180 + 基线角度(负) - 左侧切线角度(正)
+    //   右接触角 = 180 + (-基线角度(负)) - (-右侧切线角度(负)) = 180 - 基线角度(负) + 右侧切线角度(负)
+    // 对于基线为正、接触角大于90°的情况：
+    //   左侧切线角度为正，右侧切线角度为负：
+    //   左接触角 = 180 + (+基线角度(正)) - (+左侧切线角度(正)) = 180 + 基线角度(正) - 左侧切线角度(正)
+    //   右接触角 = 180 - (+基线角度(正)) - (-右侧切线角度(负)) = 180 - 基线角度(正) + 右侧切线角度(负)
+    // --------
+    // 看来基线正负不影响计算。那么只考虑接触角是否大于90°即可
+    // 以原始基线而言，其x=椭圆圆心时，y是在椭圆圆心上方还是下方
+    // 如果y在椭圆圆心上方，即差值<0，则接触角小于90°；如果y在椭圆圆心下方，即差值>0，则接触角大于90°
+    const isContactAngleObtuse =
+      (interceptPoint2Y - interceptPoint1Y) / interceptPoint2X * ellipseCenterX
+        + interceptPoint1Y - ellipseCenterY
+    // 左接触角：
+    const angleLeft =
+      (isContactAngleObtuse <= 0)
+        ? (angleBaseline - angleNegative)
+        : (180 + angleBaseline - anglePositive)
+    // 右接触角：
+    const angleRight =
+      (isContactAngleObtuse <= 0)
+        ? (- angleBaseline + anglePositive)
+        : 180 - angleBaseline + angleNegative
+    // 接触角均值
+    const angleAverage = (angleLeft + angleRight) / 2
+    // RD
+    const angleRD = Math.abs(angleLeft - angleRight) / angleAverage
+    // 返回结果给全局对象
+    resultRef.value.push([
+      contactAngleObj.filename,
+      angleAverage,
+      angleLeft,
+      angleRight,
+      angleRD,
+      contactAngleObj.ellipseR2
+    ])
+    // 返回接触角均值结果
+    return angleAverage
+  }
+} catch (error) {
+  // 报错处理
+  console.log("calculateContactAngle()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 下载结果
+ */
+function downloadResult(event) { try {
+  // 接一个AOA对象，第一个元素是表头，后面是数据
+  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "RD", "椭圆拟合R²"]]
+  // 填充数据
+  resultAoa.push(...resultRef.value)
+  // AOA对象转成xlsx文件
+  const workbook = aoaMapToWorkbook(resultAoa)
+  // 下载xlsx文件
+  downloadXlsx(workbook, "接触角数据.xlsx")
+} catch (error) {
+  // 报错处理
+  console.log("downloadResult()方法出错：", error)
+  errorDialog()
+}}
 
 </script>
 
