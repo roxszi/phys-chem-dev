@@ -23,6 +23,7 @@
       设置左、右调节滑轨，可微调左右截距，并实时查看基线效果。
       此步骤结束时将获得基线的截距。
   5.  计算接触角。此处不用再有交互。
+  这里有一个坑点，就是计算机的Y轴是向下为正的。
  -->
 
 <!--
@@ -242,7 +243,7 @@
     size="small"
   >
     <!-- 滑轨：左截距 -->
-    <div>左截距（px）：</div>
+    <div>【微调】左截距（px）：</div>
     <t-slider
       :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
@@ -252,7 +253,7 @@
       v-model="interceptNumArrRef[0]"
     /><t-divider />
     <!-- 滑轨：右截距 -->
-    <div>右截距（px）：</div>
+    <div>【微调】右截距（px）：</div>
     <t-slider
       :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
@@ -378,8 +379,8 @@ const interceptNumArrRef =  ref([0, 0])
  * @property { Number } rectXmin canvas元素块选框的X坐标小值
  * @property { Number } rectYmin canvas元素块选框的Y坐标小值
  * @property { ImageData } imageDataContour 轮廓图的canvas的图像数据
+ * @property { import("@techstark/opencv-js").MatVector } metVectorContours 轮廓点集MatVector对象
  * @property { Number[][] } contourPointAoa 轮廓点坐标数组
- * @property { Number } contourYMin 轮廓点Y坐标的最小值
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上
@@ -396,8 +397,8 @@ const contactAngleObj = {
   rectXmin: null,
   rectYmin: null,
   imageDataContour: null,
+  metVectorContours: null,
   contourPointAoa: [],
-  contourYMin: null,
 }
 
 /**
@@ -492,6 +493,10 @@ function onCanvasLongPress(event) { try {
  * 步骤4：绘制基线
  */
 function onCanvasClick(event) { try {
+  console.log(
+    `canvas点击：
+    (${ elementX.value * contactAngleObj.canvasScaling }, ${ elementY.value * contactAngleObj.canvasScaling })`
+  )
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2时，即选框绘制阶段，则调用选框方法
@@ -709,7 +714,7 @@ function chooseRect() { try {
   const realElementY = elementY.value * contactAngleObj.canvasScaling
   // 如果选框X边界未定义，即第一次点击，需记录下选框的左上角坐标
   if (!contactAngleObj.rectXmax) {
-    // 接<canvas>宽高
+    // 接canvas宽高
     const canvasWidth = canvasRef.value.width
     const canvasHeight = canvasRef.value.height
     // 计算初始化选框的半宽/半高：四分之一的<canvas>宽高，然后选小的值
@@ -888,9 +893,9 @@ function sureRect(isDetermine = false) { try {
   canvasRectDataRemove()
   // 执行裁剪
   let cropped = contactAngleObj.matGray.roi(rect)
-  // 在<canvas>上绘制裁剪结果
+  // 在canvas上绘制裁剪结果
   contactAngleObj.cv.imshow(canvasRef.value, cropped)
-  // 绘制完成，更新contactAngleObj.matGray为cropped
+  // 绘制完成，更新Mat灰度图对象contactAngleObj.matGray为裁剪后的Mat灰度图对象cropped
   contactAngleObj.matGray.delete()
   contactAngleObj.matGray = cropped
   cropped = null
@@ -1103,225 +1108,31 @@ function makeContour(matBinary, isDetermine = false) { try {
   )
   // 把画布图案绘制在canvas上
   contactAngleObj.cv.imshow(canvasRef.value, contoursHandleMat)
+  // 完毕，销毁相关对象以回收内存
+  // 销毁轮廓层次结构
+  metHierarchy.delete()
+  // 销毁画布
+  contoursHandleMat.delete()
   // 如果确定了轮廓
   if (isDetermine === true) {
-    // 提取轮廓点数据
-    contourPointsToAoa(metVectorContours)
+    // 销毁旧的全局轮廓点MetVector数据（如果有的话）
+    contactAngleObj.metVectorContours?.delete()
+    // 储存新的全局轮廓点MetVector数据
+    contactAngleObj.metVectorContours = metVectorContours
+    metVectorContours = null
     // canvas保存一下方便后面恢复
     contactAngleObj.imageDataContour = contactAngleObj.ctx.getImageData(
       0, 0, canvasRef.value.width, canvasRef.value.height
     )
     // 状态机切换到4
     taskToStep4()
+  // 如果没确定轮廓
+  } else {
+    // 销毁本地轮廓点AOA数组的MetVector数据
+    metVectorContours.delete()
   }
-  // 完毕，销毁相关对象以回收内存
-  // 销毁轮廓AOA数组
-  metVectorContours.delete()
-  // 销毁轮廓层次结构
-  metHierarchy.delete()
-  // 销毁画布
-  contoursHandleMat.delete()
 } catch (error) {
   console.log("makeContour()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 把轮廓点数组转换为AOA数组
- * @param { import("@techstark/opencv-js").MatVector } metVectorContours OpenCV的轮廓AOA数组对象
- */
-function contourPointsToAoa(metVectorContours) { try {
-  // 加载框
-  my.loading("正在存储轮廓坐标...")
-  // 声明一个数组用来接所有轮廓点
-  const contourPointAoa = []
-
-  // 声明一个Map对象来验证重复点
-  const contourPointMap = new Map()
-
-
-  // 用于收集所有轮廓点的纵坐标最小值，先用canvas的高度初始化（即最大值）
-  let contourYMin = canvasRef.value.height
-
-
-  // console.log("metVectorContours.size(): ", metVectorContours.size())
-  // console.log("someContour: ", metVectorContours.get(50))
-  
-  // 接收canvas的1%和99%的尺寸位置宽高
-  const canvasWidthPer1 = Math.ceil(canvasRef.value.width * 0.01)
-  const canvasHeightPer1 = Math.ceil(canvasRef.value.height * 0.01)
-  const canvasWidthPer99 = Math.floor(canvasRef.value.width * 0.99)
-  const canvasHeightPer99 = Math.floor(canvasRef.value.height * 0.99)
-  
-  // 遍历所有轮廓点
-  forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
-    // 挨个获取轮廓
-    const contour = metVectorContours.get(i)
-    // 获取坐标
-    forEachContourPoint: for (let j = 0; j < contour.rows; j++) {
-      // 接X和Y坐标
-      const pointX = contour.data32S[j * 2]
-      const pointY = contour.data32S[j * 2 + 1]
-      // 如果坐标点在边缘1%位置处，则忽略
-      if (
-        (pointX <= canvasWidthPer1)
-          || (pointY <= canvasHeightPer1)
-          || (pointX >= canvasWidthPer99)
-          || (pointY >= canvasHeightPer99)
-        ) {
-        // 跳过本次循环
-        continue forEachContourPoint
-      } else {
-        // 否则，继续处理
-
-        // // 直接装箱
-        // contourPointAoa.push([pointX, pointY])
-        // // 如果y坐标小于minY，则更新minY
-        // if (pointY < contourYMin) { contourYMin = pointY }
-
-        // 把X、Y点组合为一个整数，用于Map对象验证重复点
-        const pointForMap = pointX * 1000 + pointY
-        // 如果Map对象中不存在该点
-        if (contourPointMap.has(pointForMap) === false) {
-          // 则添加该点到Map对象中
-          contourPointMap.set(
-            pointForMap,
-            1
-          )
-          // 如果y坐标小于minY，则更新minY
-          if (pointY < contourYMin) { contourYMin = pointY }
-        // 如果Map对象中存在该点
-        } else {
-          // 则该点的value + 1
-          contourPointMap.set(
-            pointForMap,
-            contourPointMap.get(pointForMap) + 1
-          )
-        }
-
-      }
-    }
-    // 删除轮廓释放内存
-    contour.delete()
-
-  }
-
-  // 按照有效点的出现次数进行排序了
-  // 先建个数组用于接收点
-  const contourPointMapAoa = []
-  // 接收点
-  contourPointMap.forEach((value, key) => {
-    contourPointMapAoa.push([key, value])
-  })
-  // 按照出险次数排序
-  contourPointMapAoa.sort((contourPointMapA, contourPointMapB) => 
-    // 倒序，大的在前
-    contourPointMapB[1] - contourPointMapA[1]
-  )
-  // 选取排前的点
-  for (let i = 0; i < contourPointMapAoa.length; i++) {
-    // 获取点
-    const point = contourPointMapAoa[i][0]
-    // 拆箱：组X和Y坐标
-    const x = Math.floor(point / 1000)
-    const y = point % 1000
-    // 装箱
-    contourPointAoa.push([x, y])
-  }
-
-  // console.log("contourPointAoa: ", contourPointAoa)
-
-  // metAllContours
-  // OpenCV工厂方法，把坐标点转为Mat对象
-  let metAllContours = new contactAngleObj.cv.matFromArray(
-    // rows，行数：双通道，所以行数就是[x, y]作为一个Point的行数
-    contourPointAoa.length,
-    // cols，列数：1列，即一个Point维度
-    1,
-    // type，数据类型：CV_32SC2，即32位有符号整数，但是有2个通道（x，y）
-    contactAngleObj.cv.CV_32SC2,
-    // array，用于创建Mat对象的数组
-    contourPointAoa.flat(),
-  )
-  // console.log("metAllContours: ", metAllContours)
-
-  // 获取轮廓
-  let rotatedRectContours = contactAngleObj.cv.fitEllipseAMS(metAllContours)
-  console.log("rotatedRectContours: ", rotatedRectContours)
-
-  // 椭圆对象的属性：
-  // rotatedRectContours.angle
-  // rotatedRectContours.center.x | y
-  // rotatedRectContours.size.width | height
-
-  // 如果angle大于90度，则width和height不如互换了
-
-
-
-
-  // 获取所拟合椭圆的最近点（以方便求解R²）
-
-
-  // 拷贝一个原画布，用于绘制轮廓
-  let ellipseHandleMat = new contactAngleObj.cv.Mat()
-  contactAngleObj.matGray.copyTo(ellipseHandleMat)
-  // 定义椭圆的颜色为白色（8位图，255即为白色）
-  const ellipseColor = new contactAngleObj.cv.Scalar(255)
-  // 轮廓粗细
-  const ellipseThickness = 2 * contactAngleObj.canvasScaling
-
-  // 接size
-  const ellipseSize = rotatedRectContours.size
-  // 凑个新的axes
-  const ellipseAxes = new contactAngleObj.cv.Size(
-    // width
-    ellipseSize.width * 0.5,
-    // height
-    ellipseSize.height * 0.5
-  )
-
-  // 画椭圆
-  contactAngleObj.cv.ellipse(
-    // img：Mat对象
-    ellipseHandleMat,
-    // center：椭圆中心点坐标
-    rotatedRectContours.center,
-    // axes：主轴尺寸的一半
-    ellipseAxes,
-    // angle：椭圆旋转角度（以度为单位）
-    rotatedRectContours.angle,
-    // startAngle：椭圆弧的起始角度（以度为单位）
-    0,
-    // endAngle：椭圆弧的结束角度（以度为单位）
-    360,
-    // color：椭圆颜色
-    ellipseColor,
-    // thickness：椭圆线条粗细，如果为负值，则表示填充椭圆
-    ellipseThickness,
-    // lineType：线条类型
-    contactAngleObj.cv.LINE_AA
-  )
-  // 渲染椭圆到画布上
-  contactAngleObj.cv.imshow(
-    canvasRef.value,
-    ellipseHandleMat
-  )
-
-
-  debugger
-  // 把所有轮廓点数组、yMin存入全局变量
-  contactAngleObj.contourPointAoa = contourPointAoa
-  contactAngleObj.contourYMin = contourYMin
-  // 停止加载框
-  my.loading(false)
-
-  
-
-} catch (error) {
-  // 停止加载框
-  my.loading(false)
-  // 报错处理
-  console.log("contourPointsToAoa()方法出错：", error)
   throw Error(error)
 }}
 
@@ -1401,7 +1212,10 @@ function refreshContourFineSlider() { try {
 }}
 
 /**
- * @步骤4
+ * @步骤4 选择基线
+ */
+
+/**
  * @note 因为模板绑定，所以interceptNumArrRef.value一旦改变，就会触发绘图
  * 用户有2种交互：点击canvas（粗调，单次）和拖动滑轨（细调，连续）。
  * 粗调：修改滑轨的值 + 滑轨上下限等，进而触发绘图。
@@ -1409,23 +1223,18 @@ function refreshContourFineSlider() { try {
  *   连续：修改滑轨的值，进而触发绘图。
  *   单次：因为操作canvas，所以滑轨的change状态一直是被劫持的，没有end。
  * 所以肯定会触发绘图，那就不用再考虑绘图了。
+ * @note 步骤4的难点就在于：【canvas里，原点在左上角】
+ *   因为滑轨仍然要和用户思维统一，所以仅在绘制时把坐标轴翻转一下即可
  */
 
 /**
  * 步骤4的初始化方法
- * 步骤4的难点就在于：【canvas里，原点在左上角】
- *   因为滑轨仍然要和用户思维统一，所以仅在绘制时把坐标轴翻转一下即可
  */
 function taskToStep4() { try {
-  // 接收轮廓的纵坐标最小值
-  const contourYMin = contactAngleObj.contourYMin || 0
   // canvas初始化
   ctxSetting()
   // 状态机切换到4
   taskStatusRef.value = 4
-  // 用轮廓的纵坐标最小值来初始化细调滑块
-  // （这一步会触发绘图）
-  refreshBaselineFineSlider(contourYMin, contourYMin)
 } catch (error) {
   console.log("taskToStep4()方法出错：", error)
   throw Error(error)
@@ -1489,6 +1298,7 @@ function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { tr
  * 截距粗调的具体实现方法
  * 把canvas分成3个区域：左区（0.35）、中区（0.30）、右区（0.35）。
  * 中区则直接升降基线；左区和右区则升降各自部分的截距。
+ * 这里以用户视角来设置截距值，所以要用canvasRef.value.height - realElementY
  * @note 会触发绘制基线截距
  */
 function chooseBaseline() { try {
@@ -1556,16 +1366,16 @@ function drawBaseline() { try {
   const canvasWidth = canvasRef.value.width
   const canvasHeight = canvasRef.value.height
   // 计算真正的截距（canvas视角的y值）
-  const leftY = canvasHeight - leftIntercept
-  const rightY = canvasHeight - rightIntercept
+  const realLeftY = canvasHeight - leftIntercept
+  const realRightY = canvasHeight - rightIntercept
   // 先对选框进行初始化
   contactAngleObj.ctx.putImageData(contactAngleObj.imageDataContour, 0, 0)
   // 然后直接绘图即可
   contactAngleObj.ctx.beginPath()
   // 起点坐标
-  contactAngleObj.ctx.moveTo(0, leftY)
+  contactAngleObj.ctx.moveTo(0, realLeftY)
   // 终点坐标
-  contactAngleObj.ctx.lineTo(canvasWidth, rightY)
+  contactAngleObj.ctx.lineTo(canvasWidth, realRightY)
   // 连线
   contactAngleObj.ctx.stroke()
 } catch (error) {
@@ -1586,25 +1396,8 @@ function onBackToStep3(event) { try {
 }}
 
 /**
- * 步骤4里确认基线的事件回调钩子
+ * @步骤5 计算接触角
  */
-function onDetermineBaseline(event) { try {
-  // 接收左截距和右截距
-  const leftIntercept = interceptNumArrRef.value[0]
-  const rightIntercept = interceptNumArrRef.value[1]
-  // 接收轮廓点数组
-  const contourPointAoa = contactAngleObj.contourPointAoa
-  // 发个通知
-  const dialogString =
-    `已成功获取液滴数据。
-    轮廓数据点 ${ contourPointAoa.length } 个。
-    基线左、右截距分别为：${ leftIntercept } px，${ rightIntercept } px。
-    后续功能敬请期待！`
-  my.dialog(dialogString)
-} catch (error) {
-  console.log("onDetermineBaseline()方法出错：", error)
-  errorDialog()
-}}
 
 /**
  * 椭圆拟合
@@ -1616,48 +1409,583 @@ function onDetermineBaseline(event) { try {
  *     通过约束（4AC - B² = 1）以消除尺度模糊性；严格保证椭圆解。
  * 详见：https://docs.opencv.ac.cn/4.12.0/d3/dc0/group__imgproc__shape.html
  */
-function ellipseFit(points) {
 
-  contactAngleObj.cv.fitEllipseAMS()
+/**
+ * 步骤：
+ * 5.1 initializeContourPointSet() 初始化轮廓点
+ *     读取基线，读取轮廓点。
+ *     先用基线、canvas边缘条件等过滤掉一批轮廓点，剩下的轮廓点为集合P(0)。
+ *     P(0)得存起来，后面迭代也要用到。
+ * 5.2 用轮廓点集合P(0)拟合出椭圆方程F(0)。
+ *     以集合P(0)为参考点，计算出每个参考点相对于椭圆方程F0圆点的方向和距离r(个体值)，
+ *     然后进一步以方向计算出椭圆方程F0在该角度方向上的半径r(拟合值)，
+ *     并进一步计算出当前的R²(0)。
+ *     
+ * 5.5 从集合P(0)中淘汰掉(r个体值 - r拟合值)²较大的轮廓点，剩下的轮廓点为集合P(1)
+ * 5.6 迭代：集合P(1) => 椭圆方程F(1) => R²(1) => 集合P(2) => ...
+ * 5.7 当R²(n) - R²(n-1) < 0.0010时，或迭代次数超过100次时，停止迭代
+ * 5.8 椭圆作图，输出拟合参数等。
+ * 5.9 计算接触角。
+ * --------
+ * 椭圆方程：
+ *   [x / (w/2)]² + [y / (h/2)]² = 1
+ *   以 x = r·cosθ ，y = r·sinθ 代入，得：
+ *   r²·{[(2·cosθ)/w]²+[(2·sinθ)/h]²} = 1
+ * 一些公式：
+ *   R² = SSR / SST
+ *      = 平方和[(r拟合值 - r均值)²] / 平方和[(r个体值 - r均值)²]
+ *   SST = SSR + SSE
+ *   平方和[(r个体值 - r均值)²] = 平方和[(r拟合值 - r均值)²] + 平方和[(r个体值 - r拟合值)²]
+ */
 
 
-  
+/**
+ * 步骤4-5里确认基线的事件回调钩子
+ */
+function onDetermineBaseline(event) { try {
+  // 初始化轮廓点
+  initializeContourPointSet()
+  // 拿初始化了的轮廓点进行椭圆点的迭代
+  const { R2Arr, ellipse } = ellipsePointIterate(contactAngleObj.contourPointAoa)
+  // 拿优化得到的椭圆计算接触角
+  calculateContactAngle(ellipse)
+  // 绘制椭圆
+  drawEllipse(ellipse)
+
+  // 发个通知
+  const dialogString = "OK"
+  my.dialog(dialogString)
+} catch (error) {
+  console.log("onDetermineBaseline()方法出错：", error)
+  errorDialog()
+}}
+
+
+/**
+ * 初始化轮廓点
+ * 用基线截距来扣除轮廓点中，显然在基线下面的点
+ * 剩余的点作为初始轮廓点集合P(0)，存入全局对象
+ */
+function initializeContourPointSet() { try {
+  // 接收轮廓点Mat对象
+  const metVectorContours = contactAngleObj.metVectorContours
+  // 声明一个数组用来接所有轮廓点，即集合P(0)
+  const contourPointAoa = []
+  // 接canvas的宽、高，以及1%和99%的尺寸位置宽高
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+  const canvasEdgePercentage = 0.01
+  const canvasWidthPerMin = Math.ceil(canvasWidth * canvasEdgePercentage)
+  const canvasHeightPerMin = Math.ceil(canvasHeight * canvasEdgePercentage)
+  const canvasWidthPerMax = Math.floor(canvasWidth * (1 - canvasEdgePercentage))
+  const canvasHeightPerMax = Math.floor(canvasHeight * (1 - canvasEdgePercentage))
+  // 遍历所有轮廓点
+  forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
+    // 挨个获取轮廓
+    const contour = metVectorContours.get(i)
+    // 获取坐标
+    forEachContourPoint: for (let j = 0; j < contour.rows; j++) {
+      // 接X和Y坐标
+      const pointX = contour.data32S[j * 2]
+      const pointY = contour.data32S[j * 2 + 1]
+      // 如果坐标点在边缘1%位置处，则忽略
+      if (
+        (pointX <= canvasWidthPerMin)
+          || (pointY <= canvasHeightPerMin)
+          || (pointX >= canvasWidthPerMax)
+          || (pointY >= canvasHeightPerMax)
+        ) {
+        // 跳过本次循环
+        continue forEachContourPoint
+      // 否则，作为有效点继续处理
+      } else {
+        // 直接装箱
+        contourPointAoa.push([pointX, pointY])
+      }
+    }
+    // 删除轮廓释放内存
+    contour.delete()
+  }
+  // 报错检查：轮廓点集合P(0)是否为空
+  if (contourPointAoa.length === 0) {
+    // 是，则报错处理
+    my.message({
+      type: "error",
+      content: "轮廓点数据不够，无法拟合。",
+      duration: 10000
+    })
+    throw Error("轮廓点数据不够，无法拟合。")
+  // 否则
+  } else {
+    // 把所有轮廓点数组存入全局变量
+    contactAngleObj.contourPointAoa = contourPointAoa
+  }
+} catch (error) {
+  // 报错处理
+  console.log("initializeContourPointSet()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 椭圆点的迭代
+ * @param { Number[][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
+ * @returns {{ 
+ *   R2Arr: Number[],
+ *   ellipse: import("@techstark/opencv-js").RotatedRect,
+ * }} 椭圆拟合的R²数组，以及最后一次椭圆对象
+ * 要先把轮廓坐标点根据椭圆中心点、旋转角迁移到到标准椭圆到坐标系下，再计算各类参数。
+ * 这里有个难点，就是OpenCV的旋转，以顺时针为正；而数学的旋转，以逆时针为正。
+ */
+function ellipsePointIterate(contourPointAoa) { try {
+  // --------设置参数--------
+  // 迭代筛选时候的容差，也就是阳性点转阴性点的阈值
+  let tolerancePercentage = 0.2
+  // 迭代筛选时候的最小容差
+  const minTolerancePercentage = 0.001
+  // 阴性点转阳性点的阈值叠加因子
+  const negativePointThreshold = 0.7
+  // R²的收敛阈值
+  const R2Threshold = 0.99
+  // 最大迭代次数
+  const maxIterationCount = 100
+  // --------计算--------
+  // 实际用于判断的迭代筛选时候的最小容差
+  const realMinTolerancePercentage = minTolerancePercentage * 2
+  // 接阳性点数组、阴性点数组
+  const positivePointAoa = contourPointAoa
+  const negativePointAoa = []
+  // 每次迭代的R²值
+  const R2Arr = []
+  // 迭代收敛指针
+  let isConverge = false
+  // 迭代次数指针
+  let iterationCount = 0
+  // 椭圆对象
+  let ellipse = {}
+  // 迭代：拟合不收敛 且 迭代次数不超过最大迭代次数时执行
+  // 迭代需要做的事情：
+  // 1.  用positivePointAoa计算得到椭圆方程
+  // 2.  根据椭圆方程，筛选出新的positivePointAoa和negativePointAoa
+  // 3.  判断是否收敛
+  contourPointIterate: while (!isConverge && (iterationCount < maxIterationCount)) {
+    // 开始迭代，迭代次数+1
+    iterationCount = iterationCount + 1
+    // OpenCV工厂方法，把轮廓坐标点positivePointAoa转为轮廓Mat对象
+    let metContourPoints = new contactAngleObj.cv.matFromArray(
+      // rows，行数：双通道，所以行数就是[x, y]作为一个Point的行数
+      positivePointAoa.length,
+      // cols，列数：1列，即一个Point维度
+      1,
+      // type，数据类型：CV_32SC2，即32位有符号整数，但是有2个通道（x，y）
+      contactAngleObj.cv.CV_32SC2,
+      // array，用于创建Mat对象的数组，即把轮廓坐标点的AOA数组扁平化后传进去
+      positivePointAoa.flat(),
+    )
+    // 获得椭圆对象
+    ellipse = contactAngleObj.cv.fitEllipseAMS(metContourPoints)
+    // 删除metContourPoints释放内存
+    metContourPoints.delete()
+    metContourPoints = null
+    // 处理椭圆方程，得到新的positivePointAoa和negativePointAoa
+    // 新的阳-对、阳-错、阴-对、阴-错数组
+    const PTPointAoa = []
+    const PFPointAoa = []
+    const NTPointAoa = []
+    const NFPointAoa = []
+    // 声明一个接收统计参数的数组
+    const statisticDataArr = []
+    let statisticPointRSum = 0
+    // 接长轴w、短轴h、以及两者平方乘积/4，以简化后面r的计算公式
+    const ellipseW = ellipse.size.width
+    const ellipseH = ellipse.size.height
+    const ellipseHalfHWSquare = (ellipseW ** 2) * (ellipseH ** 2) / 4
+    // 接椭圆中心点坐标
+    const ellipseCenterX = ellipse.center.x
+    const ellipseCenterY = ellipse.center.y
+    // 接椭圆旋转角
+    // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
+    const ellipseAngle = - ellipse.angle
+    // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
+    const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
+    const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
+    // 用椭圆方程来筛选点（阳性）
+    // 阳性点的筛选条件
+    const maxPosttiveTolerance = 1 + tolerancePercentage
+    const minPosttiveTolerance = 1 - tolerancePercentage
+    // 遍历所有旧的阳性轮廓点
+    forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
+      // 根据椭圆参数，调整点的相对坐标
+      // 接X和Y坐标值
+      const pointX = positivePointAoa[i][0]
+      const pointY = positivePointAoa[i][1]
+      // 去中心化
+      const pointXCentered = pointX - ellipseCenterX
+      const pointYCentered = pointY - ellipseCenterY
+      // 旋转迁移：
+      // x' = xcosθ - ysinθ
+      // y' = xsinθ + ycosθ
+      const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
+      const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
+      // 计算点的半径
+      const newPointR = Math.sqrt(newPointX ** 2 + newPointY ** 2)
+      // 计算角度（弧度单位）
+      const pointRad = Math.atan2(newPointY, newPointX)
+      // 通过角度（弧度单位）计算距离椭圆最近的相关点的r
+      // r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
+      // => r² = (w² · h² / 4) / [(h · cosθ)² + (w · sinθ)²]
+      const ellipseRSquare = ellipseHalfHWSquare /
+        (((ellipseH * Math.cos(pointRad)) ** 2) + ((ellipseW * Math.sin(pointRad)) ** 2))
+      // 计算椭圆在该方向的半径
+      const ellipseR = ellipseRSquare ** 0.5
+      // 筛选点
+      if (
+        (newPointR < ellipseR * minPosttiveTolerance)
+          || (newPointR > ellipseR * maxPosttiveTolerance)
+      ) {
+        // 不好的【阳性】点，把初始坐标数据丢进【阳性-错误】点数组
+        PFPointAoa.push([pointX, pointY])
+      } else {
+        // 好的【阳性】点，把初始坐标数据丢进【阳性-正确】点数组
+        PTPointAoa.push([pointX, pointY])
+      }
+      // 把用于统计计算的数值装箱
+      statisticDataArr.push([newPointR, ellipseR])
+      statisticPointRSum = statisticPointRSum + newPointR
+    }
+    // 用椭圆方程来筛选点（阴性）
+    // 阴性点的筛选条件
+    const maxNegativeTolerance = 1 + tolerancePercentage * negativePointThreshold
+    const minNegativeTolerance = 1 - tolerancePercentage * negativePointThreshold
+    // 遍历所有旧的阴性轮廓点
+    // 其实和上面的操作几乎完全相同，只有最后2步不同
+    forEachNegativePoint: for (let i = 0; i < negativePointAoa.length; i++) {
+      // 接X和Y坐标值
+      const pointX = negativePointAoa[i][0]
+      const pointY = negativePointAoa[i][1]
+      // 去中心化
+      const pointXCentered = pointX - ellipseCenterX
+      const pointYCentered = pointY - ellipseCenterY
+      // 旋转迁移：
+      // x' = xcosθ - ysinθ
+      // y' = xsinθ + ycosθ
+      const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
+      const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
+      // 计算点的半径
+      const newPointR = Math.sqrt(newPointX ** 2 + newPointY ** 2)
+      // 计算角度（弧度单位）
+      const pointRad = Math.atan2(newPointY, newPointX)
+      // 通过角度（弧度单位）计算距离椭圆最近的相关点的r
+      // r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
+      // => r² = (w² · h² / 4) / [(h · cosθ)² + (w · sinθ)²]
+      const ellipseRSquare = ellipseHalfHWSquare / 
+        (((ellipseH * Math.cos(pointRad)) ** 2) + ((ellipseW * Math.sin(pointRad)) ** 2))
+      // 计算椭圆在该方向的半径
+      const ellipseR = ellipseRSquare ** 0.5
+      // 筛选点
+      if (
+        (newPointR < ellipseR * minNegativeTolerance)
+          || (newPointR > ellipseR * maxNegativeTolerance)
+      ) {
+        // 不好的【阴性】点，把初始坐标数据丢进【阴性-正确】点数组
+        NTPointAoa.push([pointX, pointY])
+      } else {
+        // 好的【阴性】点，把初始坐标数据丢进【阴性-错误】点数组
+        NFPointAoa.push([pointX, pointY])
+      }
+      // 阴性点不需要统计计算
+    }
+    // 处理统计数据，获得R²
+    // R² = 1 - SSE / SST = SSR / SST
+    //    = 1 - 平方和[(r拟合值 - r个体值)²] / 平方和[(r个体值 - r均值)²]
+    //    = 平方和[(r拟合值 - r均值)²] / 平方和[(r个体值 - r均值)²]
+    // 获取数据样本数量、r均值、声明SSR、SST
+    const pointLength = statisticDataArr.length
+    const pointRAve = statisticPointRSum / pointLength
+    let SSR = 0
+    let SST = 0
+    // 遍历以计算SSR和SST
+    for (let i = 0; i < pointLength; i++) {
+      // 接newPointR, ellipseR
+      const newPointR = statisticDataArr[i][0]
+      const ellipseR = statisticDataArr[i][1]
+      // SSR
+      SSR = SSR + ((ellipseR - pointRAve) ** 2)
+      // SST
+      SST = SST + ((newPointR - pointRAve) ** 2)
+    }
+    // 计算R²并推入数组
+    const R2 = SSR / SST
+    R2Arr.push(R2)
+    // 看一看当前条件下的迭代是否收敛，即看看错误的数组是否为空
+    if ((PFPointAoa.length === 0) && (NFPointAoa.length === 0)) {
+      // 如果当前收敛了，就再看看R²是否满足要求，筛选容差还能不能再降
+      if ((R2 >= R2Threshold) || (tolerancePercentage < realMinTolerancePercentage)) {
+        // 如果R²达到0.99，或者筛选容差没有下降空间了
+        isConverge = true
+      // 如果R²不到0.99，同时筛选容差还有下降空间
+      } else {
+        // 那就上强度：筛选容差再降一半
+        tolerancePercentage = tolerancePercentage / 2
+      }
+    // 如果当前没收敛
+    } else {
+      // 更新阳性、阴性点点数组
+      positivePointAoa.length = 0
+      positivePointAoa.push(...PTPointAoa, ...NFPointAoa)
+      negativePointAoa.length = 0
+      negativePointAoa.push(...PFPointAoa, ...NTPointAoa)
+    }
+  }
+  // 迭代完毕，返回R²数组，以及最后一次的椭圆参数
+  return {
+    R2Arr: R2Arr,
+    ellipse: ellipse,
+  }
+} catch (error) {
+  // 报错处理
+  console.log("ellipsePointIterate()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 把点化归到以标准椭圆为坐标系的坐标内
+ * @param { import("@techstark/opencv-js").RotatedRect } ellipse OpenCV的椭圆对象
+ * @param { Number[] } pointArr x、y坐标数组
+ * @returns { Number[] } 新的x、y坐标数组
+ */
+function pointToEllipse(ellipse, pointArr) { try {
+  // 接椭圆中心点坐标
+  const ellipseCenterX = ellipse.center.x
+  const ellipseCenterY = ellipse.center.y
+  // 接椭圆旋转角
+  // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
+  const ellipseAngle = - ellipse.angle
+  // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
+  const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
+  const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
+  // 接X和Y坐标值
+  const pointX = pointArr[0]
+  const pointY = pointArr[1]
+  // 去中心化
+  const pointXCentered = pointX - ellipseCenterX
+  const pointYCentered = pointY - ellipseCenterY
+  // 旋转迁移：
+  // x' = xcosθ - ysinθ
+  // y' = xsinθ + ycosθ
+  const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
+  const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
+  // 返回新的坐标值
+  return [newPointX, newPointY]
+} catch (error) {
+  // 报错处理
+  console.log("pointToEllipse()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 计算接触角
+ * @param { import("@techstark/opencv-js").RotatedRect } ellipse openCV的椭圆对象
+ * @note 会读取interceptNumArrRef截距值、canvasRef画布对象的宽度值
+ * 步骤：
+ * 1.  把椭圆的2个截距点化归到以标准椭圆为坐标系的坐标内
+ * 2.  以2个截距点坐标求解一个 y = ax + b 的方程
+ * 3.  y = ax + b => r ~ θ关系的方程
+ * 4.  椭圆方程：r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
+ * 5.  解3和4的方程，得到θ（应该有2个解）
+ * 6.  右θ得到两边的切线斜率
+ *     斜率 = - (1 / tanθ) · (h / w)²
+ * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
+ */
+function calculateContactAngle(ellipse) {
+  // 先把2个截距点化归到以标准椭圆为坐标系的坐标内
+  // 接椭圆中心点坐标
+  const ellipseCenterX = ellipse.center.x
+  const ellipseCenterY = ellipse.center.y
+  // 轮廓坐标点迁移到标准椭圆坐标系下的话，应该是反过来旋转，也就是逆时针旋转
+  const ellipseAngle = - ellipse.angle
+  // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
+  const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
+  const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
+
+  console.log("椭圆：", ellipse)
+
+  // 接canvas高度
+  const canvasHeight = canvasRef.value.height
+  // 接截距点坐标
+  const interceptPoint1X = 0
+  const interceptPoint1Y = canvasHeight - interceptNumArrRef.value[0]
+  const interceptPoint2X = canvasRef.value.width
+  const interceptPoint2Y = canvasHeight - interceptNumArrRef.value[1]
+  // 去中心化
+  const interceptPoint1XCentered = interceptPoint1X - ellipseCenterX
+  const interceptPoint1YCentered = interceptPoint1Y - ellipseCenterY
+  const interceptPoint2XCentered = interceptPoint2X - ellipseCenterX
+  const interceptPoint2YCentered = interceptPoint2Y - ellipseCenterY
+  // 旋转迁移：
+  // x' = x·cosθ - y·sinθ
+  // y' = x·sinθ + y·cosθ
+  const newInterceptPoint1X = interceptPoint1XCentered * ellipseAngleCos - interceptPoint1YCentered * ellipseAngleSin
+  const newInterceptPoint1Y = interceptPoint1XCentered * ellipseAngleSin + interceptPoint1YCentered * ellipseAngleCos
+  const newInterceptPoint2X = interceptPoint2XCentered * ellipseAngleCos - interceptPoint2YCentered * ellipseAngleSin
+  const newInterceptPoint2Y = interceptPoint2XCentered * ellipseAngleSin + interceptPoint2YCentered * ellipseAngleCos
+  console.log(
+    `截距点化归到标准椭圆坐标系后的坐标：
+    (${ newInterceptPoint1X.toFixed(1) }, ${ newInterceptPoint1Y.toFixed(1) }),
+    (${ newInterceptPoint2X.toFixed(1) }, ${ newInterceptPoint2Y.toFixed(1) })`
+  )
+
+  // 解方程计算θ
+  // 基线截距的方程形式：(y - p1y) / (x - p1x) = (p2y - p1y) / (p2x - p1x)
+  // 防止分母为0，则更安全的写法为：(y - p1y) · (p2x - p1x) = (p2y - p1y) · (x - p1x)
+  // 令：kx = p2x - p1x；ky = p2y - p1y，则：
+  // kx · (y - p1y) = ky · (x - p1x)
+  // 又有：x = r · cosθ，y = r · sinθ，则有：
+  // kx · (r · sinθ - p1y) = ky · (r · cosθ - p1x)
+  // 化简得式①：r · (kx · sinθ - ky · cosθ) = (kx · p1y - ky · p1x)
+  // 而椭圆自身方程式②： 4 · r² · [(cosθ / w)² + (sinθ / h)²] = 1
+  // r必不为0，则①、②两式联立消除r，然后把sinθ、cosθ合并为cotθ，得：
+  // 在一个 a · cot²θ + b · cotθ + c = 0 的二次方程中：
+  //   a = (p2y - p1y)² - 4 · (p2x · p1y - p1x · p2y)² / w²
+  //   b = - 2 · (p2x - p1x) · (p2y - p1y)
+  //   c = (p2x - p1x)² - 4 · (p2x · p1y - p1x · p2y)² / h²
+  // 这里面，(p2x - p1x)、(p2y - p1y)、(p2x · p1y - p1x · p2y)²都是可复用的
+  // 令：
+  //   kx = p2x - p1x；
+  //   ky = p2y - p1y；
+  //   kmix = p2x · p1y - p1x · p2y；
+  // 则有：
+  //   a = ky² - (2 · kmix / w)²
+  //   b = - 2 · kx · ky
+  //   c = kx² - (2 · kmix / h)²
+  // 接参数，现在要尽可能简化参数名称
+  const w = ellipse.size.width
+  const h = ellipse.size.height
+  const kx = newInterceptPoint2X - newInterceptPoint1X
+  const ky = newInterceptPoint2Y - newInterceptPoint1Y
+  const kmix = newInterceptPoint2X * newInterceptPoint1Y - newInterceptPoint1X * newInterceptPoint2Y
+  const a = (ky ** 2) - ((2 * kmix / w) ** 2)
+  const b = - 2 * kx * ky
+  const c = (kx ** 2) - ((2 * kmix / h) ** 2)
+  // 然后开始解方程
+  // 对于 ax² + bx + c = 0 的二次方程：
+  // 判别式：Δ = delta = b² - 4ac
+  // 求根公式：(-b ± sqrt(delta)) / 2a
+  const delta = b ** 2 - (4 * a * c)
+  // 如果判别式小于0，则方程无解；等于0，有1个解，都不行
+  if (delta <= 0) {
+    console.log("方程没有2个解，delta: ", delta)
+  // 如果判别式大于0，则方程有2个解
+  } else {
+    // 先确认接触角是否大于90°
+    // 以原始基线而言，其x=椭圆圆心时，y是在椭圆圆心上方还是下方
+    // 如果y在椭圆圆心上方，即差值<0，则接触角小于90°；如果y在椭圆圆心下方，即差值>0，则接触角大于90°
+    const isContactAngleObtuse =
+      (interceptPoint2Y - interceptPoint1Y)
+        / interceptPoint2X
+        * ellipseCenterX
+        + interceptPoint1Y
+        - ellipseCenterY
+    // 获取cot(θ)的2个解
+    const cotPositive = (- b + Math.sqrt(delta)) / (2 * a)
+    const cotNegative = (- b - Math.sqrt(delta)) / (2 * a)
+    // 计算切线斜率
+    // 切线斜率 = - (1 / tanθ) · (h / w)² = - cotθ · (h / w)²
+    const slopePositive = - cotPositive * ((h / w) ** 2)
+    const slopeNegative = - cotNegative * ((h / w) ** 2)
+    // 基线斜率
+    const baselineSlope = ky / kx
+    // 基线及切线角度
+    const anglePositive = Math.atan(slopePositive) * 180 / Math.PI
+    const angleNegative = Math.atan(slopeNegative) * 180 / Math.PI
+    const angleBaseline = Math.atan(baselineSlope) * 180 / Math.PI
+    // 根据切线斜率计算角度：Math.atan()方法返回[-90°, 90°]的弧度值
+    // 所以需要判断情况：
+    // 对于基线为负、接触角小于90°的情况：
+    //   左侧切线角度为负，右侧切线角度为正：
+    //   左接触角 =  - (-基线角度(负)) + (-左侧切线角度(负)) = + 基线角度(负) - 左侧切线角度(负)
+    //   右接触角 =  + (-基线角度(负)) + (+右侧切线角度(正)) = - 基线角度(负) + 右侧切线角度(正)
+    // 对于基线为正、接触角小于90°的情况：
+    //   左侧切线角度为负，右侧切线角度为正：
+    //   左接触角 =  + (+基线角度(正)) + (-左侧切线角度(负)) = + 基线角度(正) - 左侧切线角度(负)
+    //   右接触角 =  - (+基线角度(正)) + (+右侧切线角度(正)) = - 基线角度(正) + 右侧切线角度(正)
+    // --------
+    // 对于基线为负、接触角大于90°的情况：
+    //   左侧切线角度为正，右侧切线角度为负：
+    //   左接触角 = 180 - (-基线角度(负)) - (+左侧切线角度(正)) = 180 + 基线角度(负) - 左侧切线角度(正)
+    //   右接触角 = 180 + (-基线角度(负)) - (-右侧切线角度(负)) = 180 - 基线角度(负) + 右侧切线角度(负)
+    // 对于基线为正、接触角大于90°的情况：
+    //   左侧切线角度为正，右侧切线角度为负：
+    //   左接触角 = 180 + (+基线角度(正)) - (+左侧切线角度(正)) = 180 + 基线角度(正) - 左侧切线角度(正)
+    //   右接触角 = 180 - (+基线角度(正)) - (-右侧切线角度(负)) = 180 - 基线角度(正) + 右侧切线角度(负)
+    // 左接触角：
+    const angleLeft =
+      (isContactAngleObtuse <= 0)
+        ? (angleBaseline - angleNegative)
+        : (180 + angleBaseline - anglePositive)
+    // 右接触角：
+    const angleRight =
+      (isContactAngleObtuse <= 0)
+        ? (- angleBaseline + anglePositive)
+        : 180 - angleBaseline + angleNegative
+    console.log("左接触角 = ", angleLeft)
+    console.log("右接触角 = ", angleRight)
+  }
 }
 
-// const a = new cv.Mat(1, 1, cv.CV_32FC2, new cv.Point2(1, 2))
+/**
+ * 绘制椭圆
+ */
+function drawEllipse(rotatedRectEllipse) { try {
+  // 拷贝一个原画布，用于绘制轮廓
+  let ellipseHandleMat = new contactAngleObj.cv.Mat()
+  contactAngleObj.matGray.copyTo(ellipseHandleMat)
+  // 定义椭圆的颜色为白色（8位图，255即为白色）
+  const ellipseColor = new contactAngleObj.cv.Scalar(255)
+  // 轮廓粗细
+  const ellipseThickness = 2 * contactAngleObj.canvasScaling
+  // 接椭圆size
+  const ellipseSize = rotatedRectEllipse.size
+  // 凑个新的椭圆axes，因为椭圆绘制方法传参需要椭圆主轴尺寸一半的axes
+  const ellipseAxes = new contactAngleObj.cv.Size(
+    // width
+    ellipseSize.width * 0.5,
+    // height
+    ellipseSize.height * 0.5
+  )
+  // 绘制一个椭圆Mat对象
+  contactAngleObj.cv.ellipse(
+    // img：Mat对象
+    ellipseHandleMat,
+    // center：椭圆中心点坐标
+    rotatedRectEllipse.center,
+    // axes：主轴尺寸的一半
+    ellipseAxes,
+    // angle：椭圆旋转角度（以度为单位）
+    rotatedRectEllipse.angle,
+    // startAngle：椭圆弧的起始角度（以度为单位）
+    0,
+    // endAngle：椭圆弧的结束角度（以度为单位）
+    360,
+    // color：椭圆颜色
+    ellipseColor,
+    // thickness：椭圆线条粗细，如果为负值，则表示填充椭圆
+    ellipseThickness,
+    // lineType：线条类型
+    contactAngleObj.cv.LINE_AA
+  )
+  // 渲染椭圆Mat对象到画布上
+  contactAngleObj.cv.imshow(
+    canvasRef.value,
+    ellipseHandleMat
+  )
+  // 释放Mat对象
+  ellipseHandleMat.delete()
+} catch (error) {
+  // 报错处理
+  console.log("drawEllipse()方法出错：", error)
+  throw Error(error)
+}}
 
-function mergeMats(matVector) {
-    // 计算总点数
-    let totalPoints = 0;
-    for (let i = 0; i < matVector.size(); i++) {
-        let mat = matVector.get(i);
-        // 每个Mat应该是2通道，单列，所以行数就是点数
-        totalPoints = totalPoints + mat.rows;
-    }
-
-    // 创建合并后的Mat，行数为总点数，列数为1，类型为CV_32FC2
-    let mergedMat = new cv.Mat(totalPoints, 1, cv.CV_32FC2);
-
-    // 获取合并后Mat的数据（Float32Array视图）
-    let mergedData = mergedMat.data32F;
-
-    let offset = 0; // 数据偏移量（以浮点数计，每两个浮点数一个点）
-    for (let i = 0; i < matVector.size(); i++) {
-        let mat = matVector.get(i);
-        // 获取当前Mat的数据（Float32Array）
-        let data = mat.data32F;
-        // 将当前Mat的数据复制到mergedData的相应位置
-        mergedData.set(data, offset);
-        // 更新偏移量：当前Mat有mat.rows个点，每个点2个浮点数，所以增加mat.rows * 2
-        offset += mat.rows * 2;
-    }
-
-    // 注意：我们不需要删除matVector中的Mat，因为matVector只是引用，我们通过get获取的Mat需要手动删除吗？
-    // 在OpenCV.js中，我们需要注意内存管理。但是，在这个函数中，我们只是读取matVector中的Mat，并没有创建新的Mat（除了mergedMat），所以不需要删除它们。
-    // 但是，调用者应该负责matVector中Mat的释放。
-
-    return mergedMat;
-}
 
 </script>
 

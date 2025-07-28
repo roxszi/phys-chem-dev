@@ -1,7 +1,11 @@
 "use strict"
 
-/**
- * 椭圆拟合
- * 主要使用cv.fitEllipse()、cv.fitEllipseAMS()、cv.fitEllipseDirect()等方法
- * cv.fitEllipse()应该不怎么用了。
- */
+// const a = Math.cos(60 * Math.PI / 180)
+
+const theta = Math.atan2(45, 45)
+
+console.log("theta: ", theta)
+
+const a = Math.tan(theta)
+
+console.log("a: ", a)
