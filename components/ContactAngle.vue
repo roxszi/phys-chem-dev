@@ -1655,12 +1655,15 @@ function refreshContourFineSlider() { try {
  * 步骤4的初始化方法
  */
 function taskToStep4() { try {
-  // 状态机切换到4
-  taskStatusRef.value = 4
   // canvas初始化
   ctxSetting()
   // 初始化截距
+  // 在滑轨没加载的情况下，不会触发绘图
   initialBaseline()
+  // 绘制基线
+  drawBaseline()
+  // 状态机切换到4
+  taskStatusRef.value = 4
 } catch (error) {
   console.log("taskToStep4()方法出错：", error)
   throw Error(error)
@@ -1701,7 +1704,7 @@ function initialBaseline() { try {
   // interceptNumArrRef.value[0] = userLeftIntercept
   // interceptNumArrRef.value[1] = userRightIntercept
   // 刷新滑块
-  // （这一步会触发绘图）
+  // （这一步会触发绘图，但是前提是滑轨组件加载完毕）
   refreshBaselineFineSlider(userLeftIntercept, userRightIntercept)
 } catch (error) {
   console.log("taskToStep4()方法出错：", error)
