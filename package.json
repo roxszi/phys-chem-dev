@@ -9,12 +9,10 @@
     "dev": "vitepress dev --port 8080",
     "build": "set VITE_BUILD_KIND=atomgit&& vitepress build"
   },
-  "dependencies": {
-    "@vueuse/core": "^13.6.0",
-    "tdesign-vue-next": "^1.15.1"
-  },
   "devDependencies": {
     "@techstark/opencv-js": "^4.11.0-release.1",
+    "@vueuse/core": "^13.6.0",
+    "tdesign-vue-next": "^1.15.1",
     "unplugin-auto-import": "^19.3.0",
     "unplugin-vue-components": "^28.8.0",
     "vitepress": "^1.6.3",

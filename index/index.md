@@ -24,7 +24,7 @@ hero:
     #   text: 实验
     #   link: experiment/
     - theme: brand
-      text: 接触角测量
+      text: 接触角
       link: experiment/contact-angle/
     - theme: alt
       text: 关于
