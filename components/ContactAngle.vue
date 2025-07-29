@@ -466,11 +466,6 @@ const {
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 onMounted(() => {
 
-  // 加载框
-  // 一上来就要先调用加载框，防止用户操作
-  // 等到<canvas>元素块和OpenCV.js都加载完毕后，才能停止加载框
-  my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
-
   // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
   // 解构赋值，得到监听钩子的stop()方法，用于停止监听
   const { stop: stopWatch } = watch(
@@ -499,6 +494,9 @@ onMounted(() => {
         //   })
         // })
         // 第二步：导入OpenCV.js库
+        // 先给个加载框
+        my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
+        // 导入OpenCV.js库
         loadOpenCV().then((cvReady) => {
           // 赋值给全局变量cv
           contactAngleObj.cv = cvReady
