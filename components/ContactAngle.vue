@@ -329,7 +329,7 @@
  -->
 <script setup>
 // 导入VUE的各类响应式方法
-import { ref, watch } from "vue"
+import { onMounted, ref, watch } from "vue"
 // 导入VueUse的各类响应式方法
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
@@ -338,10 +338,6 @@ import my from "@/utils/myFunc.js"
 import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 // 导入OpenCV.js加载器
 import { loadOpenCV } from "@/utils/opencvLoader.js"
-
-// 一上来就要先调用加载框，防止用户操作
-// 等到<canvas>元素块和OpenCV.js都加载完毕后，才能停止加载框
-my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
 
 /**
  * 任务状态：
@@ -456,10 +452,6 @@ const contactAngleObj = {
   imageDataEllipse: null
 }
 
-/**
- * @全局监听钩子
- */
-
 // 注册一个<canvas>的响应式鼠标点击监听
 const {
   // 鼠标点在<canvas>内部的X坐标、Y坐标
@@ -472,53 +464,67 @@ const {
   // stop: stopMouseInElement
 } = useMouseInElement(canvasRef)
 
-// 注册一个<canvas>长按的监听钩子
-onLongPress(
-  // 监听对象：<canvas>
-  canvasRef,
-  // 回调钩子
-  onCanvasLongPress,
-  // 配置：长按时间
-  // { delay: 500 }
-)
+/**
+ * @全局钩子 生命周期钩子、监听钩子
+ */
 
-// 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
-// 解构赋值，得到监听钩子的stop()方法，用于停止监听
-const { stop: stopWatch } = watch(
-  // 监听：canvasRef和canvasParentRef
-  [canvasRef, canvasParentRef],
-  // 回调
-  (newValue) => {
-    // 结构得到canvasRef和canvasParentRef的新值
-    const [newCanvasRef, newCanvasParentRef] = newValue
-    // 得确保新值均不为null，则完成初始化
-    if (newCanvasRef && newCanvasParentRef) {
-      // 停止监听
-      stopWatch()
-      // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
-      canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
-      // // 第二步：导入OpenCV.js库
-      // const cvImportPromise = import("@techstark/opencv-js")
-      // // 等待OpenCV.js加载完成
-      // cvImportPromise.then((cvReadyPromise) => {
-      //   // 动态导入钩子里面仍是个Promise对象，需要再then
-      //   cvReadyPromise.default.then((cv) => {
-      //     // 赋值给全局变量cv
-      //     contactAngleObj.cv = cv
-      //     // 停止加载框
-      //     my.loading(false)
-      //   })
-      // })
-      // 第二步：导入OpenCV.js库
-      loadOpenCV().then((cvReady) => {
-        // 赋值给全局变量cv
-        contactAngleObj.cv = cvReady
-        // 停止加载框
-        my.loading(false)
-      })
+// 生命周期钩子，SSG的SPA化实现，组件挂载后执行
+onMounted(() => {
+
+  // 加载框
+  // 一上来就要先调用加载框，防止用户操作
+  // 等到<canvas>元素块和OpenCV.js都加载完毕后，才能停止加载框
+  my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
+
+  // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
+  // 解构赋值，得到监听钩子的stop()方法，用于停止监听
+  const { stop: stopWatch } = watch(
+    // 监听：canvasRef和canvasParentRef
+    [canvasRef, canvasParentRef],
+    // 回调
+    (newValue) => {
+      // 结构得到canvasRef和canvasParentRef的新值
+      const [newCanvasRef, newCanvasParentRef] = newValue
+      // 得确保新值均不为null，则完成初始化
+      if (newCanvasRef && newCanvasParentRef) {
+        // 停止监听
+        stopWatch()
+        // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
+        canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
+        // // 第二步：导入OpenCV.js库
+        // const cvImportPromise = import("@techstark/opencv-js")
+        // // 等待OpenCV.js加载完成
+        // cvImportPromise.then((cvReadyPromise) => {
+        //   // 动态导入钩子里面仍是个Promise对象，需要再then
+        //   cvReadyPromise.default.then((cv) => {
+        //     // 赋值给全局变量cv
+        //     contactAngleObj.cv = cv
+        //     // 停止加载框
+        //     my.loading(false)
+        //   })
+        // })
+        // 第二步：导入OpenCV.js库
+        loadOpenCV().then((cvReady) => {
+          // 赋值给全局变量cv
+          contactAngleObj.cv = cvReady
+          // 停止加载框
+          my.loading(false)
+        })
+      }
     }
-  }
-)
+  )
+
+  // 注册一个<canvas>长按的监听钩子
+  onLongPress(
+    // 监听对象：<canvas>
+    canvasRef,
+    // 回调钩子
+    onCanvasLongPress,
+    // 配置：长按时间
+    // { delay: 500 }
+  )
+
+})
 
 /**
  * 长按<canvas>触发的回调

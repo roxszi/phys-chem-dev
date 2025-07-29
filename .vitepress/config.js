@@ -17,8 +17,6 @@ import { TDesignResolver } from "unplugin-vue-components/resolvers"
 // 导入项目信息文件
 import projectInfo from "./project-info/index.js"
 
-
-
 /** 基础url路径，用于部署 @type { String } */
 const baseUrl = projectInfo.baseUrl
 
