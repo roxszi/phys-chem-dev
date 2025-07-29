@@ -229,7 +229,6 @@
       </myButton>
       <myButton
         @click="onDetermineContour"
-        :disabled="(thresholdNumArrRef[0] === 0)"
         :block="false" theme="danger"
       >
         确认轮廓
@@ -279,7 +278,6 @@
       </myButton>
       <myButton
         @click="onDetermineBaseline"
-        :disabled="(thresholdNumArrRef[0] === 0)"
         :block="false" theme="danger"
       >
         确认基线
@@ -382,7 +380,7 @@ const canvasParentRef = useParentElement(canvasRef)
  */
 const thresholdNumArrRef = ref([
   // 主参数和辅助参数
-  0, 0,
+  255, 0,
   // 主参数的下限/上限
   0, 255,
   // 主参数的mark标记
@@ -434,6 +432,7 @@ const resultRef = ref([])
  * @property { Number } rectYmin canvas元素块选框的Y坐标小值
  * @property { import("@techstark/opencv-js").RotatedRect } ellipseObj 拟合得到的椭圆对象
  * @property { Number } ellipseR2 椭圆拟合的决定系数R²
+ * @property { [Number, Number] } baselinePoint 基线参考点
  * @property { ImageData } imageDataEllipse 椭圆的canvas的图像数据
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
@@ -453,6 +452,7 @@ const contactAngleObj = {
   rectYmin: null,
   ellipseObj: null,
   ellipseR2: null,
+  baselinePoint: null,
   imageDataEllipse: null
 }
 
@@ -999,7 +999,7 @@ function taskToStep3() { try {
   // 参数
   thresholdNumArrRef.value = [
     // 主参数和辅助参数
-    0, 0,
+    255, 0,
     // 主参数的下限/上限
     0, 255,
     // 主参数的mark标记
@@ -1307,6 +1307,8 @@ function ellipsePointIterate(contourPointAoa) { try {
   let iterationCount = 0
   // 椭圆对象
   let ellipse = {}
+  // 基线参考点
+  let baselinePoint = [0, 0]
   // 迭代：拟合不收敛 且 迭代次数不超过最大迭代次数时执行
   // 迭代需要做的事情：
   // 1.  用positivePointAoa计算得到椭圆方程
@@ -1392,6 +1394,10 @@ function ellipsePointIterate(contourPointAoa) { try {
       } else {
         // 好的【阳性】点，把初始坐标数据丢进【阳性-正确】点数组
         PTPointAoa.push([pointX, pointY])
+        // 基线参考点：取y值更大的点（也就是更低的点）
+        if (baselinePoint[1] < pointY) {
+          baselinePoint = [pointX, pointY]
+        }
       }
       // 把用于统计计算的数值装箱
       statisticDataArr.push([newPointR, ellipseR])
@@ -1436,6 +1442,10 @@ function ellipsePointIterate(contourPointAoa) { try {
       } else {
         // 好的【阴性】点，把初始坐标数据丢进【阴性-错误】点数组
         NFPointAoa.push([pointX, pointY])
+        // 基线参考点：取y值更大的点（也就是更低的点）
+        if (baselinePoint[1] < pointY) {
+          baselinePoint = [pointX, pointY]
+        }
       }
       // 阴性点不需要统计计算
     }
@@ -1485,6 +1495,7 @@ function ellipsePointIterate(contourPointAoa) { try {
   // 把最后一次的R²、椭圆参数返回给全局对象
   contactAngleObj.ellipseR2 = R2
   contactAngleObj.ellipseObj = ellipse
+  contactAngleObj.baselinePoint = baselinePoint
 } catch (error) {
   // 报错处理
   console.log("ellipsePointIterate()方法出错：", error)
@@ -1537,8 +1548,6 @@ function drawEllipse(rotatedRectEllipse) { try {
     canvasRef.value,
     ellipseHandleMat
   )
-  // 绘制完成，恢复绘图上下文ctx设置
-  ctxSetting()
   // 把canvas的原图保存好，以方便恢复
   contactAngleObj.imageDataEllipse = contactAngleObj.ctx.getImageData(
     0, 0, canvasRef.value.width, canvasRef.value.height
@@ -1650,6 +1659,48 @@ function taskToStep4() { try {
   ctxSetting()
   // 状态机切换到4
   taskStatusRef.value = 4
+  // 初始化截距
+  initialBaseline()
+} catch (error) {
+  console.log("taskToStep4()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 初始化基线截距的值
+ * 会读取椭圆角度、有效轮廓最低点坐标、canvas宽高
+ * 以椭圆旋转的角度的tan值来得到初始化的截距
+ * 这一截距是视椭圆为“正”的
+ */
+function initialBaseline() { try {
+  // 读椭圆角度
+  const ellipseAngle = contactAngleObj.ellipseObj.angle
+  // 读有效轮廓最低点坐标
+  const baselinePoint = contactAngleObj.baselinePoint
+  // 读canvas宽度
+  const canvasWidth = canvasRef.value.width
+  // 读canvas高度
+  const canvasHeight = canvasRef.value.height
+  // 拟合得到的椭圆一般来说是“正”的
+  // 也就是接近90°的倍数，比如263°、92°等。不会出现极端“歪”的情况，如45°这样
+  // 可以先对90°取余，余下的数如果小于45°（92°的情况），则直接用余数
+  // 如果余下的数大于45°（263°的情况），则再减90°
+  // 取余
+  const angleRemainder = ellipseAngle % 90
+  // 确定基线角度
+  const baselineAngle = (angleRemainder <= 45) ? angleRemainder : (angleRemainder - 90)
+  // 确定基线截距
+  const baselineIntercept = Math.tan(baselineAngle * Math.PI / 180)
+  // 构建了一个方程：y - bp.y = baselineIntercept * (x - bp.x)
+  // 把x = 0，x = canvasWidth代入，得到2个y值，即为截距
+  const leftIntercept = baselineIntercept * (0 - baselinePoint[0]) + baselinePoint[1]
+  const rightIntercept = baselineIntercept * (canvasWidth - baselinePoint[0]) + baselinePoint[1]
+  // 转为用户视角的截距
+  const userLeftIntercept = canvasHeight - leftIntercept
+  const userRightIntercept = canvasHeight - rightIntercept
+  // 刷新滑块
+  // （这一步会触发绘图）
+  refreshBaselineFineSlider(userLeftIntercept, userRightIntercept)
 } catch (error) {
   console.log("taskToStep4()方法出错：", error)
   throw Error(error)
@@ -1725,10 +1776,12 @@ function chooseBaseline() { try {
   const canvasHeight = canvasRef.value.height
   // 转为用户视角Y坐标（X坐标的用户视角和canvas视角是一致的）
   const userElementY = canvasHeight - realElementY
+  // 接目前的左截距
+  const leftIntercept = interceptNumArrRef.value[0]
+  // 接目前的右截距
+  const rightIntercept = interceptNumArrRef.value[1]
   // 左区
   if (realElementX < (canvasWidth * 0.35)) {
-    // 接目前的右截距
-    const rightIntercept = interceptNumArrRef.value[1]
     // 计算左截距
     // (左截距 - 右截距) / (userElementY - 右截距) = canvasWidth / (canvasWidth - realElementX)
     // 计算公式中，没有除以0的情况，所以不用考虑bug
@@ -1741,8 +1794,6 @@ function chooseBaseline() { try {
     refreshBaselineFineSlider(leftIntercept, rightIntercept)
   // 右区
   } else if (realElementX > (canvasWidth * 0.65)) {
-    // 接目前的左截距
-    const leftIntercept = interceptNumArrRef.value[0]
     // 计算右截距
     // (右截距 - 左截距) / (userElementY - 左截距) = canvasWidth / realElementX
     // 计算公式中，没有除以0的情况，所以不用考虑bug
@@ -1755,9 +1806,20 @@ function chooseBaseline() { try {
     refreshBaselineFineSlider(leftIntercept, rightIntercept)
   // 中区
   } else {
+    // 以目前的截距来平移即可
+    // 以当前x值计算截距的y值：
+    // y - 左截距 = 基线斜率 * (x - 0)
+    // 基线斜率 = (右截距 - 左截距) / canvasWidth
+    const interceptPointY = (rightIntercept - leftIntercept) / canvasWidth
+      * realElementX + leftIntercept
+    // 计算偏移量
+    const offsetY =  userElementY - interceptPointY
+    // 给左截距和右截距加上偏移量
+    const newLeftIntercept = leftIntercept + offsetY
+    const newRightIntercept = rightIntercept + offsetY
     // 直接拿着用户视角的Y坐标来刷新细调滑块
     // （这一步会触发绘图）
-    refreshBaselineFineSlider(userElementY, userElementY)
+    refreshBaselineFineSlider(newLeftIntercept, newRightIntercept)
   }
 } catch (error) {
   console.log("chooseBaseline()方法出错：", error)
@@ -1858,10 +1920,11 @@ function onDetermineBaseline(event) { try {
  * 步骤：
  * 1.  把椭圆的2个截距点化归到以标准椭圆为坐标系的坐标内
  * 2.  以2个截距点坐标求解一个 y = ax + b 的方程
- * 3.  y = ax + b => r ~ θ关系的方程
+ * 3.  y = ax + b 的 y ~ x 关系方程，变换为 r ~ θ 关系的方程
+ *     y = r·sinθ；x = r·cosθ
  * 4.  椭圆方程：r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
  * 5.  解3和4的方程，得到θ（应该有2个解）
- * 6.  右θ得到两边的切线斜率
+ * 6.  由θ得到两边的切线斜率
  *     斜率 = - (1 / tanθ) · (h / w)²
  * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
  */
@@ -1906,6 +1969,7 @@ function calculateContactAngle() { try {
   // 化简得式①：r · (kx · sinθ - ky · cosθ) = (kx · p1y - ky · p1x)
   // 而椭圆自身方程式②： 4 · r² · [(cosθ / w)² + (sinθ / h)²] = 1
   // r必不为0，则①、②两式联立消除r，然后把sinθ、cosθ合并为cotθ，得：
+  // (这里需要考虑θ为0°的情况)
   // 在一个 a · cot²θ + b · cotθ + c = 0 的二次方程中：
   //   a = (p2y - p1y)² - 4 · (p2x · p1y - p1x · p2y)² / w²
   //   b = - 2 · (p2x - p1x) · (p2y - p1y)
@@ -1946,69 +2010,104 @@ function calculateContactAngle() { try {
   // 如果判别式大于0，则方程有2个解
   } else {
     // 获取cot(θ)的2个解
-    const cotPositive = (- b + Math.sqrt(delta)) / (2 * a)
-    const cotNegative = (- b - Math.sqrt(delta)) / (2 * a)
+    const cot1 = (- b + Math.sqrt(delta)) / (2 * a)
+    const cot2 = (- b - Math.sqrt(delta)) / (2 * a)
     // 计算切线斜率
     // 切线斜率 = - (1 / tanθ) · (h / w)² = - cotθ · (h / w)²
-    const slopePositive = - cotPositive * ((h / w) ** 2)
-    const slopeNegative = - cotNegative * ((h / w) ** 2)
+    const slope1 = - cot1 * ((h / w) ** 2)
+    const slope2 = - cot2 * ((h / w) ** 2)
     // 基线斜率
     const baselineSlope = ky / kx
     // 基线及切线角度
-    const anglePositive = Math.atan(slopePositive) * 180 / Math.PI
-    const angleNegative = Math.atan(slopeNegative) * 180 / Math.PI
+    const angleTangent1 = Math.atan(slope1) * 180 / Math.PI
+    const angleTangent2 = Math.atan(slope2) * 180 / Math.PI
     const angleBaseline = Math.atan(baselineSlope) * 180 / Math.PI
-    // 根据切线斜率计算角度：Math.atan()方法返回[-90°, 90°]的弧度值
-    // 所以需要判断情况：
-    // 对于基线为负、接触角小于90°的情况：
-    //   左侧切线角度为负，右侧切线角度为正：
-    //   左接触角 =  - (-基线角度(负)) + (-左侧切线角度(负)) = + 基线角度(负) - 左侧切线角度(负)
-    //   右接触角 =  + (-基线角度(负)) + (+右侧切线角度(正)) = - 基线角度(负) + 右侧切线角度(正)
-    // 对于基线为正、接触角小于90°的情况：
-    //   左侧切线角度为负，右侧切线角度为正：
-    //   左接触角 =  + (+基线角度(正)) + (-左侧切线角度(负)) = + 基线角度(正) - 左侧切线角度(负)
-    //   右接触角 =  - (+基线角度(正)) + (+右侧切线角度(正)) = - 基线角度(正) + 右侧切线角度(正)
-    // --------
-    // 对于基线为负、接触角大于90°的情况：
-    //   左侧切线角度为正，右侧切线角度为负：
-    //   左接触角 = 180 - (-基线角度(负)) - (+左侧切线角度(正)) = 180 + 基线角度(负) - 左侧切线角度(正)
-    //   右接触角 = 180 + (-基线角度(负)) - (-右侧切线角度(负)) = 180 - 基线角度(负) + 右侧切线角度(负)
-    // 对于基线为正、接触角大于90°的情况：
-    //   左侧切线角度为正，右侧切线角度为负：
-    //   左接触角 = 180 + (+基线角度(正)) - (+左侧切线角度(正)) = 180 + 基线角度(正) - 左侧切线角度(正)
-    //   右接触角 = 180 - (+基线角度(正)) - (-右侧切线角度(负)) = 180 - 基线角度(正) + 右侧切线角度(负)
-    // --------
-    // 看来基线正负不影响计算。那么只考虑接触角是否大于90°即可
-    // 以原始基线而言，其x=椭圆圆心时，y是在椭圆圆心上方还是下方
-    // 如果y在椭圆圆心上方，即差值<0，则接触角小于90°；如果y在椭圆圆心下方，即差值>0，则接触角大于90°
-    const isContactAngleObtuse =
+    // 转回原来的坐标系
+    // Math.atan()方法返回[-90°, 90°]的弧度值，叠加ellipseAngle后，结果会超过阈值
+    // 所以需通过增减180，让结果在[-90°, 90°]之间
+    let oldAngleTangent1 = (angleTangent1 - ellipseAngle) % 180
+    if (oldAngleTangent1 > 90) {
+      oldAngleTangent1 = oldAngleTangent1 - 180
+    } else if (oldAngleTangent1 <= -90) {
+      oldAngleTangent1 = oldAngleTangent1 + 180
+    }
+    let oldAngleTangent2 = angleTangent2 - ellipseAngle
+    if (oldAngleTangent2 > 90) {
+      oldAngleTangent2 = oldAngleTangent2 - 180
+    } else if (oldAngleTangent2 <= -90) {
+      oldAngleTangent2 = oldAngleTangent2 + 180
+    }
+    let oldAngleBaseline = (angleBaseline - ellipseAngle) % 180
+    if (oldAngleBaseline > 90) {
+      oldAngleBaseline = oldAngleBaseline - 180
+    } else if (oldAngleBaseline <= -90) {
+      oldAngleBaseline = oldAngleBaseline + 180
+    }
+    // 判断接触角是否为钝角
+    // 以原始基线而言，其x = 椭圆圆心x时，y是在椭圆圆心上方还是下方？
+    // 如果y在椭圆圆心上方（y小于椭圆圆心），则接触角小于90°；
+    // 如果y在椭圆圆心下方（y小大于椭圆圆心），则接触角大于90°
+    // 基线-圆心计算y
+    const baselineEllipseCenterY =
       (interceptPoint2Y - interceptPoint1Y) / interceptPoint2X * ellipseCenterX
-        + interceptPoint1Y - ellipseCenterY
-    // 左接触角：
-    const angleLeft =
-      (isContactAngleObtuse <= 0)
-        ? (angleBaseline - angleNegative)
-        : (180 + angleBaseline - anglePositive)
-    // 右接触角：
-    const angleRight =
-      (isContactAngleObtuse <= 0)
-        ? (- angleBaseline + anglePositive)
-        : 180 - angleBaseline + angleNegative
+        + interceptPoint1Y
+    // 用迁移量来判断是否为钝角
+    const isContactAngleObtuse = (baselineEllipseCenterY > ellipseCenterY) ? true : false
+    // 目前不出意外，基线角度很小。会有一个切线大于90°，一个切线小于90°。需要判断情况：
+    // 对于接触角小于90°的情况：
+    //   左侧切线角度为负，右侧切线角度为正。
+    //   更严谨的说，左侧切线角 < 右侧切线角，未必分正负
+    //   左接触角 =  - (左侧切线角度(负) - 基线角度)
+    //   右接触角 =  + (右侧切线角度(正) - 基线角度)
+    // 对于接触角大于90°的情况：
+    //   左侧切线角度为正，右侧切线角度为负：
+    //   更严谨的说，左侧切线角 > 右侧切线角，未必分正负
+    //   左接触角 = 180 - (左侧切线角度(正) - 基线角度)
+    //   右接触角 = 180 - (- (右侧切线角度(负) - 基线角度)) = 180 + (右侧切线角度(负) - 基线角度)
+    // 事实上，存在同正同负的情况。
+    // 下面开始判断
+    let contactAngleLeft
+    let contactAngleRight
+    // 如果不是钝角
+    if (!isContactAngleObtuse) {
+      // 以正负大小判断左右：小的是左侧的
+      if (oldAngleTangent1 > oldAngleTangent2) {
+        // 1 > 2 => 左-2，右-1
+        contactAngleLeft = - (oldAngleTangent2 - oldAngleBaseline)
+        contactAngleRight = oldAngleTangent1 - oldAngleBaseline
+      } else {
+        // 2 > 1 => 左-1，右-2
+        contactAngleLeft = - (oldAngleTangent1 - oldAngleBaseline)
+        contactAngleRight = oldAngleTangent2 - oldAngleBaseline
+      }
+    // 如果是钝角
+    } else {
+      // 以正负大小判断左右：小的是右侧的
+      if (oldAngleTangent1 > oldAngleTangent2) {
+        // 1 > 2 => 左-1，右-2
+        contactAngleLeft = 180 - (oldAngleTangent1 - oldAngleBaseline)
+        contactAngleRight = 180 + (oldAngleTangent2 - oldAngleBaseline)
+      } else {
+        // 1 < 2 => 左-2，右-1
+        contactAngleLeft = 180 - (oldAngleTangent2 - oldAngleBaseline)
+        contactAngleRight = 180 + (oldAngleTangent1 - oldAngleBaseline)
+      }
+    }
     // 接触角均值
-    const angleAverage = (angleLeft + angleRight) / 2
+    const contactAngleAverage = (contactAngleLeft + contactAngleRight) / 2
     // RD
-    const angleRD = Math.abs(angleLeft - angleRight) / angleAverage
+    const contactAngleRD = Math.abs(contactAngleLeft - contactAngleRight) / contactAngleAverage
     // 返回结果给全局对象
     resultRef.value.push([
       contactAngleObj.filename,
-      angleAverage,
-      angleLeft,
-      angleRight,
-      angleRD,
+      contactAngleAverage,
+      contactAngleLeft,
+      contactAngleRight,
+      contactAngleRD,
       contactAngleObj.ellipseR2
     ])
     // 返回接触角均值结果
-    return angleAverage
+    return contactAngleAverage
   }
 } catch (error) {
   // 报错处理

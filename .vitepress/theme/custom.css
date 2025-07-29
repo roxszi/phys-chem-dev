@@ -37,3 +37,10 @@ mjx-container {
   width: var(--td-comp-size-xs) !important;
   height: var(--td-comp-size-xs) !important;
 }
+/* t-slider滑轨槽的尺寸 */
+.t-slider__rail {
+  height: var(--td-size-4) !important;
+}
+.t-slider__track {
+  height: var(--td-size-4) !important;
+}
