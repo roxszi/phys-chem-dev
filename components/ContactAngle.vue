@@ -1655,10 +1655,10 @@ function refreshContourFineSlider() { try {
  * 步骤4的初始化方法
  */
 function taskToStep4() { try {
-  // canvas初始化
-  ctxSetting()
   // 状态机切换到4
   taskStatusRef.value = 4
+  // canvas初始化
+  ctxSetting()
   // 初始化截距
   initialBaseline()
 } catch (error) {
@@ -1698,6 +1698,8 @@ function initialBaseline() { try {
   // 转为用户视角的截距
   const userLeftIntercept = canvasHeight - leftIntercept
   const userRightIntercept = canvasHeight - rightIntercept
+  // interceptNumArrRef.value[0] = userLeftIntercept
+  // interceptNumArrRef.value[1] = userRightIntercept
   // 刷新滑块
   // （这一步会触发绘图）
   refreshBaselineFineSlider(userLeftIntercept, userRightIntercept)
@@ -2031,7 +2033,7 @@ function calculateContactAngle() { try {
     } else if (oldAngleTangent1 <= -90) {
       oldAngleTangent1 = oldAngleTangent1 + 180
     }
-    let oldAngleTangent2 = angleTangent2 - ellipseAngle
+    let oldAngleTangent2 = (angleTangent2 - ellipseAngle) % 180
     if (oldAngleTangent2 > 90) {
       oldAngleTangent2 = oldAngleTangent2 - 180
     } else if (oldAngleTangent2 <= -90) {
