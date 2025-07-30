@@ -174,7 +174,7 @@ ImageJ官网链接：[https://imagej.net/ij/index.html](https://imagej.net/ij/in
 /* 图片 */
 .vp-doc img {
   /* 宽度缩小，不然显得太大了 */
-  max-width: 350px;
+  max-width: 80%;
   /* 居中 */
   margin: auto;
 }
