@@ -96,7 +96,7 @@
     <t-alert theme="warning" title="步骤3">
       接下来寻找液滴的最佳轮廓。<br />
       推荐Canny算法，效果更好。对于一些特殊情况的液滴照片，也可以尝试传统的阈值化算法。<br />
-      调节滑轨可调整参数并查看轮廓效果；点击图片左部或右部可设置遮罩，被遮罩的轮廓点将不会参与后续拟合。
+      调节滑轨可调整参数并查看轮廓效果；长按可清空效果。
     </t-alert>
     <!-- 边缘检测算法切换开关 -->
     <MySwitch
@@ -147,6 +147,10 @@
       v-show="taskStatusRef >= 2"
       ref="canvasRef"
       @click="onCanvasClick"
+      @mousedown="onCanvasMousedown"
+      @mousemove="onCanvasMousemove"
+      @mouseup="onCanvasMouseupAndMouseleave"
+      @mouseleave="onCanvasMouseupAndMouseleave"
     ></canvas>
   </div>
 
@@ -416,16 +420,15 @@ const resultRef = ref([])
  * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
  * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
  * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
- * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
+ * @property { ImageData } imageDataGray 灰度图的canvas的图像数据
  * @property { Number } rectXmax canvas元素块选框的X坐标大值
  * @property { Number } rectYmax canvas元素块选框的Y坐标大值
  * @property { Number } rectXmin canvas元素块选框的X坐标小值
  * @property { Number } rectYmin canvas元素块选框的Y坐标小值
- * @property { Number } contourFilterLineLeft 轮廓选择时用于过滤基线的左侧线X坐标
- * @property { Number } contourFilterLineRight 轮廓选择时用于过滤基线的左侧线Y坐标
  * @property { import("@techstark/opencv-js").RotatedRect } ellipseObj 拟合得到的椭圆对象
  * @property { Number } ellipseR2 椭圆拟合的决定系数R²
  * @property { [Number, Number] } baselinePoint 基线参考点
+ * @property { ImageData } imageDataEllipse 椭圆的canvas的图像数据
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上
@@ -434,19 +437,20 @@ const resultRef = ref([])
 const contactAngleObj = {
   cv: null,
   filename: null,
+  startPoint: [null, null],
+  isCanvasMousedown: false,
   ctx: null,
   canvasScaling: 0.0,
   matGray: null,
-  imageData: null,
+  imageDataGray: null,
   rectXmax: null,
   rectYmax: null,
   rectXmin: null,
   rectYmin: null,
-  contourFilterLineLeft: null,
-  contourFilterLineRight: null,
   ellipseObj: null,
   ellipseR2: null,
   baselinePoint: null,
+  imageDataEllipse: null
 }
 
 // 注册一个<canvas>的响应式鼠标点击监听
@@ -533,11 +537,10 @@ function onCanvasLongPress(event) { try {
     // 清空canvas上的矩形标记数据
     canvasRectDataRemove()
     // 恢复canvas原图
-    contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
-  // // 任务进度为3时
-  // } else if (taskStatus === 3) {
-  //   // 恢复canvas原图
-  //   contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
+    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
+  } else if (taskStatus === 3) {
+    // 恢复canvas原图
+    contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
   }
 } catch (error) {
   console.log("onCanvasLongPress()报错：", error)
@@ -550,18 +553,16 @@ function onCanvasLongPress(event) { try {
  * 步骤4：绘制基线
  */
 function onCanvasClick(event) { try {
-  // console.log(
-  //   `canvas点击：
-  //   (${ elementX.value * contactAngleObj.canvasScaling.toFixed(1) }, ${ elementY.value * contactAngleObj.canvasScaling.toFixed(1) })`
-  // )
+  console.log(
+    `canvas点击：
+    (${ (elementX.value * contactAngleObj.canvasScaling).toFixed(2) }, ${ (elementY.value * contactAngleObj.canvasScaling).toFixed(2) })
+    (${ contactAngleObj.startPoint[0].toFixed(2) }, ${ contactAngleObj.startPoint[1].toFixed(2) })`
+  )
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2时，即选框绘制阶段，则调用选框方法
   if (taskStatus === 2) {
     chooseRect()
-  // 任务进度为3时，即轮廓选择阶段，则调用轮廓过滤线方法
-  } else if (taskStatus === 3) {
-    chooseContourFilterLine()
   // 任务进度为4时，即基线绘制阶段，则调用基线粗调方法
   // 基线粗调会改变模型绑定的值，进而触发绘制基线方法
   } else if (taskStatus === 4) {
@@ -570,6 +571,41 @@ function onCanvasClick(event) { try {
 } catch (error) {
   console.log("onCanvasClick()报错：", error)
   errorDialog()
+}}
+
+/**
+ * 鼠标在canvas上按下的回调
+ */
+function onCanvasMousedown(event) { try {
+  // 赋值全局变量
+  contactAngleObj.startPoint = [elementX.value, elementY.value]
+  // 开启长按模式
+  contactAngleObj.isCanvasMousedown = true
+} catch (error) {
+  console.log("onCanvasMousedown()报错：", error)
+}}
+
+/**
+ * 鼠标在canvas上弹起鼠标的回调
+ */
+function onCanvasMousemove(event) { try {
+  // 判断全局变量
+  if (contactAngleObj.isCanvasMousedown === true) {
+    // 直接调用canvas点击事件
+  onCanvasClick(event)
+  }
+} catch (error) {
+  console.log("onCanvasMousedown()报错：", error)
+}}
+
+/**
+ * 鼠标在canvas上弹起鼠标或离开canvas的回调
+ */
+function onCanvasMouseupAndMouseleave(event) { try {
+  // 赋值全局变量
+  contactAngleObj.isCanvasMousedown = false
+} catch (error) {
+  console.log("onCanvasMousedown()报错：", error)
 }}
 
 /**
@@ -594,8 +630,6 @@ function ctxSetting() { try {
   contactAngleObj.ctx.strokeStyle = "red"
   // 线宽：2像素 x 缩放比例
   contactAngleObj.ctx.lineWidth = 2 * contactAngleObj.canvasScaling
-  // 填充色：灰色
-  contactAngleObj.ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
 } catch (error) {
   console.log("ctxSetting()报错：", error)
   throw Error(error)
@@ -696,11 +730,11 @@ async function onPicChange(event) { try {
   imgElement.src = fileURL
   // 等待图片加载完成
   await imgElement.decode()
-  // 以图片的原始宽高设定canvas的实际宽高
-  canvasRef.value.width = imgElement.naturalWidth
-  canvasRef.value.height = imgElement.naturalHeight
+  // // 以图片的原始宽高设定canvas的实际宽高
+  // canvasRef.value.width = imgElement.naturalWidth
+  // canvasRef.value.height = imgElement.naturalHeight
   // 计算canvas的缩放比例：实际宽度/显示宽度
-  contactAngleObj.canvasScaling = canvasRef.value.width / canvasParentRef.value.clientWidth
+  contactAngleObj.canvasScaling = imgElement.naturalWidth / canvasParentRef.value.clientWidth
   // 设定canvas的显示高度
   canvasRef.value.style.height = imgElement.naturalHeight / contactAngleObj.canvasScaling + "px"
   // 读取图片文件为OpenCV的Mat对象
@@ -739,7 +773,7 @@ async function onPicChange(event) { try {
   // 对ctx做简要设置并保存设置
   ctxSetting()
   // 把canvas的原图保存好，以方便恢复
-  contactAngleObj.imageData = contactAngleObj.ctx.getImageData(
+  contactAngleObj.imageDataGray = contactAngleObj.ctx.getImageData(
     0, 0, canvasRef.value.width, canvasRef.value.height
   )
   // 第一阶段完成，任务进度改为2
@@ -891,7 +925,7 @@ function chooseRect() { try {
  */
 function drawRect() { try {
   // 先对选框进行初始化
-  contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
+  contactAngleObj.ctx.putImageData(contactAngleObj.imageDataGray, 0, 0)
   // 然后直接绘图即可
   contactAngleObj.ctx.strokeRect(
     contactAngleObj.rectXmin,
@@ -937,8 +971,6 @@ function sureRect(isDetermine = false) { try {
     if (isDetermine === true) {
       // 选框数据初始化
       canvasRectDataRemove()
-      // 更新<canvas>缩放比例
-      contactAngleObj.canvasScaling = canvasRef.value.width / canvasParentRef.value.clientWidth
       // 任务状态进展到“3”
       taskStatusRef.value = 3
     }
@@ -975,7 +1007,7 @@ function sureRect(isDetermine = false) { try {
   // 更新完成，恢复绘图上下文ctx设置
   ctxSetting()
   // 把canvas的原图保存好，以方便恢复
-  contactAngleObj.imageData = contactAngleObj.ctx.getImageData(
+  contactAngleObj.imageDataGray = contactAngleObj.ctx.getImageData(
     0, 0, canvasRef.value.width, canvasRef.value.height
   )
   // 如果是点击“完成裁剪”，则执行下一步
@@ -995,7 +1027,6 @@ function sureRect(isDetermine = false) { try {
 /**
  * 这一步很重要
  * 这一步有2个选择轮廓算法，有粗调和细调
- * 还有一个过滤轮廓用的切线的操作
  * 选择完成后，就要迭代确定轮廓，并绘制出来
  */
 
@@ -1050,82 +1081,6 @@ function onDetermineContour(event) { try {
 } catch (error) {
   console.log("onDetermineContour()方法出错：", error)
   errorDialog()
-}}
-
-/**
- * 选择轮廓过滤线的具体实现方法
- */
-function chooseContourFilterLine() { try {
-  // 接点击位置的实际X、Y坐标
-  const realElementX = elementX.value * contactAngleObj.canvasScaling
-  // 接canvas的半宽
-  const canvasWidthHalf = canvasRef.value.width / 2
-  // 根据点击位置，判断是左边的线还是右边的线
-  // 如果点击位置X坐标小于canvas半宽
-  if (realElementX < canvasWidthHalf) {
-    // 左边的线
-    contactAngleObj.contourFilterLineLeft = Math.ceil(realElementX)
-  } else {
-    // 右边的线
-    contactAngleObj.contourFilterLineRight = Math.floor(realElementX)
-  }
-  // 直接绘制轮廓过滤线即可，此处应重绘
-  drawContourFilterLine(true)
-} catch (error) {
-  console.log("chooseContourFilterLine()方法出错：", error)
-  throw Error(error)
-}}
-
-/**
- * 绘制轮廓过滤线的具体实现方法
- * @param { Boolean } [isRedrawing = false] 是否是重新绘制，为true时会先刷新canvas再绘制
- */
-function drawContourFilterLine(isRedrawing = false) { try {
-  // 先判断是否重绘。如果重绘
-  if (isRedrawing === true) {
-    // 则刷新canvas
-    contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
-  // 如果不重绘
-  } else {
-    // 则刷新ctx
-    ctxSetting()
-  }
-  // 读取轮廓过滤线的2个坐标
-  const lineLeftX = contactAngleObj.contourFilterLineLeft
-  const lineRightX = contactAngleObj.contourFilterLineRight
-  // 接canvas的高
-  const canvasHeight = canvasRef.value.height
-  // 左边的线
-  if (lineLeftX !== null) {
-    // 左边阴影区
-    contactAngleObj.ctx.fillRect(0, 0, lineLeftX, canvasHeight)
-    // 绘制左边线：开始绘制
-    contactAngleObj.ctx.beginPath()
-    // 起点坐标
-    contactAngleObj.ctx.moveTo(lineLeftX, 0)
-    // 终点坐标
-    contactAngleObj.ctx.lineTo(lineLeftX, canvasHeight)
-    // 连线
-    contactAngleObj.ctx.stroke()
-  }
-  // 右边的线
-  if (lineRightX !== null) {
-    // 接canvas的宽
-    const canvasWidth = canvasRef.value.width
-    // 右边阴影区
-    contactAngleObj.ctx.fillRect(lineRightX, 0, canvasWidth - lineRightX, canvasHeight)
-    // 绘制右边线：开始绘制
-    contactAngleObj.ctx.beginPath()
-    // 起点坐标
-    contactAngleObj.ctx.moveTo(lineRightX, 0)
-    // 终点坐标
-    contactAngleObj.ctx.lineTo(lineRightX, canvasHeight)
-    // 连线
-    contactAngleObj.ctx.stroke()
-  }
-} catch (error) {
-  console.log("drawContourFilterLine()方法出错：", error)
-  throw Error(error)
 }}
 
 /**
@@ -1262,12 +1217,6 @@ function makeContour(matBinary, isDetermine = false) { try {
     contactAngleObj.cv.imshow(canvasRef.value, contoursHandleMat)
     // 绘制完毕，销毁画布
     contoursHandleMat.delete()
-    // 把canvas的原图保存好，以方便恢复
-    contactAngleObj.imageData = contactAngleObj.ctx.getImageData(
-      0, 0, canvasRef.value.width, canvasRef.value.height
-    )
-    // 绘制轮廓基线过滤线，不重绘
-    drawContourFilterLine(false)
   // 如果确定了轮廓
   } else {
     // 初始化轮廓点
@@ -1300,18 +1249,13 @@ function initializeContourPointSet(metVectorContours) { try {
   })
   // 声明一个数组用来接所有轮廓点，即集合P(0)
   const contourPointAoa = []
-  // 接canvas的宽、高
+  // 接canvas的宽、高，以及1%和99%的尺寸位置宽高
   const canvasWidth = canvasRef.value.width
   const canvasHeight = canvasRef.value.height
-  // 接轮廓过滤线左右位置
-  const lineLeftX = contactAngleObj.contourFilterLineLeft
-  const lineRightX = contactAngleObj.contourFilterLineRight
-  // 1%和99%的尺寸位置宽高
-  // 如果指定了过滤线，宽按过滤线来；否则按canvas宽来
   const canvasEdgePercentage = 0.01
-  const canvasWidthPerMin = lineLeftX || Math.ceil(canvasWidth * canvasEdgePercentage)
+  const canvasWidthPerMin = Math.ceil(canvasWidth * canvasEdgePercentage)
   const canvasHeightPerMin = Math.ceil(canvasHeight * canvasEdgePercentage)
-  const canvasWidthPerMax = lineRightX || Math.floor(canvasWidth * (1 - canvasEdgePercentage))
+  const canvasWidthPerMax = Math.floor(canvasWidth * (1 - canvasEdgePercentage))
   const canvasHeightPerMax = Math.floor(canvasHeight * (1 - canvasEdgePercentage))
   // 遍历所有轮廓点
   forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
@@ -1322,7 +1266,7 @@ function initializeContourPointSet(metVectorContours) { try {
       // 接X和Y坐标
       const pointX = contour.data32S[j * 2]
       const pointY = contour.data32S[j * 2 + 1]
-      // 如果坐标点在边缘1%位置处（或过滤位置处），则忽略
+      // 如果坐标点在边缘1%位置处，则忽略
       if (
         (pointX <= canvasWidthPerMin)
           || (pointY <= canvasHeightPerMin)
@@ -1354,6 +1298,8 @@ function initializeContourPointSet(metVectorContours) { try {
     throw Error("轮廓点数据不够，无法拟合。")
   // 否则
   } else {
+    // 过滤
+    ellipsePointFilter(contourPointAoa)
     // 继续进行椭圆迭代，以及绘制椭圆轮廓
     ellipsePointIterate(contourPointAoa)
     // 关闭加载框
@@ -1364,6 +1310,110 @@ function initializeContourPointSet(metVectorContours) { try {
   console.log("initializeContourPointSet()方法出错：", error)
   // 关闭加载框
   my.loading(false)
+  throw Error(error)
+}}
+
+/**
+ * 椭圆点的过滤
+ * @param  { Number[][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
+ */
+function ellipsePointFilter(contourPointAoa) { try {
+  // 覆盖一下，确保绘图方法无bug
+  contactAngleObj.imageDataEllipse = contactAngleObj.imageDataGray
+  // 接canvas宽度
+  const canvasWidth = canvasRef.value.width
+  const canvasHeight = canvasRef.value.height
+
+
+  // 遍历
+  for (let i = 1; i <= canvasHeight; i++) {
+    let num = 0
+    // 遍历
+    for (let j = 0; j < contourPointAoa.length; j++) {
+      // 接当前点
+      const point = contourPointAoa[j]
+      if (point[1] === i) {
+        // 符合条件，加入筛选点
+        num++
+      }
+    }
+    console.log(`y = ${ i }时，点数为：${ num }`)
+  }
+  debugger
+
+  let threshold = 0.0
+  
+  while (threshold <= 0.9) {
+    // 上限
+    const startThreshold = threshold * canvasWidth
+    // 下限
+    const endThreshold = (threshold + 0.1) * canvasWidth
+    // 筛选点
+    const goodPointAoa = []
+    // 遍历
+    for (let i = 0; i < contourPointAoa.length; i++) {
+      // 接当前点
+      const point = contourPointAoa[i]
+      if ((point[0] >= startThreshold) && (point[0] <= endThreshold)) {
+        // 符合条件，加入筛选点
+        goodPointAoa.push(point)
+      }
+    }
+    console.log("goodPointAoa: ", goodPointAoa)
+    // OpenCV工厂方法，把轮廓坐标点positivePointAoa转为轮廓Mat对象
+    let metContourPoints = new contactAngleObj.cv.matFromArray(
+      // rows，行数：双通道，所以行数就是[x, y]作为一个Point的行数
+      goodPointAoa.length,
+      // cols，列数：1列，即一个Point维度
+      1,
+      // type，数据类型：CV_32SC2，即32位有符号整数，但是有2个通道（x，y）
+      contactAngleObj.cv.CV_32SC2,
+      // array，用于创建Mat对象的数组，即把轮廓坐标点的AOA数组扁平化后传进去
+      goodPointAoa.flat(),
+    )
+    // 线条对象
+    let line = new contactAngleObj.cv.Mat()
+    // 获取支线对象
+    contactAngleObj.cv.fitLine(
+      // 轮廓点对象
+      metContourPoints,
+      // 输出直线参数
+      line,
+      // 估计器使用的距离
+      contactAngleObj.cv.DIST_L2,
+      // 某些距离类型的数值参数（C）。如果为0，则选择一个最优值。
+      0,
+      // 半径、角度的足够精度。推荐值为0.01
+      0.01, 0.01,
+    )
+    // 解构赋值，获取向量和坐标
+    const [vx, vy, x0, y0] = line.data32F
+    console.log(
+      `提取(${ threshold * 100 }% ~ ${ threshold * 100 + 10 }%)后：
+      坐标：(${ x0 }, ${ y0 })；
+      向量：(${ vx }, ${ vy })。`
+    )
+    // 删除Mat对象释放内存
+    metContourPoints.delete()
+    line.delete()
+    // 线：(y - y0) * vx = (x - x0) * vy
+    // 计算截距
+    // 左截距，x = 0，y = y0 - (x0 * vy) / vx
+    const interceptLeft = y0 - (x0 * vy) / vx
+    // 右截距，x = canvasWidth，y = y0 + (canvasWidth - x0) * vy / vx
+    const interceptRight = y0 + (canvasWidth - x0) * vy / vx
+    // 绘图
+    refreshBaselineFineSlider(interceptLeft, interceptRight)
+    ctxSetting()
+    drawBaseline()
+    // 停下来看看
+    debugger
+    threshold = threshold + 0.1
+  }
+
+} catch (error) {
+  // 报错处理
+  console.log("ellipsePointFilter()方法出错：", error)
   throw Error(error)
 }}
 
@@ -1646,7 +1696,7 @@ function drawEllipse(rotatedRectEllipse) { try {
     ellipseHandleMat
   )
   // 把canvas的原图保存好，以方便恢复
-  contactAngleObj.imageData = contactAngleObj.ctx.getImageData(
+  contactAngleObj.imageDataEllipse = contactAngleObj.ctx.getImageData(
     0, 0, canvasRef.value.width, canvasRef.value.height
   )
   // 释放Mat对象
@@ -1948,7 +1998,7 @@ function drawBaseline() { try {
   const realLeftY = canvasHeight - leftIntercept
   const realRightY = canvasHeight - rightIntercept
   // 先对选框进行初始化
-  contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
+  contactAngleObj.ctx.putImageData(contactAngleObj.imageDataEllipse, 0, 0)
   // 然后直接绘图即可
   contactAngleObj.ctx.beginPath()
   // 起点坐标

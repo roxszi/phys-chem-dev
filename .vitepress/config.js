@@ -10,6 +10,9 @@
 import { join as pathJoin } from "node:path"
 // 导入vitepress的配置注释
 import { defineConfig } from "vitepress"
+// 导入vite的压缩插件
+// AtomGit Pages不支持Gzip，故注释掉
+// import { compression } from "vite-plugin-compression2"
 // 导入TDesign组件库的按需引入插件
 import AutoImport from "unplugin-auto-import/vite"
 import Components from "unplugin-vue-components/vite"
@@ -46,7 +49,10 @@ export default defineConfig({
       Components({ resolvers: [
         // TDesign的"vue-next"组件库
         TDesignResolver({ library: "vue-next" })
-      ]})
+      ]}),
+      // 开启Gzip压缩
+      // AtomGit Pages不支持Gzip，故注释掉
+      // compression(),
     ],
   },
 

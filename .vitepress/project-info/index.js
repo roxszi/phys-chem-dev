@@ -40,18 +40,19 @@ export default {
   heads: [
     // 网站图标。public目录默认映射根目录，但是base得有
     ["link", { rel: "icon", href: (baseUrl + "favicon.ico") }],
-    // [
-    //   // 百度统计
-    //   "script",
-    //   { type: "text/javascript", id: "baidu-tongji" },
-    //   `var _hmt = _hmt || [];
-    //     (function() {
-    //       var hm = document.createElement("script");
-    //       hm.src = "https://hm.baidu.com/hm.js?a6f4c3f7dbeed9e72ba41a112ecf5d44";
-    //       var s = document.getElementsByTagName("script")[0]; 
-    //       s.parentNode.insertBefore(hm, s);
-    //     })();`
-    // ]
+    // 百度统计
+    (baseUrl === "/") ? []
+      : [
+        "script",
+        { type: "text/javascript", id: "baidu-tongji" },
+        `var _hmt = _hmt || [];
+        (function() {
+          var hm = document.createElement("script");
+          hm.src = "https://hm.baidu.com/hm.js?6185c255f38aa19b8374234dfb43440b";
+          var s = document.getElementsByTagName("script")[0]; 
+          s.parentNode.insertBefore(hm, s);
+        })();`
+      ],
   ],
 
   // 路由重写
