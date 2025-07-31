@@ -412,6 +412,7 @@ const resultRef = ref([])
  * 接触角业务的全局对象
  * @typedef { Object } ContactAngle
  * @property { import("@techstark/opencv-js") } cv OpenCV.js对象
+ * @property { Number } canvasStyleWidth canvas元素块的显示宽度
  * @property { String } filename 所上传文件的文件名
  * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
  * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
@@ -427,12 +428,12 @@ const resultRef = ref([])
  * @property { Number } ellipseR2 椭圆拟合的决定系数R²
  * @property { [Number, Number] } baselinePoint 基线参考点
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
- * @note canvas的显示宽高在canvasRef.value.style.width和canvasRef.value.style.height上(String + "px")
- * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上
+ * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
  */
 /** 接触角业务的全局对象 @type { ContactAngle } */
 const contactAngleObj = {
   cv: null,
+  canvasStyleWidth: null,
   filename: null,
   ctx: null,
   canvasScaling: 0.0,
@@ -482,7 +483,8 @@ onMounted(() => {
         // 停止监听
         stopWatch()
         // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
-        canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
+        contactAngleObj.canvasStyleWidth = canvasParentRef.value.clientWidth
+        canvasRef.value.style.width = contactAngleObj.canvasStyleWidth + "px"
         // // 第二步：导入OpenCV.js库
         // const cvImportPromise = import("@techstark/opencv-js")
         // // 等待OpenCV.js加载完成
@@ -696,11 +698,12 @@ async function onPicChange(event) { try {
   imgElement.src = fileURL
   // 等待图片加载完成
   await imgElement.decode()
-  // 以图片的原始宽高设定canvas的实际宽高
-  canvasRef.value.width = imgElement.naturalWidth
-  canvasRef.value.height = imgElement.naturalHeight
+  // // 以图片的原始宽高设定canvas的实际宽高
+  // 实际上默认的实际宽高就是图片的原始宽高，因此不需要再设定
+  // canvasRef.value.width = imgElement.naturalWidth
+  // canvasRef.value.height = imgElement.naturalHeight
   // 计算canvas的缩放比例：实际宽度/显示宽度
-  contactAngleObj.canvasScaling = canvasRef.value.width / canvasParentRef.value.clientWidth
+  contactAngleObj.canvasScaling = imgElement.naturalWidth / contactAngleObj.canvasStyleWidth
   // 设定canvas的显示高度
   canvasRef.value.style.height = imgElement.naturalHeight / contactAngleObj.canvasScaling + "px"
   // 读取图片文件为OpenCV的Mat对象
@@ -763,6 +766,7 @@ async function onPicChange(event) { try {
  * 任务进度切换到步骤2
  */
 function taskToStep2() { try {
+  // 任务进度改为2
   taskStatusRef.value = 2
 } catch (error) {
   console.log("taskToStep2()方法出错：", error)
@@ -965,11 +969,9 @@ function sureRect(isDetermine = false) { try {
   contactAngleObj.matGray.delete()
   contactAngleObj.matGray = cropped
   cropped = null
-  // 绘制后，需要更新<canvas>的显示缩放及宽高
-  // 从<canvas>父元素获取<canvas>的显示宽度
-  canvasRef.value.style.width = canvasParentRef.value.clientWidth + "px"
+  // 绘制后，需要更新<canvas>的显示缩放及高度
   // 计算新的缩放比例
-  contactAngleObj.canvasScaling = canvasNewWidth / canvasParentRef.value.clientWidth
+  contactAngleObj.canvasScaling = canvasNewWidth / contactAngleObj.canvasStyleWidth
   // 更新<canvas>的显示高
   canvasRef.value.style.height = canvasNewHeight / contactAngleObj.canvasScaling + "px"
   // 更新完成，恢复绘图上下文ctx设置
