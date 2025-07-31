@@ -1021,6 +1021,9 @@ function taskToStep3() { try {
   ]
   // 算法
   contourAlgorithmSwitchRef.value = false
+  // 遮罩
+  contactAngleObj.contourFilterLineLeft = null
+  contactAngleObj.contourFilterLineRight = null
   // 切换到状态3
   taskStatusRef.value = 3
   // 用轮廓查找方法刷新一次轮廓渲染
