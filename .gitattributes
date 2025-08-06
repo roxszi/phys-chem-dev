@@ -1,0 +1,8 @@
+# Git处理部分文件的方式
+
+# 把json文件作为文本处理，即从语言类型统计中排除
+*.json  linguist-documentation
+
+# 把mjs、cjs统一识别成js
+*.mjs  linguist-language=JavaScript
+*.cjs  linguist-language=JavaScript

@@ -139,6 +139,6 @@
 
 - 本项目代码采用 [木兰宽松许可证, 第2版](LICENSE)
 
-- 依赖的第三方库：
+- 主要依赖的第三方库：
 
   - [@techstark/opencv-js](https://github.com/tech-stark/opencv-js) ([Apache-2.0](public/LICENSES/LICENSE-2.0.txt))
