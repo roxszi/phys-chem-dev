@@ -78,7 +78,7 @@ export default {
     "dist/**",
   ],
 
-  // // toc精确到哪一级
+  // toc精确到哪一级
   tocLevel: [2, 3],
   // 侧边栏位置："left" | true
   outlineAside: true,

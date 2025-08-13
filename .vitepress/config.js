@@ -30,7 +30,7 @@ const baseUrl = projectInfo.baseUrl
 export default defineConfig({
 
   /**
-   * Vite配置
+   * @Vite配置
    */
   vite: {
     // 别名处理
