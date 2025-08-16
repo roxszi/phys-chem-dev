@@ -297,6 +297,9 @@
           <th>文件名</th>
           <th>接触角 (°)</th>
           <th>RD (%)</th>
+          <th>左接触角 (°)</th>
+          <th>右接触角 (°)</th>
+          <th>椭圆拟合R²</th>
         </tr>
       </thead>
       <!-- 表格体 -->
@@ -306,6 +309,9 @@
           <td>{{ resultArr[0] }}</td>
           <td>{{ resultArr[1].toFixed(2) }}</td>
           <td>{{ (resultArr[4] * 100).toFixed(2) }}</td>
+          <td>{{ resultArr[2].toFixed(2) }}</td>
+          <td>{{ resultArr[3].toFixed(2) }}</td>
+          <td>{{ resultArr[5].toFixed(4) }}</td>
         </tr>
       </tbody>
     </table></div>
@@ -2252,7 +2258,12 @@ function downloadResult(event) { try {
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
-  downloadXlsx(workbook, "contact-angle-data.xlsx")
+  downloadXlsx(workbook, "contact-angle_data.xlsx")
+  // 对Mac系统的特别关照：如果Mac系统
+  if (window.navigator?.userAgent?.includes("Mac")) {
+    // 提示用户手动复制表格数据
+    my.dialog("Mac系统如遇到锁权限情况，请手动复制表格数据。")
+  }
 } catch (error) {
   // 报错处理
   console.log("downloadResult()方法出错：", error)
