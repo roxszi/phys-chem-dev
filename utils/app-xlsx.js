@@ -169,7 +169,8 @@ export function downloadXlsx(workbook, xlsxName) { try {
   // 工作簿转为Buffer
   const xlsxBuffer = XLSX.write(workbook, { type: "buffer" })
   // 下载文件
-  downloadFile(xlsxBuffer, xlsxName)
+  const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  downloadFile(xlsxBuffer, xlsxName, fileType)
 } catch (error) {
   console.error("downloadXlsx()报错: ", error)
   throw new Error(error)

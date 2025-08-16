@@ -2252,7 +2252,7 @@ function downloadResult(event) { try {
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
-  downloadXlsx(workbook, "接触角数据.xlsx")
+  downloadXlsx(workbook, "contact-angle-data.xlsx")
 } catch (error) {
   // 报错处理
   console.log("downloadResult()方法出错：", error)

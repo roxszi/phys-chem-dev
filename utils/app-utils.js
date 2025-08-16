@@ -141,14 +141,15 @@ export async function wait(ms) {
  * downloadFile 下载文件
  * @param { Buffer | Response | File } data Buffer格式的数据对象。
  * @param { String } fileName 文件名(含扩展名)。
+ * @param { String } [fileType] 文件类型。
  */
-export function downloadFile(data, fileName) { try {
+export function downloadFile(data, fileName, fileType = "application/octet-stream") { try {
   // // 将数据对象转换为ArrayBuffer格式
   // const dataBuffer = dataBuffer instanceof ArrayBuffer
   //   ? data
   //   : await data.arrayBuffer()
   // 将数据对象转换为Blob对象
-  const dataBlob = new Blob([data], { type: "application/octet-stream" })
+  const dataBlob = new Blob([data], { type: fileType })
   // 在网页上找一个id为“just-for-download”的下载链接元素块
   let downloadLink = document.getElementById("just-for-download")
   // 如果没找到这个元素块
@@ -163,9 +164,12 @@ export function downloadFile(data, fileName) { try {
     downloadLink.download = fileName
   }
   // 把dataBlob赋值给元素块的下载链接
-  downloadLink.href = URL.createObjectURL(dataBlob)
+  const url = URL.createObjectURL(dataBlob)
+  downloadLink.href = url
   // 执行下载
   downloadLink.click()
+  // 清理：10秒后释放url对象
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 } catch (error) {
   console.error("downloadFile()报错: ", error)
   throw new Error(error)
