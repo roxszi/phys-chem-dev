@@ -95,8 +95,16 @@
     <!-- 警报框 -->
     <t-alert theme="warning" title="步骤3">
       接下来寻找液滴的最佳轮廓。<br />
-      推荐Canny算法，效果更好。对于一些特殊情况的液滴照片，也可以尝试传统的阈值化算法。<br />
       调节滑轨可调整参数并查看轮廓效果；点击图片左部或右部可设置遮罩，被遮罩的轮廓点将不会参与后续拟合。
+    </t-alert>
+
+    <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
+    <t-alert theme="info" title="轮廓算法">
+      <strong>Canny算法</strong>。是一种多阶段的边缘检测算法，由John F. Canny提出。其原理为计算图像中像素色阶变化的梯度及方向，得到“边缘”图案。然后通过给定的两个阈值参数以筛选出合适的轮廓。<br />
+      主参数：亦称“高阈值”，所有色阶变化高于此参数的边缘，都将被认定为“轮廓”。<br />
+      辅助参数：亦称“低阈值”，对于色阶变化小于“高阈值”、但与轮廓相连的边缘而言，若其色阶变化大于“低阈值”，则也将被认定为轮廓的一部分。以此确保轮廓的完整性。<br />
+      <strong>阈值化</strong>。是一种传统的二值化处理方法。其原理为将图像中的像素色阶值与所给定的阈值进行比较，大于阈值的像素值将被设定为“白色”，小于阈值的像素值将被设定为“黑色”。然后将黑白之间的边界线认定为轮廓。<br />
+      主参数：亦称“阈值”，所有色阶值高于此参数的像素，都将被认定为“白色”。
     </t-alert>
     <!-- 边缘检测算法切换开关 -->
     <MySwitch
@@ -105,23 +113,21 @@
       leftLabel="Canny法"
       rightLabel="阈值化法"
     />
-    <!-- 警报框 -->
-    <t-alert
-      v-if="contourAlgorithmSwitchRef === false"
-      theme="info"
-    >
-      Canny算法是一种多阶段的边缘检测算法，由John F. Canny提出。其原理为计算图像中像素色阶变化的梯度及方向，得到“边缘”图案。然后通过给定的两个阈值参数以筛选出合适的轮廓。<br />
-      主参数：亦称“高阈值”，所有色阶变化高于此参数的边缘，都将被认定为“轮廓”。<br />
-      辅助参数：亦称“低阈值”，对于色阶变化小于“高阈值”、但与轮廓相连的边缘而言，若其色阶变化大于“低阈值”，则也将被认定为轮廓的一部分。以此确保轮廓的完整性。
+
+    <!-- 警报框：遮罩 -->
+    <t-alert theme="info" title="遮罩">
+      <strong>两边遮罩</strong>。用于去除轮廓两边基线误识别的伪轮廓。<br />
+      点击图片左部或右部设置遮罩，被遮罩的轮廓点将不会参与后续拟合。<br />
+      <strong>中心遮罩</strong>。用于去除轮廓中心因光源投影而产生的伪轮廓。<br />
+      点击图片，短按可控制边框；边框所包围区域内的轮廓点将不会参与后续拟合。
     </t-alert>
-    <!-- 警报框 -->
-    <t-alert
-      v-else
-      theme="info"
-    >
-      阈值化是一种传统的二值化处理方法。其原理为将图像中的像素色阶值与所给定的阈值进行比较，大于阈值的像素值将被设定为“白色”，小于阈值的像素值将被设定为“黑色”。然后将黑白之间的边界线认定为轮廓。<br />
-      主参数：亦称“阈值”，所有色阶值高于此参数的像素，都将被认定为“白色”。
-    </t-alert>
+    <!-- 遮罩切换开关 -->
+    <MySwitch
+      v-model="contourFilterAlgorithmSwitchRef"
+      leftLabel="两边遮罩"
+      rightLabel="中心遮罩"
+    />
+
   </mySpace>
 
   <!-- canvas头-步骤4 -->
@@ -396,6 +402,14 @@ const thresholdNumArrRef = ref([
 const contourAlgorithmSwitchRef = ref(false)
 /** 第三步寻找轮廓是否是粗调模式 @type { import("vue").Ref<Boolean> } */
 const isContourCoarseRef = ref(true)
+/** 
+ * 第三步寻找轮廓的遮罩算法切换对象
+ * @type { import("vue").Ref<Boolean> }
+ * @value true - 两边遮罩
+ * @value false - 中心遮罩
+ */
+const contourFilterAlgorithmSwitchRef = ref(false)
+
 /**
  * 第四步寻找基线的截距
  * @type { import("vue").Ref<Number[]> }
@@ -424,10 +438,10 @@ const resultRef = ref([])
  * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
  * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
  * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
- * @property { Number } rectXmax canvas元素块选框的X坐标大值
- * @property { Number } rectYmax canvas元素块选框的Y坐标大值
- * @property { Number } rectXmin canvas元素块选框的X坐标小值
- * @property { Number } rectYmin canvas元素块选框的Y坐标小值
+ * @property { Number } rectXmax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
+ * @property { Number } rectYmax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
+ * @property { Number } rectXmin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
+ * @property { Number } rectYmin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
  * @property { Number } contourFilterLineLeft 轮廓选择时用于过滤基线的左侧线X坐标
  * @property { Number } contourFilterLineRight 轮廓选择时用于过滤基线的左侧线Y坐标
  * @property { import("@techstark/opencv-js").RotatedRect } ellipseObj 拟合得到的椭圆对象
@@ -576,10 +590,21 @@ function onCanvasClick(event) { try {
   const taskStatus = taskStatusRef.value
   // 任务进度为2时，即选框绘制阶段，则调用选框方法
   if (taskStatus === 2) {
+    // 选框
     chooseRect()
-  // 任务进度为3时，即轮廓选择阶段，则调用轮廓过滤线方法
+    // 绘图
+    drawRect()
+  // 任务进度为3时，即轮廓选择阶段，则调用轮廓过滤方法
   } else if (taskStatus === 3) {
-    chooseContourFilterLine()
+    // 获取具体的轮廓过滤方法
+    const contourFilterAlgorithm = contourFilterAlgorithmSwitchRef.value
+    // 如果为true，则是中心遮罩
+    if (contourFilterAlgorithm) {
+      chooseContourFilterRect()
+    // 否则即为false，则是两边遮罩
+    } else {
+      chooseContourFilterLine()
+    }
   // 任务进度为4时，即基线绘制阶段，则调用基线粗调方法
   // 基线粗调会改变模型绑定的值，进而触发绘制基线方法
   } else if (taskStatus === 4) {
@@ -791,6 +816,7 @@ function taskToStep2() { try {
 
 /**
  * 选框方法
+ * 用于更新选框的X、Y坐标边界值
  */
 function chooseRect() { try {
   // 点击位置的实际X、Y坐标
@@ -814,9 +840,7 @@ function chooseRect() { try {
     contactAngleObj.rectXmin = Math.max((realElementX - rectHalfX), 0)
     // rectYmin原理同上
     contactAngleObj.rectYmin = Math.max((realElementY - rectHalfY), 0)
-    // 绘图
-    drawRect()
-    // 返回
+    // 选框边界已更新，直接返回即可
     return
   }
   // 接下来处理选框X边界已定义的情况，即修改原图
@@ -852,11 +876,9 @@ function chooseRect() { try {
   } else {
     isInRect++
   }
-  // 如果“如果在选框内”的标记isInRect不等于2，则说明点击位置在选框外
+  // 如果“如果在选框内”的标记isInRect不等于2，即至少x和y有一个在选框外
   if (isInRect !== 2) {
-    // 此时选框点已经更新了，所以直接绘图即可
-    drawRect()
-    // 返回
+    // 此时选框点已经更新了，所以直接返回即可
     return
   }
   // 接下来处理选框点在选框内（isInRect === 2）的情况
@@ -895,9 +917,7 @@ function chooseRect() { try {
       contactAngleObj.rectYmin = realElementY
     }
   }
-  // 绘图
-  drawRect()
-  // 返回
+  // 选框边界更新完毕，返回
   return
 } catch (error) {
   console.log("chooseRect()方法出错：", error)
@@ -1042,6 +1062,10 @@ function taskToStep3() { try {
   // 遮罩
   contactAngleObj.contourFilterLineLeft = null
   contactAngleObj.contourFilterLineRight = null
+  contactAngleObj.rectXmin = null
+  contactAngleObj.rectYmin = null
+  contactAngleObj.rectXmax = null
+  contactAngleObj.rectYmax = null
   // 切换到状态3
   taskStatusRef.value = 3
   // 用轮廓查找方法刷新一次轮廓渲染
@@ -1090,18 +1114,32 @@ function chooseContourFilterLine() { try {
     // 右边的线
     contactAngleObj.contourFilterLineRight = Math.floor(realElementX)
   }
-  // 直接绘制轮廓过滤线即可，此处应重绘
-  drawContourFilterLine(true)
+  // 直接绘制轮廓过滤区即可，此处应重绘
+  drawContourFilter(true)
 } catch (error) {
   console.log("chooseContourFilterLine()方法出错：", error)
   throw Error(error)
 }}
 
 /**
- * 绘制轮廓过滤线的具体实现方法
- * @param { Boolean } [isRedrawing = false] 是否是重新绘制，为true时会先刷新canvas再绘制
+ * 选择轮廓过滤框的具体实现方法
  */
-function drawContourFilterLine(isRedrawing = false) { try {
+function chooseContourFilterRect() { try {
+  // 直接调用选框方法，更新选框边界
+  chooseRect()
+  // 直接绘制轮廓过滤区即可，此处应重绘
+  drawContourFilter(true)
+} catch (error) {
+  console.log("chooseContourFilterLine()方法出错：", error)
+  throw Error(error)
+}}
+
+/**
+ * 绘制轮廓过滤遮罩的具体实现方法
+ * @param { Boolean } [isRedrawing = false] 是否是重新绘制，为true时会先刷新canvas再绘制
+ * 会读取左右轮廓遮罩线，中心轮廓遮罩区的相关对象数据
+ */
+function drawContourFilter(isRedrawing = false) { try {
   // 先判断是否重绘。如果重绘
   if (isRedrawing === true) {
     // 则刷新canvas
@@ -1144,8 +1182,21 @@ function drawContourFilterLine(isRedrawing = false) { try {
     // 连线
     contactAngleObj.ctx.stroke()
   }
+  // 读取轮廓过滤框的x坐标
+  const rectXmin = contactAngleObj.rectXmin
+  // 中间遮罩区
+  if (rectXmin !== null) {
+    // 继续接剩下3个数据
+    const rectYmin = contactAngleObj.rectYmin
+    const rectW = contactAngleObj.rectXmax - rectXmin
+    const rectH = contactAngleObj.rectYmax - rectYmin
+    // 中间阴影区
+    contactAngleObj.ctx.fillRect(rectXmin, rectYmin, rectW, rectH)
+    // 中间线框
+    contactAngleObj.ctx.strokeRect(rectXmin, rectYmin, rectW, rectH)
+  }
 } catch (error) {
-  console.log("drawContourFilterLine()方法出错：", error)
+  console.log("drawContourFilter()方法出错：", error)
   throw Error(error)
 }}
 
@@ -1287,8 +1338,8 @@ function makeContour(matBinary, isDetermine = false) { try {
     contactAngleObj.imageData = contactAngleObj.ctx.getImageData(
       0, 0, canvasRef.value.width, canvasRef.value.height
     )
-    // 绘制轮廓基线过滤线，不重绘
-    drawContourFilterLine(false)
+    // 绘制轮廓基线过滤遮罩区，因为canvas是刚绘制的，所以不用重绘
+    drawContourFilter(false)
   // 如果确定了轮廓
   } else {
     // 初始化轮廓点
@@ -1328,14 +1379,19 @@ function initializeContourPointSet(metVectorContours) { try {
   // 1%和99%的尺寸位置宽高
   // 如果指定了过滤线，宽按过滤线来；否则按canvas宽来
   const canvasEdgePercentage = 0.01
-  const canvasWidthPerMin = lineLeftX || Math.ceil(canvasWidth * canvasEdgePercentage)
-  const canvasHeightPerMin = Math.ceil(canvasHeight * canvasEdgePercentage)
-  const canvasWidthPerMax = lineRightX || Math.floor(canvasWidth * (1 - canvasEdgePercentage))
-  const canvasHeightPerMax = Math.floor(canvasHeight * (1 - canvasEdgePercentage))
+  const canvasWidthMin = lineLeftX || Math.ceil(canvasWidth * canvasEdgePercentage)
+  const canvasHeightMin = Math.ceil(canvasHeight * canvasEdgePercentage)
+  const canvasWidthMax = lineRightX || Math.floor(canvasWidth * (1 - canvasEdgePercentage))
+  const canvasHeightMax = Math.floor(canvasHeight * (1 - canvasEdgePercentage))
+  // 接遮罩框：这里是删除区，所以无值得时候，取值和过滤区要反过来
+  const canvasMaskWidthMin = contactAngleObj.rectXmin || canvasWidthMax
+  const canvasMaskHeightMin = contactAngleObj.rectYmin || canvasHeightMax
+  const canvasMaskWidthMax = contactAngleObj.rectXmax || canvasWidthMin
+  const canvasMaskHeightMax = contactAngleObj.rectYmax || canvasHeightMin
   // 遍历所有轮廓点
   forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
     // 挨个获取轮廓
-    const contour = metVectorContours.get(i)
+    let contour = metVectorContours.get(i)
     // 获取坐标
     forEachContourPoint: for (let j = 0; j < contour.rows; j++) {
       // 接X和Y坐标
@@ -1343,15 +1399,20 @@ function initializeContourPointSet(metVectorContours) { try {
       const pointY = contour.data32S[j * 2 + 1]
       // 如果坐标点在边缘1%位置处（或过滤位置处），则忽略
       if (
-        (pointX <= canvasWidthPerMin)
-          || (pointY <= canvasHeightPerMin)
-          || (pointX >= canvasWidthPerMax)
-          || (pointY >= canvasHeightPerMax)
+        (pointX <= canvasWidthMin)
+          || (pointY <= canvasHeightMin)
+          || (pointX >= canvasWidthMax)
+          || (pointY >= canvasHeightMax)
         ) {
         // 跳过本次循环
         continue forEachContourPoint
-      // 否则，作为有效点继续处理
-      } else {
+      // 否则，继续检查遮罩：如果不在遮罩范围内
+      } else if (
+        (pointX < canvasMaskWidthMin)
+        || (pointX > canvasMaskWidthMax)
+        || (pointY < canvasMaskHeightMin)
+        || (pointY > canvasMaskHeightMax)
+      ) {
         // 直接装箱
         contourPointAoa.push([pointX, pointY])
       }
@@ -1360,7 +1421,7 @@ function initializeContourPointSet(metVectorContours) { try {
     contour.delete()
   }
   // 报错检查：轮廓点集合P(0)是否为空
-  if (contourPointAoa.length === 0) {
+  if (contourPointAoa.length <= 6) {
     // 是，则报错处理
     // 关闭加载框
     my.loading(false)
@@ -2215,6 +2276,21 @@ function calculateContactAngle() { try {
         contactAngleLeft = 180 - (oldAngleTangent2 - oldAngleBaseline)
         contactAngleRight = 180 + (oldAngleTangent1 - oldAngleBaseline)
       }
+    }
+    // 把最终结果修正为(0 ~ 180)的值
+    // 在近乎钝角（1个是钝角，1个是锐角）的情况下，会出现接触角为负数的情况，需要修正
+    if (contactAngleLeft < 0) {
+      contactAngleLeft = contactAngleLeft + 180
+    }
+    if (contactAngleRight < 0) {
+      contactAngleRight = contactAngleRight + 180
+    }
+    // 可能出现的大于180°的情况(目前还没发现过该bug)
+    if (contactAngleLeft > 180) {
+      contactAngleLeft = contactAngleLeft - 180
+    }
+    if (contactAngleRight > 180) {
+      contactAngleRight = contactAngleRight - 180
     }
     // 接触角均值
     const contactAngleAverage = (contactAngleLeft + contactAngleRight) / 2
