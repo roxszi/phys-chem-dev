@@ -336,7 +336,7 @@
  -->
 <script setup>
 // 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, ref, watch } from "vue"
+import { useTemplateRef, onMounted, ref, watch, nextTick } from "vue"
 // 导入VueUse的各类响应式方法
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
@@ -540,6 +540,23 @@ onMounted(() => {
     // 停止加载框
     my.loading(false)
   })
+
+  // 注册一个对taskStatusRef的监听：
+  // 任务状态改变时，始终保持canvas滚动到视图中间
+  watch(
+    taskStatusRef,
+    // 回调：下个渲染周期将canvas滚动到视图中
+    () => { nextTick(() => {
+      canvasRef.value.scrollIntoView({
+        // 平滑滚动
+        behavior: "smooth",
+        // 垂直中心对齐
+        block: "center",
+        // 水平就近对齐
+        inline: "nearest"
+      })
+    })}
+  )
 
   // 注册一个<canvas>长按的监听钩子
   onLongPress(
