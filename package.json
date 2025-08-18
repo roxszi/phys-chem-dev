@@ -12,11 +12,11 @@
   "devDependencies": {
     "@techstark/opencv-js": "^4.11.0-release.1",
     "@vueuse/core": "^13.6.0",
-    "tdesign-vue-next": "^1.15.1",
-    "unplugin-auto-import": "^19.3.0",
-    "unplugin-vue-components": "^28.8.0",
+    "tdesign-vue-next": "^1.15.4",
+    "unplugin-auto-import": "^20.0.0",
+    "unplugin-vue-components": "^29.0.0",
     "vite-plugin-compression2": "^2.2.0",
-    "vitepress": "^1.6.3",
+    "vitepress": "^1.6.4",
     "vue": "^3.5.18",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
