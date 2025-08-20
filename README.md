@@ -70,10 +70,15 @@
         │   ├─ favicon.ico 网页标志，图标文件
         │   ├─ robots.txt robots协议文件
         │   └─ ... 各类公开文件
+        ├─ utils 各类工具函数/方法文件夹
+        │   ├─ opencvLoader.js OpenCV库的加载器
+        │   ├─ myFunc.js 本项目的全局方法
+        │   └─ xxx.js 各类工具函数/方法
         ├─ .gitignore Git忽略列表，Git同步时不同步的内容
         ├─ auto-imports.d.ts 自动导入的类型注释文件（自动生成）
         ├─ components.d.ts 自动导入组件的类型注释文件（自动生成）
         ├─ LICENSE 许可证文件
+        ├─ jsconfig.json JavaScript项目的配置文件
         ├─ package.json 项目依赖库的列表文件
         └─ package-lock.json 项目依赖库的依赖关系树文件
 
