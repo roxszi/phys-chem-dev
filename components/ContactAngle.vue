@@ -326,7 +326,7 @@
       @click="downloadResult"
       :block="false" theme="primary"
     >
-      下载结果
+      下载结果/清理结果缓存
     </myButton></div>
   </mySpace>
 </MySpace></template>
@@ -336,7 +336,7 @@
  -->
 <script setup>
 // 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, ref, watch, nextTick } from "vue"
+import { useTemplateRef, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue"
 // 导入VueUse的各类响应式方法
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
@@ -490,11 +490,18 @@ const {
 // 用于进行必要的各类初始化操作
 onMounted(() => {
 
+  // 用于阻止页面刷新和关闭
+  // 该方法不能阻止页面前进（跳转）、后退
+  window.addEventListener("beforeunload", beforeunloadHandler)
+
+  // 初始化数据结果resultRef，尝试从localStorage中读取
+  resultRef.value = JSON.parse(localStorage.getItem("contactAngleResult")) || []
+
   // 如果canvas没有初始化（第一次进入页面），则初始化
   if (!canvasRef.value || !canvasParentRef.value) {
     // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
     // 解构赋值，得到监听钩子的stop()方法，用于停止监听
-    const { stop: stopWatch } = watch(
+    const { stop: stopCanvasWatch } = watch(
       // 监听：canvasRef和canvasParentRef
       [canvasRef, canvasParentRef],
       // 回调
@@ -504,7 +511,7 @@ onMounted(() => {
         // 得确保新值均不为null，则完成初始化
         if (newCanvasRef && newCanvasParentRef) {
           // 停止监听
-          stopWatch()
+          stopCanvasWatch()
           // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
           contactAngleObj.canvasStyleWidth = canvasParentRef.value.clientWidth
           canvasRef.value.style.width = contactAngleObj.canvasStyleWidth + "px"
@@ -569,6 +576,24 @@ onMounted(() => {
   )
 
 })
+
+// 生命周期钩子，组件卸载前执行
+// 用于进行必要的各类初始化操作
+onBeforeUnmount(() => {
+  // 取消监听：用于阻止页面刷新和关闭
+  window.removeEventListener("beforeunload", beforeunloadHandler)
+})
+
+/**
+ * 页面关闭、后退或刷新的回调
+ * @param { Event } event 页面关闭或刷新事件
+ */
+function beforeunloadHandler(event) {
+  // 阻止默认行为
+  event.preventDefault()
+  // 取消默认事件：兼容方法
+  event.returnValue = false
+}
 
 /**
  * 长按<canvas>触发的回调
@@ -2322,6 +2347,8 @@ function calculateContactAngle() { try {
       contactAngleRD,
       contactAngleObj.ellipseR2
     ])
+    // 把结果存进本地存储localStorage
+    localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
     // 返回接触角均值结果
     return contactAngleAverage
   }
@@ -2352,6 +2379,10 @@ function downloadResult(event) { try {
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
   downloadXlsx(workbook, "contact-angle_data.xlsx")
+  // 文件准备完毕，清理resultRef.value
+  resultRef.value = []
+  // 清理localStorage
+  localStorage.removeItem("contactAngleResult")
   // 对Mac系统的特别关照：如果Mac系统
   if (window.navigator?.userAgent?.includes("Mac")) {
     // 提示用户手动复制表格数据

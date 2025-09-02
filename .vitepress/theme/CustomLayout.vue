@@ -62,10 +62,11 @@ onMounted(() => {
 
   /**
    * 路由守卫实现
+   * 路由守卫只能在有“新页面”的时候执行，无法拦截浏览器自身的前进后退
    * 目前先实现页面加载
    */
   const myRouter = useRouter()
-  // 路由更改前调用
+  // 路由/url地址更改前调用
   myRouter.onBeforeRouteChange = (to) => {
     // 打开页面加载
     myRouter.pageLoadingInstance = LoadingPlugin({
@@ -91,7 +92,7 @@ onMounted(() => {
       zIndex: 10000
     })
   }
-  // 路由更改后调用
+  // 路由/url地址更改后调用
   myRouter.onAfterRouteChange = (to) => {
     // 关闭页面加载
     myRouter.pageLoadingInstance?.hide()

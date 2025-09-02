@@ -8,8 +8,6 @@
  *   aoaTranspose() 数组转置
  *   aoaMapToWorkbook() AOA的键值对Map数据转为工作簿对象
  *   downloadXlsx() 下载工作簿xlsx文件
- * 
- *   downloadExampleFile() 下载示例波谱文件
  */
 
 /**
