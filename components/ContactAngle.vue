@@ -302,7 +302,7 @@
           <th>序号</th>
           <th>文件名</th>
           <th>接触角 (°)</th>
-          <th>误差/偏差 (°)</th>
+          <th>偏差 (°)</th>
           <th>左接触角 (°)</th>
           <th>右接触角 (°)</th>
           <th>基线角度 (°)</th>
@@ -315,11 +315,11 @@
           <td>{{ resultsIndex + 1 }}</td>
           <td>{{ resultArr[0] }}</td>
           <td>{{ resultArr[1].toFixed(2) }}</td>
-          <td>{{ (resultArr[4] * 100).toFixed(2) }}</td>
+          <td>{{ resultArr[4].toFixed(2) }}</td>
           <td>{{ resultArr[2].toFixed(2) }}</td>
           <td>{{ resultArr[3].toFixed(2) }}</td>
           <!-- 这里后面版本稳定了，应该把条件判断给去掉 -->
-          <td>{{ resultArr[6] ? resultArr[5].toFixed(2) : "-" }}</td>
+          <td>{{ resultArr[6] ? resultArr[5].toFixed(2) : "旧版数据请尽快清理" }}</td>
           <td>{{ resultArr[6] ? resultArr[6].toFixed(4) : resultArr[5].toFixed(4) }}</td>
         </tr>
       </tbody>
@@ -426,8 +426,8 @@ const contourFilterAlgorithmSwitchRef = ref(false)
 const interceptNumArrRef =  ref([0, 0])
 /**
  * 第五步计算接触角的最终结果
- * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number][]> }
- * 分别是：文件名、接触角均值、左接触角，右接触角，接触角RD，椭圆拟合的决定系数R²
+ * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number, Number][]> }
+ * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
 const resultRef = ref([])
 
@@ -2341,7 +2341,7 @@ function calculateContactAngle() { try {
     }
     // 接触角均值
     const contactAngleAverage = (contactAngleLeft + contactAngleRight) / 2
-    // RD误差/偏差
+    // 误差/偏差
     const contactAngleDeviation = Math.abs(contactAngleLeft - contactAngleRight)
     // 返回结果给全局对象
     resultRef.value.push([
