@@ -319,7 +319,7 @@
           <td>{{ resultArr[2].toFixed(2) }}</td>
           <td>{{ resultArr[3].toFixed(2) }}</td>
           <td>{{ resultArr[5].toFixed(2) }}</td>
-          <td>{{ resultArr[6].toFixed(4) }}</td>
+          <td>{{ resultArr[6]?.toFixed(4) }}</td>
         </tr>
       </tbody>
     </table></div>
