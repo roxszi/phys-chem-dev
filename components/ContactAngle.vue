@@ -318,8 +318,9 @@
           <td>{{ (resultArr[4] * 100).toFixed(2) }}</td>
           <td>{{ resultArr[2].toFixed(2) }}</td>
           <td>{{ resultArr[3].toFixed(2) }}</td>
-          <td>{{ resultArr[5].toFixed(2) }}</td>
-          <td>{{ resultArr[6]?.toFixed(4) }}</td>
+          <!-- 这里后面版本稳定了，应该把条件判断给去掉 -->
+          <td>{{ resultArr[6] ? resultArr[5].toFixed(2) : "-" }}</td>
+          <td>{{ resultArr[6] ? resultArr[6].toFixed(4) : resultArr[5].toFixed(4) }}</td>
         </tr>
       </tbody>
     </table></div>
@@ -736,9 +737,6 @@ function errorDialog() {
     theme: "danger",
     header: "程序报错",
     body: "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
-  // 链式调用catch，防止出错
-  }).catch((error) => {
-    console.log("errorDialog()报错：", error)
   })
 }
 
