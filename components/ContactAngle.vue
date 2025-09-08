@@ -305,6 +305,7 @@
           <th>RD (%)</th>
           <th>左接触角 (°)</th>
           <th>右接触角 (°)</th>
+          <th>基线角度 (°)</th>
           <th>椭圆拟合R²</th>
         </tr>
       </thead>
@@ -317,7 +318,8 @@
           <td>{{ (resultArr[4] * 100).toFixed(2) }}</td>
           <td>{{ resultArr[2].toFixed(2) }}</td>
           <td>{{ resultArr[3].toFixed(2) }}</td>
-          <td>{{ resultArr[5].toFixed(4) }}</td>
+          <td>{{ resultArr[5].toFixed(2) }}</td>
+          <td>{{ resultArr[6].toFixed(4) }}</td>
         </tr>
       </tbody>
     </table></div>
@@ -2173,6 +2175,11 @@ function calculateContactAngle() { try {
   const interceptPoint1Y = canvasHeight - interceptNumArrRef.value[0]
   const interceptPoint2X = canvasRef.value.width
   const interceptPoint2Y = canvasHeight - interceptNumArrRef.value[1]
+  // 计算一个截距角度。网页以下方为正，所以这里要取反
+  const interceptAngle = Math.atan2(
+    interceptPoint2Y - interceptPoint1Y,
+    interceptPoint2X - interceptPoint1X
+  ) * 180 / Math.PI * -1
   // 去中心化
   const interceptPoint1XCentered = interceptPoint1X - ellipseCenterX
   const interceptPoint1YCentered = interceptPoint1Y - ellipseCenterY
@@ -2345,6 +2352,7 @@ function calculateContactAngle() { try {
       contactAngleLeft,
       contactAngleRight,
       contactAngleRD,
+      interceptAngle,
       contactAngleObj.ellipseR2
     ])
     // 把结果存进本地存储localStorage
@@ -2363,7 +2371,7 @@ function calculateContactAngle() { try {
  */
 function downloadResult(event) { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
-  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "RD", "椭圆拟合R²"]]
+  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "RD", "基线角度", "椭圆拟合R²"]]
   // 填充数据：遍历resultRef.value
   for (const resultArrProxy of resultRef.value) {
     // 将代理对象转成普通数组
