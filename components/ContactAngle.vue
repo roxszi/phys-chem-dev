@@ -302,7 +302,7 @@
           <th>序号</th>
           <th>文件名</th>
           <th>接触角 (°)</th>
-          <th>RD (%)</th>
+          <th>误差/偏差 (°)</th>
           <th>左接触角 (°)</th>
           <th>右接触角 (°)</th>
           <th>基线角度 (°)</th>
@@ -2343,15 +2343,15 @@ function calculateContactAngle() { try {
     }
     // 接触角均值
     const contactAngleAverage = (contactAngleLeft + contactAngleRight) / 2
-    // RD
-    const contactAngleRD = Math.abs(contactAngleLeft - contactAngleRight) / contactAngleAverage
+    // RD误差/偏差
+    const contactAngleDeviation = Math.abs(contactAngleLeft - contactAngleRight)
     // 返回结果给全局对象
     resultRef.value.push([
       contactAngleObj.filename,
       contactAngleAverage,
       contactAngleLeft,
       contactAngleRight,
-      contactAngleRD,
+      contactAngleDeviation,
       interceptAngle,
       contactAngleObj.ellipseR2
     ])
@@ -2371,7 +2371,7 @@ function calculateContactAngle() { try {
  */
 function downloadResult(event) { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
-  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "RD", "基线角度", "椭圆拟合R²"]]
+  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "误差/偏差", "基线角度", "椭圆拟合R²"]]
   // 填充数据：遍历resultRef.value
   for (const resultArrProxy of resultRef.value) {
     // 将代理对象转成普通数组
