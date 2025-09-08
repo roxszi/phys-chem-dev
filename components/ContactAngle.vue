@@ -2369,7 +2369,7 @@ function calculateContactAngle() { try {
  */
 function downloadResult(event) { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
-  const resultAoa = [["文件名", "接触角", "左接触角", "右接触角", "误差/偏差", "基线角度", "椭圆拟合R²"]]
+  const resultAoa = [["文件名", "接触角 (°)", "左接触角 (°)", "右接触角 (°)", "误差/偏差 (°)", "基线角度 (°)", "椭圆拟合R²"]]
   // 填充数据：遍历resultRef.value
   for (const resultArrProxy of resultRef.value) {
     // 将代理对象转成普通数组
