@@ -38,23 +38,26 @@
  -->
 <template><MySpace>
 
+
+  
   <!-- 警报框 -->
   <t-alert
-    theme="info" title="功能简介"
+    theme="info" :title="lang.FunctionIntroductionTitle"
   >
-    1.  点击读取图片文件。读取的图片文件将直接灰度化。<br />
-    2.  裁剪图片为合适的尺寸。短按控制边框；长按清空已有选框。<br />
-    3.  选择基底线、液滴边缘线。
+    <div v-for="(content, index) of lang.FunctionIntroductionContent" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!-- canvas头-步骤1 -->
   <!-- 警报框 -->
   <t-alert
     v-if="taskStatusRef === 1"
-    theme="warning" title="步骤1"
+    theme="warning" :title="lang.SetpTitle + '1'"
   >
-    首先点击“点击上传图片”读取图片。<br />
-    读取到的图片会自动进行灰度化渲染。
+    <div v-for="(content, index) of lang.Setp1Content" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!--
@@ -77,11 +80,11 @@
   <!-- 警报框 -->
   <t-alert
     v-if="taskStatusRef === 2"
-    theme="warning" title="步骤2"
+    theme="warning" :title="lang.SetpTitle + '2'"
   >
-    接下来需要将图片裁剪为合适的尺寸。<br />
-    点击/触控图片，短按可控制边框；长按可清空已有选框。<br />
-    可通过下方“裁剪图片”按钮多次裁剪，直到满意后，点击下方“完成裁剪”按钮进入下一步。
+    <div v-for="(content, index) of lang.Setp2Content" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!--
@@ -93,39 +96,43 @@
    -->
   <mySpace v-else-if="taskStatusRef === 3">
     <!-- 警报框 -->
-    <t-alert theme="warning" title="步骤3">
-      接下来寻找液滴的最佳轮廓。<br />
-      调节滑轨可调整参数并查看轮廓效果；点击图片左部或右部可设置遮罩，被遮罩的轮廓点将不会参与后续拟合。
+    <t-alert theme="warning" :title="lang.SetpTitle + '3'">
+      <div v-for="(content, index) of lang.Setp3Content" :key="index">
+        {{ content }}
+      </div>
     </t-alert>
 
     <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
-    <t-alert theme="info" title="轮廓/边缘检测">
-      <strong>Canny算法</strong>。是一种多阶段的边缘检测算法，由John F. Canny提出。其原理为计算图像中像素色阶变化的梯度及方向，得到“边缘”图案。然后通过给定的两个阈值参数以筛选出合适的轮廓。<br />
-      主参数：亦称“高阈值”，所有色阶变化高于此参数的边缘，都将被认定为“轮廓”。<br />
-      辅助参数：亦称“低阈值”，对于色阶变化小于“高阈值”、但与轮廓相连的边缘而言，若其色阶变化大于“低阈值”，则也将被认定为轮廓的一部分。以此确保轮廓的完整性。<br />
-      <strong>阈值化方法</strong>。是一种传统的二值化处理方法。其原理为将图像中的像素色阶值与所给定的阈值进行比较，大于阈值的像素值将被设定为“白色”，小于阈值的像素值将被设定为“黑色”。然后将黑白之间的边界线认定为轮廓。<br />
-      主参数：亦称“阈值”，所有色阶值高于此参数的像素，都将被认定为“白色”。
+    <t-alert theme="info" :title="lang.ContourAlgorithmTitle">
+      <div v-for="(content, index) of lang.ContourAlgorithmContent" :key="index">
+        <div v-if="content.strong">
+          <strong>{{ content.strong }}</strong>{{ content.normal }}
+        </div>
+        <div v-else>{{ content }}</div>
+      </div>
     </t-alert>
     <!-- 边缘检测算法切换开关 -->
     <MySwitch
       @change="onContourAlgorithmSwitchChange"
       v-model="contourAlgorithmSwitchRef"
-      leftLabel="Canny法"
-      rightLabel="阈值化法"
+      :leftLabel="lang.CannyAlgorithmLabel"
+      :rightLabel="lang.ThresholdAlgorithmLabel"
     />
 
     <!-- 警报框：遮罩 -->
-    <t-alert theme="info" title="遮罩">
-      <strong>两边遮罩</strong>。用于去除轮廓两边基线误识别的伪轮廓。<br />
-      点击图片左部或右部设置遮罩，被遮罩的轮廓点将不会参与后续拟合。<br />
-      <strong>中心遮罩</strong>。用于去除轮廓中心因光源投影而产生的伪轮廓。<br />
-      点击图片，短按可控制边框；边框所包围区域内的轮廓点将不会参与后续拟合。
+    <t-alert theme="info" :title="lang.ContourMaskTitle">
+      <div v-for="(content, index) of lang.ContourMaskContent" :key="index">
+        <div v-if="content.strong">
+          <strong>{{ content.strong }}</strong>{{ content.normal }}
+        </div>
+        <div v-else>{{ content }}</div>
+      </div>
     </t-alert>
     <!-- 遮罩切换开关 -->
     <MySwitch
       v-model="contourFilterAlgorithmSwitchRef"
-      leftLabel="两边遮罩"
-      rightLabel="中心遮罩"
+      :leftLabel="lang.ContourMaskSideLabel"
+      :rightLabel="lang.ContourMaskCentralLabel"
     />
 
   </mySpace>
@@ -134,10 +141,11 @@
   <!-- 警报框 -->
   <t-alert
     v-else-if="taskStatusRef === 4"
-    theme="warning" title="步骤4"
+    theme="warning" :title="lang.SetpTitle + '4'"
   >
-    接下来寻找固体基底与液滴接触的“基线”。<br />
-    点击/触控图片以粗调基线位置；调节滑轨以细调。
+    <div v-for="(content, index) of lang.Setp4Content" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!--
@@ -170,13 +178,13 @@
       @click="onSureRect"
       :block="false"
     >
-      裁剪图片
+      {{ lang.CutPictureButtonText }}
     </myButton>
     <myButton
       @click="onDetermineRect"
       :block="false" theme="danger"
     >
-      完成裁剪
+      {{ lang.CutPictureCompleteButtonText }}
     </myButton>
   </div>
 
@@ -193,13 +201,17 @@
     size="small"
   >
     <!-- 滑轨：主参数 -->
-    <div v-if="contourAlgorithmSwitchRef === false">主参数（G色阶变化）：</div>
-    <div v-else>主参数（G色阶值）：</div>
+    <div v-if="contourAlgorithmSwitchRef === false">
+      {{ lang.ContourSliderMainParameterChangeLabel }}
+    </div>
+    <div v-else>
+      {{ lang.ContourSliderMainParameterValueLabel }}
+    </div>
     <t-slider
       @change="onSlideChange"
       @changeEnd="onContourSlideChangeEnd"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
-      :min="thresholdNumArrRef[2]" :max="thresholdNumArrRef[3]" :step="1" 
+      :min="thresholdNumArrRef[2]" :max="thresholdNumArrRef[3]" :step="1"
       :marks="[thresholdNumArrRef[4], thresholdNumArrRef[5],
         thresholdNumArrRef[6], thresholdNumArrRef[7]]"
       v-model="thresholdNumArrRef[0]"
@@ -209,7 +221,7 @@
       v-if="contourAlgorithmSwitchRef === false"
       size="small"
     >
-      <div>辅助参数（G色阶变化）：</div>
+      <div>{{ lang.ContourSliderAuxiliaryParameterLabel }}</div>
       <t-slider
         @change="onSlideChange"
         @changeEnd="onContourSlideChangeEnd"
@@ -226,13 +238,17 @@
         @click="contourCoarseToggle"
         :block="false" :theme="isContourCoarseRef ? 'primary' : 'warning'"
       >
-        {{ isContourCoarseRef ? "切换细调" : "切换粗调" }}
+        {{
+          isContourCoarseRef
+            ? lang.ContourSliderSwitchFineButtonLabel
+            : lang.ContourSliderSwitchCoarseButtonLabel
+        }}
       </myButton>
       <myButton
         @click="onDetermineContour"
         :block="false" theme="danger"
       >
-        确认轮廓
+        {{ lang.ContourDetermineButtonLabel }}
       </myButton>
     </div>
   </mySpace>
@@ -250,7 +266,7 @@
     size="small"
   >
     <!-- 滑轨：左截距 -->
-    <div>【微调】左截距（px）：</div>
+    <div>{{ lang.InterceptLeftSliderLabel }}</div>
     <t-slider
       :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
@@ -260,7 +276,7 @@
       v-model="interceptNumArrRef[0]"
     /><t-divider />
     <!-- 滑轨：右截距 -->
-    <div>【微调】右截距（px）：</div>
+    <div>{{ lang.InterceptRightSliderLabel }}</div>
     <t-slider
       :onChange="onSlideChange" :onchangeEnd="null"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
@@ -275,13 +291,13 @@
         @click="onBackToStep3"
         :block="false" theme="default"
       >
-        返回上一步
+        {{ lang.StepBackButtonLabel }}
       </myButton>
       <myButton
         @click="onDetermineBaseline"
         :block="false" theme="danger"
       >
-        确认基线
+        {{ lang.BaselineConfirmButtonLabel }}
       </myButton>
     </div>
   </mySpace>
@@ -299,14 +315,9 @@
       <!-- 表头 -->
       <thead>
         <tr>
-          <th>序号</th>
-          <th>文件名</th>
-          <th>接触角 (°)</th>
-          <th>偏差 (°)</th>
-          <th>左接触角 (°)</th>
-          <th>右接触角 (°)</th>
-          <th>基线角度 (°)</th>
-          <th>椭圆拟合R²</th>
+          <th v-for="(content, index) of lang.ResultTableContent" :key="index">
+            {{ content }}
+          </th>
         </tr>
       </thead>
       <!-- 表格体 -->
@@ -315,9 +326,9 @@
           <td>{{ resultsIndex + 1 }}</td>
           <td>{{ resultArr[0] }}</td>
           <td>{{ resultArr[1].toFixed(2) }}</td>
-          <td>{{ resultArr[4].toFixed(2) }}</td>
           <td>{{ resultArr[2].toFixed(2) }}</td>
           <td>{{ resultArr[3].toFixed(2) }}</td>
+          <td>{{ resultArr[4].toFixed(2) }}</td>
           <!-- 这里后面版本稳定了，应该把条件判断给去掉 -->
           <td>{{ resultArr[6] ? resultArr[5].toFixed(2) : "旧版数据请尽快清理" }}</td>
           <td>{{ resultArr[6] ? resultArr[6].toFixed(4) : resultArr[5].toFixed(4) }}</td>
@@ -329,7 +340,7 @@
       @click="downloadResult"
       :block="false" theme="primary"
     >
-      下载结果/清理结果缓存
+      {{ lang.ResultTableExportButtonLabel }}
     </myButton></div>
   </mySpace>
 </MySpace></template>
@@ -339,7 +350,7 @@
  -->
 <script setup>
 // 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue"
+import { useTemplateRef, onMounted, onBeforeUnmount, ref, watch, nextTick, shallowRef } from "vue"
 // 导入VueUse的各类响应式方法
 import { useParentElement, useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
@@ -348,7 +359,11 @@ import my from "@/utils/myFunc.js"
 import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 // 导入OpenCV.js加载器
 import { loadOpenCV } from "@/utils/opencvLoader.js"
+// 导入语言包
+import { langAll, useData } from "./ContactAngle-lang.js"
 
+/** 语言包，默认"root"，即中文 @type { import("vue").ShallowRef<Object> }  */
+const lang = shallowRef(langAll.root)
 /**
  * 任务状态：
  * 1 - 未开始，或删除了图片。正在等待读取图片；
@@ -493,6 +508,14 @@ const {
 // 用于进行必要的各类初始化操作
 onMounted(() => {
 
+  // 语言刷新。获取当前语言
+  const localeIndexValue = useData().localeIndex.value
+  // 如果当前语言不是默认语言
+  if (localeIndexValue !== "root") {
+    // 则以当前语言刷新语言包
+    lang.value = langAll[localeIndexValue]
+  }
+
   // 用于阻止页面刷新和关闭
   // 该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
@@ -530,7 +553,7 @@ onMounted(() => {
 
   // 导入OpenCV.js库
   // 先给个加载框
-  my.loading("正在启动OpenCV.js计算机视觉模块，请稍候...")
+  my.loading(lang.value.OpenCVLoadingContent)
   // 这是从@techstark/opencv-js库中导入cv对象，原库cv比较大，已改为重构建的OpenCV.js了，故注释掉
   // const cvImportPromise = import("@techstark/opencv-js")
   // // 等待OpenCV.js加载完成
@@ -629,7 +652,8 @@ function onCanvasLongPress(event) { try {
 function onCanvasClick(event) { try {
   // console.log(
   //   `canvas点击：
-  //   (${ elementX.value * contactAngleObj.canvasScaling.toFixed(1) }, ${ elementY.value * contactAngleObj.canvasScaling.toFixed(1) })`
+  //   (${ elementX.value * contactAngleObj.canvasScaling.toFixed(1) },
+  //   ${ elementY.value * contactAngleObj.canvasScaling.toFixed(1) })`
   // )
   // 获取任务进度
   const taskStatus = taskStatusRef.value
@@ -735,8 +759,8 @@ function errorDialog() {
   // 直接对话框报错
   my.dialog({
     theme: "danger",
-    header: "程序报错",
-    body: "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
+    header: lang.value.ErrorDialogTitle,
+    body: lang.value.ErrorDialogContent
   })
 }
 
@@ -768,7 +792,7 @@ async function onPicChange(event) { try {
     return
   }
   // 加载框
-  my.loading("正在读取照片...")
+  my.loading(lang.value.PicLoadingContent)
   // 接收文件名
   contactAngleObj.filename = event[0].name
   // 从第一个对象获取文件url
@@ -1409,7 +1433,7 @@ function makeContour(matBinary, isDetermine = false) { try {
  */
 function initializeContourPointSet(metVectorContours) { try {
   // 加载框
-  my.loading("正在拟合液滴轮廓……")
+  my.loading(lang.value.ContourFitLoadingContent)
   // 声明一个数组用来接所有轮廓点，即集合P(0)
   const contourPointAoa = []
   // 接canvas的宽、高
@@ -1470,10 +1494,10 @@ function initializeContourPointSet(metVectorContours) { try {
     // 报错提示
     my.message({
       type: "error",
-      content: "轮廓点数据不够，无法拟合。",
+      content: lang.value.ContourFitErrorContent,
       duration: 10000
     })
-    throw Error("轮廓点数据不够，无法拟合。")
+    throw Error(lang.value.ContourFitErrorContent)
   // 否则
   } else {
     // 继续进行椭圆迭代，以及绘制椭圆轮廓
@@ -2133,7 +2157,9 @@ function onDetermineBaseline(event) { try {
   const contactAngle = calculateContactAngle(contactAngleObj.ellipseObj)
   // 发个通知
   my.dialog(
-    `本次所测得接触角为 ${ contactAngle.toFixed(2) }° 。可调整参数多次测量，具体结果详见下方数据表格。`
+    lang.value.ResultDialogContent[0]
+      + contactAngle.toFixed(2)
+      + lang.value.ResultDialogContent[1],
   )
 } catch (error) {
   console.log("onDetermineBaseline()方法出错：", error)
@@ -2234,7 +2260,7 @@ function calculateContactAngle() { try {
     console.log("方程没有2个解，delta: ", delta)
     my.message({
       type: "error",
-      content: "计算出错，拟合轮廓与基线无交点。",
+      content: lang.value.ContactErrorMessageContent,
       duration: 10000
     })
     throw Error("方程没有2个解")
@@ -2345,12 +2371,19 @@ function calculateContactAngle() { try {
     const contactAngleDeviation = Math.abs(contactAngleLeft - contactAngleRight)
     // 返回结果给全局对象
     resultRef.value.push([
+      // 文件名
       contactAngleObj.filename,
+      // 接触角 (°)
       contactAngleAverage,
-      contactAngleLeft,
-      contactAngleRight,
+      // 误差/偏差 (°)
       contactAngleDeviation,
+      // 左接触角 (°)
+      contactAngleLeft,
+      // 右接触角 (°)
+      contactAngleRight,
+      // 基线角度 (°)
       interceptAngle,
+      // 椭圆拟合R²
       contactAngleObj.ellipseR2
     ])
     // 把结果存进本地存储localStorage
@@ -2369,18 +2402,19 @@ function calculateContactAngle() { try {
  */
 function downloadResult(event) { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
-  const resultAoa = [["文件名", "接触角 (°)", "左接触角 (°)", "右接触角 (°)", "误差/偏差 (°)", "基线角度 (°)", "椭圆拟合R²"]]
+  const resultAoa = [[...lang.value.ResultTableContent]]
   // 填充数据：遍历resultRef.value
-  for (const resultArrProxy of resultRef.value) {
+  const resultOrigin = resultRef.value
+  for (let i = 0; i < resultOrigin.length; i++) {
     // 将代理对象转成普通数组
-    const resultArr = [...resultArrProxy]
+    const resultArr = [(i + 1), ...resultOrigin[i]]
     // 将结果数组推入AOA对象
     resultAoa.push(resultArr)
   }
   // 建立工作表文件的Map对象
   const resultMap = new Map()
   // 把数据结果AOA数组加进Map里
-  resultMap.set("接触角数据", resultAoa)
+  resultMap.set(lang.value.ResultSheetLabel, resultAoa)
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
@@ -2389,11 +2423,11 @@ function downloadResult(event) { try {
   resultRef.value = []
   // 清理localStorage
   localStorage.removeItem("contactAngleResult")
-  // 对Mac系统的特别关照：如果Mac系统
-  if (window.navigator?.userAgent?.includes("Mac")) {
-    // 提示用户手动复制表格数据
-    my.dialog("Mac系统如遇到锁权限情况，请手动复制表格数据。")
-  }
+  // // 对Mac系统的特别关照：如果Mac系统
+  // if (window.navigator?.userAgent?.includes("Mac")) {
+  //   // 提示用户手动复制表格数据
+  //   my.dialog("Mac系统如遇到锁权限情况，请手动复制表格数据。")
+  // }
 } catch (error) {
   // 报错处理
   console.log("downloadResult()方法出错：", error)

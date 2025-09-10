@@ -19,13 +19,13 @@
 
   <!-- 警报框 -->
   <t-alert
-    theme="info" title="功能简介"
+    theme="info" :title="lang.FunctionIntroductionTitle"
   >
-    检查并调用设备的各类传感器，以辅助完成设备垂直校准操作。
+    {{ lang.FunctionIntroductionContent }}
   </t-alert>
 
   <MyButton @click="ensurePermissions">
-    调用传感器
+    {{ lang.CallSensorButtonLabel }}
   </MyButton>
 
 </MySpace>
@@ -36,36 +36,37 @@
   <!-- 重力感应警报框 -->
   <t-alert
     v-if="isMotionSupported"
-    theme="info" title="重力感应"
+    theme="info" :title="lang.MotionSensorIntroductionTitle"
   >
-    重力传感器可捕捉设备在X、Y、Z三个方向的加速度分量。<br />
-    确保Y方向的分量尽可能最大。<br />
-    确保Z方向的分量尽可能接近或略微大于0。
+    <div v-for="(content, index) of lang.MotionSensorIntroductionContent" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!-- 方向感应警报框 -->
   <t-alert
     v-if="isOrientationSupported"
-    theme="info" title="方向感应"
+    theme="info" :title="lang.OrientationSensorIntroductionTitle"
   >
-    运动传感器可捕捉设备在alpha、beta、gamma三个轴面上的旋转角度。<br />
-    确保beta轴的角度尽可能接近或略微小于90°。
+    <div v-for="(content, index) of lang.OrientationSensorIntroductionContent" :key="index">
+      {{ content }}
+    </div>
   </t-alert>
 
   <!-- 操作建议警报框：有地磁传感器 -->
   <t-alert
     v-if="isGeomagneticSupported"
-    theme="warning" title="操作建议"
+    theme="warning" :title="lang.OperationSuggestionIntroductionTitle"
   >
-    您的设备配备有地磁传感器，可获得地磁校准的方向感应数据。建议您使用方向感应数据进行垂直校准。
+    {{ lang.OperationSuggestionGeomagneticIntroductionContent }}
   </t-alert>
 
   <!-- 操作建议警报框：无地磁传感器，但有重力传感器和运动传感器 -->
   <t-alert
     v-else-if="isMotionSupported && isOrientationSupported"
-    theme="warning" title="操作建议"
+    theme="warning" :title="lang.OperationSuggestionIntroductionTitle"
   >
-    在设备同时配备有重力传感器和运动传感器时，建议以重力感应数据为主、以方向感应数据为辅，进行垂直校准。
+    {{ lang.OperationSuggestionNonGeomagneticIntroductionContent }}
   </t-alert>
 
   <!-- 重力感应数据 -->
@@ -73,41 +74,41 @@
     <!-- 表头 -->
     <thead>
       <tr>
-        <th :colspan="2">重力感应 (m/s²)</th>
-        <th :colspan="2">方向感应 (°)</th>
+        <th :colspan="2">{{ lang.GravityTableHead[0] }}</th>
+        <th :colspan="2">{{ lang.GravityTableHead[1] }}</th>
       </tr>
     </thead>
     <!-- 表格体 -->
     <tbody>
       <tr>
-        <td>X方向:</td>
+        <td>{{ lang.GravityTableData[0][0] }}</td>
         <td>{{ acceleration.x === null ? 0 : acceleration.x.toFixed(1) }}</td>
-        <td>alpha轴:</td>
+        <td>{{ lang.GravityTableData[1][0] }}</td>
         <td>{{ orientationAlpha === null ? 0 : orientationAlpha.toFixed(1) }}</td>
       </tr>
       <tr>
-        <td>Y方向:</td>
+        <td>{{ lang.GravityTableData[0][1] }}</td>
         <td>{{ acceleration.y === null ? 0 : acceleration.y.toFixed(1) }}</td>
-        <td>beta轴:</td>
+        <td>{{ lang.GravityTableData[1][1] }}</td>
         <td>{{ orientationBeta === null ? 0 : orientationBeta.toFixed(1) }}</td>
       </tr>
       <tr>
-        <td>Z方向:</td>
+        <td>{{ lang.GravityTableData[0][2] }}</td>
         <td>{{ acceleration.z === null ? 0 : acceleration.z.toFixed(1) }}</td>
-        <td>gamma轴:</td>
+        <td>{{ lang.GravityTableData[1][2] }}</td>
         <td>{{ orientationGamma === null ? 0 : orientationGamma.toFixed(1) }}</td>
       </tr>
       <!-- 地磁传感器 -->
       <tr v-if="isGeomagneticSupported">
-        <th :colspan="2">地磁传感器</th>
-        <td :colspan="2">{{ isGeomagneticSupported ? "支持" : "不支持" }}</td>
+        <th :colspan="2">{{ lang.GeomagneticLabel }}</th>
+        <td :colspan="2">{{ isGeomagneticSupported ? lang.SupportedLabel : lang.NotSupportedLabel }}</td>
       </tr>
     </tbody>
   </table></div>
 
   <!-- 结束校准按钮 -->
   <MyButton @click="permissionGranted = false">
-    结束校准
+    {{ lang.EndButtonLabel }}
   </MyButton>
 
 </MySpace>
@@ -119,8 +120,15 @@
   逻辑层
  -->
 <script setup>
+// 从vue库导入生命周期钩子
+import { onMounted, shallowRef } from "vue"
 // 从vueuse库导入运动传感器和方向传感器
 import { useDeviceMotion, useDeviceOrientation } from "@vueuse/core"
+// 导入语言包
+import { langAll, useData } from "./VerticalCalibration-lang.js"
+
+/** 语言包，默认"root"，即中文 @type { import("vue").ShallowRef<Object> }  */
+const lang = shallowRef(langAll.root)
 
 // 解构接收运动感应的各类数据
 const {
@@ -157,6 +165,17 @@ const {
   gamma: orientationGamma,
 } = useDeviceOrientation()
 
+// 生命周期钩子，SSG的SPA化实现，组件挂载后执行
+// 用于进行必要的各类初始化操作
+onMounted(() => {
+  // 语言刷新。获取当前语言
+  const localeIndexValue = useData().localeIndex.value
+  // 如果当前语言不是默认语言
+  if (localeIndexValue !== "root") {
+    // 则以当前语言刷新语言包
+    lang.value = langAll[localeIndexValue]
+  }
+})
 </script>
 
 

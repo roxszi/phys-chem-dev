@@ -39,8 +39,6 @@ import tEnConfig from "tdesign-vue-next/es/locale/en_US"
 // 引入TDesign插件
 import { LoadingPlugin } from "tdesign-vue-next"
 
-// 读取页面设置数据：暗黑模式、语言
-const { isDark, lang } = useData()
 // TDesign的全局配置对象
 const tGlobalConfig = shallowRef(null)
 
@@ -51,6 +49,9 @@ const tGlobalConfig = shallowRef(null)
 // 生命周期钩子，SSG的SPA化实现，整个WebApp挂载后执行
 onMounted(() => {
 
+  // 读取页面设置数据：暗黑模式、语言
+  const { isDark, localeIndex } = useData()
+
   /**
    * 监听钩子
    * 用于全局切换时的事件监听
@@ -58,7 +59,7 @@ onMounted(() => {
   // TDesign的暗黑模式切换（监听注册后立即执行一次）
   watch(isDark, tDarkToggle, { immediate: true })
   // TDesign的中英文切换
-  watch(lang, tLangSwitch, { immediate: true })
+  watch(localeIndex, tLangSwitch, { immediate: true })
 
   /**
    * 路由守卫实现
@@ -116,11 +117,11 @@ function tDarkToggle(isDarkValue) {
 
 /**
  * TDesign的中英文切换
- * @param { String } langValue 语言值
+ * @param { String } langIndexValue 语言值
  */
-function tLangSwitch(langValue) {
+function tLangSwitch(langIndexValue) {
   // 如果用户选择中文，则将TDesign设置为中文
-  if (langValue === "zh-CN") {
+  if (langIndexValue === "root") {
     tGlobalConfig.value = tZhConfig
   // 否则设置为英文
   } else {

@@ -35,8 +35,8 @@ export default {
   en: {
     label: "English",
     lang: "en-US",
-    title: "VitePress",
-    description: "A VitePress site",
+    title: "Physical Chemistry Assistant @ CPU",
+    description: "Assist in theoretical and experimental teaching of physical chemistry, by teachers and students from China Pharmaceutical University.",
     themeConfig: getI18nThemeConfig("en")
    },
 

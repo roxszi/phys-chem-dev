@@ -34,38 +34,56 @@
 
 本应用的源码链接为：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 
-本应用的版权/著作权归 司承运@中国药科大学 所有。源码及文档以 [木兰宽松许可证, 第2版](https://license.coscl.org.cn/MulanPSL2) 开源。
+本应用的版权/著作权归 司承运@中国药科大学 所有。
+
+源码及文档以 [木兰宽松许可证, 第2版](https://license.coscl.org.cn/MulanPSL2) 开源。
 
 本应用依赖的第三方开源库如下（排名不分先后）：
 
 - [**VitePress**](https://vitepress.dev/)
 
-  本应用的页面框架，由 [Vite](https://cn.vitejs.dev/) 和 [Vue](https://cn.vuejs.org/) 驱动的静态站点生成器。遵循 [MIT](/LICENSES/vitepress.txt) 开源协议。
+  本应用的页面框架，由 [Vite](https://cn.vitejs.dev/) 和 [Vue](https://cn.vuejs.org/) 驱动的静态站点生成器。
+
+  遵循 [MIT](/LICENSES/vitepress.txt) 开源协议。
 
 - [**TDesign**](https://tdesign.tencent.com/)
 
-  组件库，腾讯业务团队推出的一套UI设计体系。本应用具体使用了其中的 [vue-next](https://tdesign.tencent.com/vue-next/overview) 组件库。遵循 [MIT](/LICENSES/tdsign.txt) 开源协议。
+  组件库，腾讯业务团队推出的一套UI设计体系。本应用具体使用了其中的 [vue-next](https://tdesign.tencent.com/vue-next/overview) 组件库。
+
+  遵循 [MIT](/LICENSES/tdsign.txt) 开源协议。
 
 - [**OpenCV.js**](https://docs.opencv.org/4.12.0/d5/d10/tutorial_js_root.html)
 
-  计算机视觉库。遵循 [Apache-2.0](/LICENSES/opencv.txt) 开源协议。
+  计算机视觉库。
+
+  遵循 [Apache-2.0](/LICENSES/opencv.txt) 开源协议。
 
 - [**SheetJS**](https://docs.sheetjs.com/)
 
-  Excel表格库。遵循 [Apache-2.0](/LICENSES/sheetjs.txt) 开源协议。
+  Excel表格库。
+
+  遵循 [Apache-2.0](/LICENSES/sheetjs.txt) 开源协议。
 
 - [**Vue.js**](https://cn.vuejs.org/)
 
-  JavaScript应用开发的运行时框架。遵循 [MIT](/LICENSES/vuejs.txt) 开源协议。
+  JavaScript应用开发的运行时框架。
+
+  遵循 [MIT](/LICENSES/vuejs.txt) 开源协议。
 
 - [**VueUse**](https://vueuse.org/)
 
-  适用于Vue项目开发的组合式工具集。遵循 [MIT](/LICENSES/vueuse.txt) 开源协议。
+  适用于Vue项目开发的组合式工具集。
+
+  遵循 [MIT](/LICENSES/vueuse.txt) 开源协议。
 
 - [**unplugin-auto-import**](https://www.npmjs.com/package/unplugin-auto-import)
 
-  由 [unplugin](https://unplugin.unjs.io/) 驱动的可实现自动导入组件的插件。遵循 [MIT](/LICENSES/unplugin-auto-import.txt) 开源协议。
+  由 [unplugin](https://unplugin.unjs.io/) 驱动的可实现自动导入组件的插件。
+
+  遵循 [MIT](/LICENSES/unplugin-auto-import.txt) 开源协议。
 
 - [**unplugin-vue-components**](https://www.npmjs.com/package/unplugin-vue-components)
 
-  可实现自动注册所导入的Vue组件的插件。遵循 [MIT](/LICENSES/unplugin-vue-components.txt) 开源协议。
+  可实现自动注册所导入的Vue组件的插件。
+
+  遵循 [MIT](/LICENSES/unplugin-vue-components.txt) 开源协议。

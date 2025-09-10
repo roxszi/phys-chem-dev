@@ -17,19 +17,23 @@ hero:
   image: logo-pure.webp
   # 操作按钮（链接）
   actions:
-    # - theme: brand
-    #   text: Computer Vision
-    #   link: opencv/
+    - theme: brand
+      text: Contact Angle
+      link: experiment/contact-angle/
     - theme: alt
       text: About
       link: about/
 
 # 主页特性部分
 features:
-  - title: To Be Perfected
-    icon: 🎓
-    details: To Be Perfected
-    # link: /news/2024-2025创坞入驻项目公示/
-    # linkText: 查看详情
+  - title: Contact Angle Measurement Assistant
+    icon: 📷
+    details: The vertical calibration operation that the mobile phone needs to perform before the contact Angle measurement.
+    link: en/experiment/contact-angle/vertical-calibration.md
+    linkText: Enter Application
+  - title: Contact Angle Image Processing Assistant
+    icon: 💦
+    details: After the contact Angle measurement, various processing works need to be carried out on the image to finally obtain the contact Angle data.
+    link: en/experiment/contact-angle/drop-pic-process.md
+    linkText: Enter Application
 ---
-

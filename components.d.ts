@@ -11,6 +11,7 @@ declare module 'vue' {
     TAlert: typeof import('tdesign-vue-next')['Alert']
     TButton: typeof import('tdesign-vue-next')['Button']
     TConfigProvider: typeof import('tdesign-vue-next')['ConfigProvider']
+    TDatePicker: typeof import('tdesign-vue-next')['DatePicker']
     TDivider: typeof import('tdesign-vue-next')['Divider']
     TSlider: typeof import('tdesign-vue-next')['Slider']
     TSpace: typeof import('tdesign-vue-next')['Space']

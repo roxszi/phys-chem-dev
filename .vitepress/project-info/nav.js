@@ -21,7 +21,7 @@ export default {
   /** 英文 @type { import("vitepress").DefaultTheme.NavItem[] } */
   en: [
     {
-      text: "niu bi",
+      text: "Technical Support",
       items: [
         { text: "VitePress", link: "https://vitepress.dev/zh/" },
         { text: "TDsign", link: "https://tdesign.tencent.com/vue-next/overview" }

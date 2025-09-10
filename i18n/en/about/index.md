@@ -1,37 +1,87 @@
-# 关于
+# About
 
-## 简介
+[[toc]]
 
-This online software (WebApp) focuses on the physical chemistry education and teaching of China Pharmaceutical University. It aims to address various demands in the theoretical and experimental education and teaching process of physical chemistry by leveraging various digital technologies (such as statistical machine learning methods, computer vision methods, and various neural network deep learning methods, etc.).
+## Introduction
 
-The currently ongoing work stacks include:
+This online software (WebApp) focuses on the physical chemistry education and teaching at China Pharmaceutical University. It aims to address various demands in the process of physical chemistry theory and experiment education and teaching by leveraging various digital technologies (such as statistical machine learning methods, computer vision methods, and various neural network deep learning methods).
 
-1. Tool software 《表面张力等温线的测定(接触角法)》。
+The ongoing work stacks are:
+
+1. Tool software for "Determination of Surface Tension Isotherms (Contact Angle Method)".
 
 If you have any questions, please feel free to contact us at any time!
 
-## 技术栈
+## Technology Stack
 
-以 [VitePress](https://vitepress.dev/zh/) 框架，结合 [TDesign (@Vue3)](https://tdesign.tencent.com) 构建的在线软件 (WebApp) 。
+with the [VitePress](https://vitepress.dev/zh/) framework, combining [TDesign (@Vue3)](https://tdesign.tencent.com) to build online software (WebApp).
 
-极端安全。业务页面打开之后即可断网操作，一切内容均在用户的电脑/手机端运行，完全不会往任何服务器发送数据，绝无后端/后门。
+Extremely safe. After opening the business page, you can operate it offline immediately. All content runs on the user's computer or mobile phone, and no data is sent to any server at all. There is absolutely no backend or backdoor.
 
-计算机视觉方面，主要选用了 [OpenCV.js](https://www.npmjs.com/package/@techstark/opencv-js) 技术栈。OpenCV（Open Computer Vision，开放计算机视觉库）是工业与学术研究领域使用最广泛的开源计算机视觉库，也是计算机视觉领域最受欢迎的库之一。
+In terms of computer vision, the [OpenCV.js](https://opencv.ac.cn/) technology stack was mainly adopted. OpenCV (Open Computer Vision, Open Computer Vision Library) is the most widely used open-source computer vision library in both industrial and academic research fields, and it is also one of the most popular libraries in the field of computer vision.
 
-深度学习业务方面，选用了 [Keras (@TensorFlow.js)](https://tensorflow.google.cn/js?hl=zh-cn) 技术栈。借助TensorFlow.js原生对Keras [API](https://js.tensorflow.org/api/latest/?hl=zh-cn) 的实现，完成便捷且通用的模型层搭建，并以TensorFlow.js运行层开启WebGPU硬件加速，彻底杜绝复杂的部署问题及对CUDA硬件的依赖问题。
+Deep learning business, choose the [Keras (@TensorFlow.js)](https://tensorflow.google.cn/js?hl=zh-cn) technology stack. Using TensorFlow.js native to Keras [API](https://js.tensorflow.org/api/latest/?hl=zh-cn), the convenient and universal model layer structures, And enable WebGPU hardware acceleration with the TensorFlow.js runtime layer to completely eliminate complex deployment issues and the reliance on CUDA hardware.
 
-机器学习业务方面，主要选用了 [ml.js](https://github.com/mljs/ml)技术栈，以实现基础的机器学习业务。
+Machine learning business, mainly use the stack [ml.js](https://github.com/mljs/ml) technology, based on implementation of machine learning.
 
-具体介绍详见各业务链接。
+Data table processing and download, choose the stack [SheetJS](https://docs.sheetjs.com/) technology, in order to realize the convenient and universal form processing and the data download function.
 
-一切旨在学习。热烈欢迎bug反馈及各类技术/知识交流！
+For detailed information, please refer to the links of each business.
 
-## 源码
+Everything is aimed at learning. Warmly welcome bug feedback and all kinds of technical/knowledge exchanges!
 
-本应用的源码托管在 [AtomGit平台](https://atomgit.com) 上，源码链接为：
+## Open Source Code
 
-[https://atomgit.com/cpuer/phys-chem-app-admin](https://atomgit.com/cpuer/phys-chem-app-admin)
+The application source code links to: [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 
-## Copyright
+The copyright of this application belongs to SI_Cheng-Yun @ China Pharmaceutical University. The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2).
 
-The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2) license.
+The third-party open-source libraries relied upon by this application are as follows (in no particular order):
+
+- [**VitePress**](https://vitepress.dev/)
+
+  The page framework of this application. A static site generator driven by [Vite](https://cn.vitejs.dev/) and [Vue](https://cn.vuejs.org/).
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
+
+- [**TDesign**](https://tdesign.tencent.com/)
+
+  The component library is a UI design system launched by the Tencent business team. This application uses the specific [vue-next](https://tdesign.tencent.com/vue-next/overview) component library.
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
+
+- [**OpenCV.js**](https://docs.opencv.org/4.12.0/d5/d10/tutorial_js_root.html)
+
+  Computer vision library.
+
+  Follow the [Apache-2.0](/LICENSES/opencv.txt) open source license.
+
+- [**SheetJS**](https://docs.sheetjs.com/)
+
+  Excel table library.
+
+  Follow the [Apache-2.0](/LICENSES/opencv.txt) open source license.
+
+- [**Vue.js**](https://cn.vuejs.org/)
+
+  A runtime framework for JavaScript application development.
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
+
+- [**VueUse**](https://vueuse.org/)
+
+  A composite toolset suitable for Vue project development.
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
+
+- [**unplugin-auto-import**](https://www.npmjs.com/package/unplugin-auto-import)
+
+  Driven by [unplugin](https://unplugin.unjs.io/), which can realize automatic import component of the plug-in.
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
+
+- [**unplugin-vue-components**](https://www.npmjs.com/package/unplugin-vue-components)
+
+  A plugin that can automatically register the imported Vue components.
+
+  Follow the [MIT](/LICENSES/vitepress.txt) open source license.
