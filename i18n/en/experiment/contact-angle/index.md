@@ -10,8 +10,6 @@
 
 ## 1.  Overview of Contact Angle
 
-液体在固体上的表面张力性质一般以固体的表面润湿性能进行描述，最为容易测量并定量的润湿性能参数即为**接触角**：接触角（contact angle）是液滴在固体表面处于平衡状态时，气-液界面与固-液界面的夹角（$θ$），如图1所示：
-
 The surface tension property of a liquid on a solid is generally described by the surface wetting performance of the solid. The most easily measurable and quantifiable wetting performance parameter is the **contact angle**: The contact angle is the angle ($θ$) between the gas - liquid interface and the solid - liquid interface when the liquid droplet is in equilibrium on the solid surface, as shown in Figure 1: 
 
 ![图1](index_files/图1.png)<MyPicHead>Figure 1  Definition diagram of the contact Angle</MyPicHead>
