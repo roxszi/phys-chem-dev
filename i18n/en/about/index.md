@@ -14,7 +14,7 @@ If you have any questions, please feel free to contact us at any time!
 
 ## Technology Stack
 
-with the [VitePress](https://vitepress.dev/zh/) framework, combining [TDesign (@Vue3)](https://tdesign.tencent.com) to build online software (WebApp).
+With the [VitePress](https://vitepress.dev/zh/) framework, combining [TDesign (@Vue3)](https://tdesign.tencent.com) to build online software (WebApp).
 
 Extremely safe. After opening the business page, you can operate it offline immediately. All content runs on the user's computer or mobile phone, and no data is sent to any server at all. There is absolutely no backend or backdoor.
 

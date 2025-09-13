@@ -116,7 +116,7 @@
       @change="onContourAlgorithmSwitchChange"
       v-model="contourAlgorithmSwitchRef"
       :leftLabel="lang.CannyAlgorithmLabel"
-      :rightLabel="lang.ThresholdAlgorithmLabel"
+      :rightLabel="lang.ThresholdingMethodLabel"
     />
 
     <!-- 警报框：遮罩 -->
@@ -773,6 +773,8 @@ function errorDialog() {
  */
 function taskToStep1() { try {
   taskStatusRef.value = 1
+  // 清空canvas上的矩形标记数据
+  canvasRectDataRemove()
 } catch (error) {
   console.log("taskToStep1()报错：", error)
   throw Error(error)

@@ -9,10 +9,10 @@ layout: home
 # 主页主体部分
 hero:
   # 彩色标题(name)及黑白标题(text)
-  name: "Physical Chemistry Learning Assistant"
+  name: "Physical Chemistry Learning Helper"
   # text: "A VitePress Site"
   # 副标题/标语
-  tagline: Assist in the theoretical and experimental teaching of physical chemistry.
+  tagline: Helper in the theoretical and experimental teaching of physical chemistry.
   # logo图
   image: logo-pure.webp
   # 操作按钮（链接）
