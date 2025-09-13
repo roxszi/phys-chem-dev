@@ -207,8 +207,11 @@ en.ResultTableProcessingLabel = "Process"
 root.ResultTableDeleteButtonLabel = "删除"
 en.ResultTableDeleteButtonLabel = "Delete"
 
-root.ResultTableExportButtonLabel = "下载结果/清理结果缓存"
-en.ResultTableExportButtonLabel = "Download Result / Clear Result Cache"
+root.ResultTableExportButtonLabel = "下载结果"
+en.ResultTableExportButtonLabel = "Download Result"
+
+root.DeleteAllResultButtonLabel = "清空结果"
+en.DeleteAllResultButtonLabel = "Clear Result"
 
 // ------------------------------
 
@@ -236,7 +239,7 @@ root.ResultDialogContent = [
 ]
 en.ResultDialogContent = [
   "The contact angle measured this time is ",
-  " ° . You can adjust the parameters multiple times to measure, and the specific results can be seen in the data table below."
+  "° . You can adjust the parameters multiple times to measure, and the specific results can be seen in the data table below."
 ]
 
 root.ContactErrorMessageContent = "计算出错，拟合轮廓与基线无交点。"
@@ -247,6 +250,15 @@ en.ResultSheetLabel = "Contact_Angle_Data"
 
 root.DeleteUniResultDialogContent = "确定要删除该结果吗？"
 en.DeleteUniResultDialogContent = "Are you sure you want to delete this result?"
+
+root.DeleteAllResultDialogContent = "确定要删除全部结果吗？"
+en.DeleteAllResultDialogContent = "Are you sure you want to delete all results?"
+
+root.DeleteResultDialogConfirmBtnLabel = "确定"
+en.DeleteResultDialogConfirmBtnLabel = "Confirm"
+
+root.DeleteResultDialogCancelBtnLabel = "取消"
+en.DeleteResultDialogCancelBtnLabel = "Cancel"
 
 root.DeleteUniResultMessageContent = "删除成功！"
 en.DeleteUniResultMessageContent = "Deleted successfully!"

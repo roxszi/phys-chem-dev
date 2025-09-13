@@ -268,7 +268,8 @@
     <!-- 滑轨：左截距 -->
     <div>{{ lang.InterceptLeftSliderLabel }}</div>
     <t-slider
-      :onChange="onSlideChange" :onchangeEnd="null"
+      @Change="onSlideChange"
+      @changeEnd="onContourSlideChangeEnd"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="interceptNumArrRef[2]" :max="interceptNumArrRef[3]" :step="1" 
       :marks="[interceptNumArrRef[4], interceptNumArrRef[5],
@@ -278,7 +279,8 @@
     <!-- 滑轨：右截距 -->
     <div>{{ lang.InterceptRightSliderLabel }}</div>
     <t-slider
-      :onChange="onSlideChange" :onchangeEnd="null"
+      @Change="onSlideChange"
+      @changeEnd="onContourSlideChangeEnd"
       :inputNumberProps="false" :label="true" layout="horizontal" :range="false"
       :min="interceptNumArrRef[8]" :max="interceptNumArrRef[9]" :step="1" 
       :marks="[interceptNumArrRef[10], interceptNumArrRef[11],
@@ -345,12 +347,22 @@
       </tbody>
     </table></div>
     <!-- 容器（按钮容器） -->
-    <div class="center"><myButton
-      @click="downloadResult"
-      :block="false" theme="primary"
-    >
-      {{ lang.ResultTableExportButtonLabel }}
-    </myButton></div>
+    <div class="center">
+      <!-- 下载数据 -->
+      <myButton
+        @click="downloadResult"
+        :block="false" theme="primary"
+      >
+        {{ lang.ResultTableExportButtonLabel }}
+      </myButton>
+      <!-- 清空数据 -->
+      <myButton
+        @click="deleteAllResult"
+        :block="false" theme="danger"
+      >
+        {{ lang.DeleteAllResultButtonLabel }}
+      </myButton>
+    </div>
   </mySpace>
 </MySpace></template>
 
@@ -634,7 +646,7 @@ function beforeunloadHandler(event) {
  * 长按<canvas>触发的回调
  * 步骤2、步骤3：清空<canvas>上的标记
  */
-function onCanvasLongPress(event) { try {
+function onCanvasLongPress() { try {
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2时
@@ -658,7 +670,7 @@ function onCanvasLongPress(event) { try {
  * 步骤2：选框
  * 步骤4：绘制基线
  */
-function onCanvasClick(event) { try {
+function onCanvasClick() { try {
   // console.log(
   //   `canvas点击：
   //   (${ elementX.value * contactAngleObj.canvasScaling.toFixed(1) },
@@ -728,7 +740,7 @@ function ctxSetting() { try {
  * 步骤4：基线细调。此步骤下，用户点击canvas会触发绑定值的修改，也会触发该回调。
  * @note 对于模型绑定，即便是其它操作修改了所绑定的值，也会触发值变化事件的回调。
  */
-function onSlideChange(event) { try {
+function onSlideChange() { try {
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为3时，即确定轮廓阶段
@@ -749,11 +761,15 @@ function onSlideChange(event) { try {
  * 调节滑轨操作刚停止的事件回调钩子
  * 步骤3：基线细调。此步骤下，用户只能操作滑轨，因此事件全部来源于滑轨。
  */
-function onContourSlideChangeEnd(event) { try {
+function onContourSlideChangeEnd() { try {
   // 任务进度为3，且为细调状态
   if ((taskStatusRef.value === 3) && (isContourCoarseRef.value === false)) {
     // 调用进度3下的具体刷新滑轨方法
     refreshContourFineSlider()
+  // 任务进度为4
+  } else if (taskStatusRef.value === 4) {
+    // 调用进度4下的具体刷新滑轨方法
+    refreshBaselineFineSlider()
   }
 } catch (error) {
   console.log("onContourSlideChangeEnd()报错：", error)
@@ -1026,7 +1042,7 @@ function drawRect() { try {
 /**
  * 点击“裁剪图片”按钮的事件回调钩子
  */
-function onSureRect(event) { try {
+function onSureRect() { try {
   // 直接执行裁剪方法
   sureRect(false)
 } catch (error) {
@@ -1037,7 +1053,7 @@ function onSureRect(event) { try {
 /**
  * 点击“确定裁剪”按钮的事件回调钩子
  */
-function onDetermineRect(event) { try {
+function onDetermineRect() { try {
   // 直接执行裁剪方法，并确定完成裁剪
   sureRect(true)
 } catch (error) {
@@ -1157,7 +1173,7 @@ function taskToStep3() { try {
 /**
  * 寻找轮廓算法的切换算法事件钩子
  */
-function onContourAlgorithmSwitchChange(event) { try {
+function onContourAlgorithmSwitchChange() { try {
   // 直接调用轮廓查找方法，刷新一次轮廓渲染即可
   slideContour(false)
 } catch (error) {
@@ -1168,7 +1184,7 @@ function onContourAlgorithmSwitchChange(event) { try {
 /**
  * 点击“确定轮廓”按钮的事件回调钩子
  */
-function onDetermineContour(event) { try {
+function onDetermineContour() { try {
   // 直接执行轮廓查找方法，并确定完成轮廓查找
   slideContour(true)
 } catch (error) {
@@ -1990,14 +2006,10 @@ function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { tr
   // 整除后，乘以2是阶梯的宽度，乘以3是mark的宽度。
   // 除此以外，得确保截距最小单位起码是1。
   const delta = Math.max(Math.floor(canvasHeight / 90), 1)
-  // 找左截距的下限：左截距的下限必须不小于0，不大于canvas的高度
-  const leftParamMin = Math.max(0,
-    Math.min(canvasHeight, (leftIntercept - (delta * 3)))
-  )
-  // 找右截距的下限：右截距的下限必须不小于0，不大于canvas的高度
-  const rightParamMin = Math.max(0,
-    Math.min(canvasHeight, (rightIntercept - (delta * 3)))
-  )
+  // 左截距的下限
+  const leftParamMin = leftIntercept - (delta * 3)
+  // 右截距的下限
+  const rightParamMin = rightIntercept - (delta * 3)
   // 细调的阈值数组
   const interceptNumArr = [
     // 左截距和右截距
@@ -2124,7 +2136,7 @@ function drawBaseline() { try {
 /**
  * 步骤4里返回上一步的事件回调钩子
  */
-function onBackToStep3(event) { try {
+function onBackToStep3() { try {
   // 直接返回上一步即可
   // 不能初始化上一步，如果初始化的话，已有轮廓数据的暂存参数设置就会丢失
   taskStatusRef.value = 3
@@ -2165,7 +2177,7 @@ function onBackToStep3(event) { try {
 /**
  * 步骤4-5里确认基线的事件回调钩子
  */
-function onDetermineBaseline(event) { try {
+function onDetermineBaseline() { try {
   // 拿上一步优化得到的椭圆计算接触角
   const contactAngle = calculateContactAngle(contactAngleObj.ellipseObj)
   // 发个通知
@@ -2410,7 +2422,6 @@ function calculateContactAngle() { try {
   throw Error(error)
 }}
 
-
 /**
  * 删除单个数据结果
  * @param { Number } resultsIndex 结果的索引
@@ -2422,12 +2433,46 @@ function deleteUniResult(resultsIndex) { try {
     theme: "danger",
     // 通知内容
     body: lang.value.DeleteUniResultDialogContent,
+    // 确认按钮的文本
+    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    // 取消按钮的文本
+    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
     // 确认后的回调
     onConfirmCallBack: () => {
       // 删除resultRef.value的对应项
       resultRef.value.splice(resultsIndex, 1)
-      // 清理localStorage
+      // 更新localStorage
       localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
+      // 提示用户
+      my.message(lang.value.DeleteUniResultMessageContent)
+    }
+  })
+} catch (error) {
+  // 报错处理
+  console.log("deleteUniResult()方法出错：", error)
+  errorDialog()
+}}
+
+/**
+ * 删除全部数据结果
+ */
+function deleteAllResult() { try {
+  // 弹出确认框
+  my.dialog({
+    // 主题：警示
+    theme: "danger",
+    // 通知内容
+    body: lang.value.DeleteAllResultDialogContent,
+    // 确认按钮的文本
+    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    // 取消按钮的文本
+    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
+    // 确认后的回调
+    onConfirmCallBack: () => {
+      // 删除resultRef.value的所以项
+      resultRef.value.length = 0
+      // 清理localStorage
+      localStorage.removeItem("contactAngleResult")
       // 提示用户
       my.message(lang.value.DeleteUniResultMessageContent)
     }
@@ -2441,7 +2486,7 @@ function deleteUniResult(resultsIndex) { try {
 /**
  * 下载结果
  */
-function downloadResult(event) { try {
+function downloadResult() { try {
   // 接一个AOA对象，第一个元素是表头，后面是数据
   const resultAoa = [[...lang.value.ResultTableContent]]
   // 填充数据：遍历resultRef.value
@@ -2460,10 +2505,6 @@ function downloadResult(event) { try {
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
   downloadXlsx(workbook, "contact-angle_data.xlsx")
-  // 文件准备完毕，清理resultRef.value
-  resultRef.value = []
-  // 清理localStorage
-  localStorage.removeItem("contactAngleResult")
   // // 对Mac系统的特别关照：如果Mac系统
   // if (window.navigator?.userAgent?.includes("Mac")) {
   //   // 提示用户手动复制表格数据

@@ -85,7 +85,7 @@ export function myDialog(paramObj) {
     theme = "info",
     header,
     body,
-    confirmBtn,
+    confirmBtn = undefined,
     onConfirmCallBack = () => { },
   } = paramObj
   // 取消按钮要独立处理：如果没有确认回调，那就不用显示了
