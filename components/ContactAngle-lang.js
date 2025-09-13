@@ -201,6 +201,12 @@ en.ResultTableContent = [
   "Ellipse Fitting R²"
 ]
 
+root.ResultTableProcessingLabel = "处理"
+en.ResultTableProcessingLabel = "Process"
+
+root.ResultTableDeleteButtonLabel = "删除"
+en.ResultTableDeleteButtonLabel = "Delete"
+
 root.ResultTableExportButtonLabel = "下载结果/清理结果缓存"
 en.ResultTableExportButtonLabel = "Download Result / Clear Result Cache"
 
@@ -238,3 +244,9 @@ en.ContactErrorMessageContent = "Calculation error, the fitted contour and basel
 
 root.ResultSheetLabel = "接触角数据"
 en.ResultSheetLabel = "Contact_Angle_Data"
+
+root.DeleteUniResultDialogContent = "确定要删除该结果吗？"
+en.DeleteUniResultDialogContent = "Are you sure you want to delete this result?"
+
+root.DeleteUniResultMessageContent = "删除成功！"
+en.DeleteUniResultMessageContent = "Deleted successfully!"

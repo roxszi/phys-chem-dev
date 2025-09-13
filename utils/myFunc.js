@@ -68,7 +68,7 @@ export function myLoading(text = "加载中...") {
  * @param { String } [paramObj.body] 内容
  * @param { String | Null } [paramObj.confirmBtn] 确认按钮文字
  * @param { String | Null } [paramObj.cancelBtn = null] 取消按钮文字
- * @param { Function } [paramObj.onConfirm = () => { }] 确认回调
+ * @param { Function } [paramObj.onConfirmCallBack = () => { }] 确认回调
  * @note 会读写全局对象myPluginObj.loadingInstance
  */
 export function myDialog(paramObj) {
@@ -86,10 +86,10 @@ export function myDialog(paramObj) {
     header,
     body,
     confirmBtn,
-    onConfirm = () => { },
+    onConfirmCallBack = () => { },
   } = paramObj
   // 取消按钮要独立处理：如果没有确认回调，那就不用显示了
-  const cancelBtn = paramObj.onConfirm
+  const cancelBtn = paramObj.onConfirmCallBack
     ? paramObj.cancelBtn || undefined
     : null
   // 创建对话框实例，赋值给全局对象
@@ -123,7 +123,7 @@ export function myDialog(paramObj) {
     // 确认回调
     onConfirm: () => {
       // 回调传参
-      onConfirm()
+      onConfirmCallBack()
       // 销毁对话框
       myPluginObj.dialogInstance.destroy()
     },
@@ -137,6 +137,7 @@ export function myDialog(paramObj) {
  * 提示框
  * @param { Object | String } paramObj 参数对象
  * @param { String } [paramObj.theme = "info"] 对话框风格：info/success/warning/error/question/loading
+ * @param { Boolean } [paramObj.closeBtn = false] 是否显示关闭按钮
  * @param { String } paramObj.content 内容
  * @param { Number } [paramObj.duration = 1500] 显示时长
  */
@@ -148,6 +149,7 @@ export function myMessage(paramObj) {
   // 解构赋值获取传参
   const {
     theme = "info",
+    closeBtn = false,
     content,
     duration = 1500
   } = paramObj
@@ -157,7 +159,7 @@ export function myMessage(paramObj) {
     theme,
     {
       // 关闭按钮
-      closeBtn: true,
+      closeBtn: closeBtn,
       // 内容
       content: content,
       // 图标

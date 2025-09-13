@@ -318,6 +318,8 @@
           <th v-for="(content, index) of lang.ResultTableContent" :key="index">
             {{ content }}
           </th>
+          <!-- 处理 -->
+          <th>{{ lang.ResultTableProcessingLabel }}</th>
         </tr>
       </thead>
       <!-- 表格体 -->
@@ -332,6 +334,13 @@
           <!-- 这里后面版本稳定了，应该把条件判断给去掉 -->
           <td>{{ resultArr[6] ? resultArr[5].toFixed(2) : "旧版数据请尽快清理" }}</td>
           <td>{{ resultArr[6] ? resultArr[6].toFixed(4) : resultArr[5].toFixed(4) }}</td>
+          <!-- 删除按钮 -->
+          <td><myButton
+            @click="deleteUniResult(resultsIndex)"
+            :block="false" theme="danger"
+          >
+            {{ lang.ResultTableDeleteButtonLabel }}
+          </myButton></td>
         </tr>
       </tbody>
     </table></div>
@@ -423,8 +432,8 @@ const isContourCoarseRef = ref(true)
 /** 
  * 第三步寻找轮廓的遮罩算法切换对象
  * @type { import("vue").Ref<Boolean> }
- * @value true - 两边遮罩
- * @value false - 中心遮罩
+ * @value false - 两边遮罩
+ * @value true - 中心遮罩
  */
 const contourFilterAlgorithmSwitchRef = ref(false)
 
@@ -775,6 +784,8 @@ function taskToStep1() { try {
   taskStatusRef.value = 1
   // 清空canvas上的矩形标记数据
   canvasRectDataRemove()
+  // 恢复遮罩的默认设置
+  contourFilterAlgorithmSwitchRef.value = false
 } catch (error) {
   console.log("taskToStep1()报错：", error)
   throw Error(error)
@@ -2397,6 +2408,34 @@ function calculateContactAngle() { try {
   // 报错处理
   console.log("calculateContactAngle()方法出错：", error)
   throw Error(error)
+}}
+
+
+/**
+ * 删除单个数据结果
+ * @param { Number } resultsIndex 结果的索引
+ */
+function deleteUniResult(resultsIndex) { try {
+  // 弹出确认框
+  my.dialog({
+    // 主题：警示
+    theme: "danger",
+    // 通知内容
+    body: lang.value.DeleteUniResultDialogContent,
+    // 确认后的回调
+    onConfirmCallBack: () => {
+      // 删除resultRef.value的对应项
+      resultRef.value.splice(resultsIndex, 1)
+      // 清理localStorage
+      localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
+      // 提示用户
+      my.message(lang.value.DeleteUniResultMessageContent)
+    }
+  })
+} catch (error) {
+  // 报错处理
+  console.log("deleteUniResult()方法出错：", error)
+  errorDialog()
 }}
 
 /**
