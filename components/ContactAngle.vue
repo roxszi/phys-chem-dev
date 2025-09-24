@@ -289,15 +289,17 @@
     /><t-divider />
     <!-- 容器（按钮容器） -->
     <div class="center">
+      <!-- 返回上一步 -->
       <myButton
         @click="onBackToStep3"
         :block="false" theme="default"
       >
         {{ lang.StepBackButtonLabel }}
       </myButton>
+      <!-- 确认基线 -->
       <myButton
         @click="onDetermineBaseline"
-        :block="false" theme="danger"
+        :block="false" theme="primary"
       >
         {{ lang.BaselineConfirmButtonLabel }}
       </myButton>
@@ -1545,29 +1547,54 @@ function initializeContourPointSet(metVectorContours) { try {
 /**
  * 椭圆点的迭代
  * @param { Number[][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
- * @note 会将ellipseObj、ellipseR2写入全局对象
- * 每次迭代，都会拟合得到椭圆方程（参数）。
- * 然后以椭圆中心坐标系，平移旋转拟合点。
- * 然后过滤拟合度差点拟合点，并从上一轮过滤掉的拟合点里选择拟合度好的点，作为下一轮的拟合点。
- * 反复迭代，直到收敛。
- * 收敛条件：迭代次数达100次，或者R²大于0.99。
- * 迭代过程中，也会逐渐缩小过滤阈值。
+ * @note 会将ellipseObj、ellipseR2、baselinePoint写入全局对象
+ * toleranceValue，容差，[点对拟合圆心的半径r/拟合最近点半径]超过（大于或小于）该阈值，
+ *     则将该点排除进“阴性点集”。
+ * @HyperParam TOLERANCE_VALUE_INIT，初始容差。
+ * @HyperParam TOLERANCE_VALUE_MIN，迭代筛选时候的最小容差。
+ * @HyperParam NP_TO_PP_THRESHOLD，阴性点转阳性点的阈值叠加因子，即“复活赛”的难度。
+ *     阴性点集的偏离考核需要在容差值的基础上乘以该因子（即容差更小了），符合则复活。
+ * @HyperParam ITERATION_WEIGHT，每次迭代的加权因子。
+ * @HyperParam R2_THRESHOLD，R²的收敛阈值。
+ * @HyperParam ITERATION_COUNT_MAX，最大迭代次数。
+ * 算法说明：
+ * 1.  以初始点集P0带入椭圆方程，拟合得到椭圆方程F0。
+ * 2.  把P0所有点带入椭圆方程F0，并计算R²；
+ *     计算每个点到椭圆的距离r；并以F0的拟合圆心为参照，计算该角度（方向）下椭圆半径r'；
+ *     以当前容差值（toleranceValue），筛选出容差内的“阳性点集”PP0，和超容差的“阴性点集”NP0。
+ * 3.  以“阳性点集”PP0拟合椭圆方程F1，并计算R²；
+ *     计算每个点到椭圆的距离r；并以F1的拟合圆心为参照，计算该角度（方向）下椭圆半径r'；
+ *     以当前容差值，筛选出容差内的“阳性-正确点集”PT1，和超出容差的“阴性点集”PF1。
+ *     以当前容差值*阴性系数，筛选出阴性容差内的“阴性-正确点集”NT1，和超出阴性容差的“阴性-错误点集”NF1。
+ *     “阳性-正确点集”PT1 + “阴性-错误点集”NF1 == 新的“阳性点集”PP1
+ *     “阳性-错误点集”NT1 + “阴性-正确点集”NF1 == 新的“阴性点集”NP1
+ * 4.  重复：“阳性-正确点集”PT1、“阴性-错误点集”NF1，其中之一继续变化。则重复步骤3。
+ *     收敛：“阳性-正确点集”PT1、“阴性-错误点集”NF1不再变化。则收紧容差值，然后重复步骤3、4。
+ * 5.  若迭代次数达到最大值，或R²超过阈值，或容差值收紧至最小，则停止迭代。
+ * 算法细节：
+ * 1.  处理轮廓点时，均以当前拟合得到的椭圆划定中心坐标系。即需平移旋转点集以得到新坐标系下的轮廓点数据。
+ * 2.  每次迭代，都是以上一轮过滤得到的“阳性点集”进行拟合，并用拟合结果给上一轮的“阴性点集”一个“复活赛”机会，
+ *     复活的阴性点集 + 存活的阳性点集，共同作为下一轮的拟合点集。
+ * 3.  每次迭代稳定后，即阳性点集、阴性点集均不再变化，则收紧容差值，并重复迭代。
+ * 4.  所以相当于有2层迭代。外层是容差值收紧；内层则是阳性/阴性点集的迭代。
  */
 function ellipsePointIterate(contourPointAoa) { try {
   // --------设置参数--------
-  // 迭代筛选时候的容差，也就是阳性点转阴性点的阈值
-  let tolerancePercentage = 0.2
-  // 迭代筛选时候的最小容差
-  const minTolerancePercentage = 0.001
-  // 阴性点转阳性点的阈值叠加因子
-  const negativePointThreshold = 0.7
-  // R²的收敛阈值
-  const R2Threshold = 0.99
-  // 最大迭代次数
-  const maxIterationCount = 100
+  /** 迭代筛选时候的初始容差 @type { Number } */
+  const TOLERANCE_VALUE_INIT = 0.2
+  /** 迭代筛选时候的最小容差 @type { Number } */
+  const TOLERANCE_VALUE_MIN = 0.001
+  /** 阴性点转阳性点的阈值叠加因子，即增加难度 @type { Number } */
+  const NP_TO_PP_THRESHOLD = 0.7
+  /** 每次迭代的加权因子 @type { Number } */
+  const ITERATION_WEIGHT = 0.7
+  /** R²的收敛阈值 @type { Number } */
+  const R2_THRESHOLD = 0.99
+  /** 最大迭代次数 @type { Number } */
+  const ITERATION_COUNT_MAX = 100
   // --------计算--------
-  // 实际用于判断的迭代筛选时候的最小容差
-  const realMinTolerancePercentage = minTolerancePercentage * 2
+  // 从起始值开始接一个迭代筛选时候的容差，也就是阳性点转阴性点的阈值，
+  let toleranceValue = TOLERANCE_VALUE_INIT
   // 接阳性点数组、阴性点数组
   const positivePointAoa = contourPointAoa
   const negativePointAoa = []
@@ -1586,7 +1613,7 @@ function ellipsePointIterate(contourPointAoa) { try {
   // 1.  用positivePointAoa计算得到椭圆方程
   // 2.  根据椭圆方程，筛选出新的positivePointAoa和negativePointAoa
   // 3.  判断是否收敛
-  contourPointIterate: while (!isConverge && (iterationCount < maxIterationCount)) {
+  contourPointIterate: while (!isConverge && (iterationCount < ITERATION_COUNT_MAX)) {
     // 开始迭代，迭代次数+1
     iterationCount = iterationCount + 1
     // OpenCV工厂方法，把轮廓坐标点positivePointAoa转为轮廓Mat对象
@@ -1629,99 +1656,79 @@ function ellipsePointIterate(contourPointAoa) { try {
     const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
     // 用椭圆方程来筛选点（阳性）
     // 阳性点的筛选条件
-    const maxPosttiveTolerance = 1 + tolerancePercentage
-    const minPosttiveTolerance = 1 - tolerancePercentage
-    // 遍历所有旧的阳性轮廓点
-    forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
-      // 根据椭圆参数，调整点的相对坐标
+    const maxPosttiveTolerance = 1 + toleranceValue
+    const minPosttiveTolerance = 1 - toleranceValue
+    /**
+     * 内部函数：筛选点
+     * 会根据椭圆参数，调整点的相对坐标。然后再筛选
+     * @note ellipsePointIterate()内部变量很多，所以这里用到了内部函数来实现一层闭包
+     * @param { Number[] } param1 [pointX, pointY] X和Y坐标值
+     * @param { Number[][] } PPointAoa 阳性点集
+     * @param { Number[][] } NPointAoa 阴性点集
+     * @param { Number } minTolerance 最小容差
+     * @param { Number } maxTolerance 最大容差
+     * @returns { Number[] } [pointR, ellipseR] 返回点半径和椭圆半径
+     */
+    function pointFilter([pointX, pointY], PPointAoa, NPointAoa, minTolerance, maxTolerance) {
       // 接X和Y坐标值
-      const pointX = positivePointAoa[i][0]
-      const pointY = positivePointAoa[i][1]
+      // const pointX = positivePointAoa[i][0]
+      // const pointY = positivePointAoa[i][1]
       // 去中心化
       const pointXCentered = pointX - ellipseCenterX
       const pointYCentered = pointY - ellipseCenterY
-      // 旋转迁移：
+      // 旋转迁移，完成化归
       // x' = xcosθ - ysinθ
       // y' = xsinθ + ycosθ
-      const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
-      const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
+      const pointXNormalized = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
+      const pointYNormalized = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
       // 计算点的半径
-      const newPointR = Math.sqrt(newPointX ** 2 + newPointY ** 2)
+      const pointR = Math.sqrt(pointXNormalized ** 2 + pointYNormalized ** 2)
       // 计算角度（弧度单位）
-      const pointRad = Math.atan2(newPointY, newPointX)
+      const pointRad = Math.atan2(pointYNormalized, pointXNormalized)
       // 通过角度（弧度单位）计算距离椭圆最近的相关点的r
       // r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
       // => r² = (w² · h² / 4) / [(h · cosθ)² + (w · sinθ)²]
       const ellipseRSquare = ellipseHalfHWSquare /
         (((ellipseH * Math.cos(pointRad)) ** 2) + ((ellipseW * Math.sin(pointRad)) ** 2))
-      // 计算椭圆在该方向的半径
+      // 计算椭圆在该方向的半径：r = r² ** 0.5
       const ellipseR = ellipseRSquare ** 0.5
       // 筛选点
-      if (
-        (newPointR < ellipseR * minPosttiveTolerance)
-          || (newPointR > ellipseR * maxPosttiveTolerance)
-      ) {
-        // 不好的【阳性】点，把初始坐标数据丢进【阳性-错误】点数组
-        PFPointAoa.push([pointX, pointY])
+      if ((pointR < ellipseR * minTolerance) || (pointR > ellipseR * maxTolerance)) {
+        // 不好的点，把初始坐标数据丢进阴性点集
+        NPointAoa.push([pointX, pointY])
       } else {
-        // 好的【阳性】点，把初始坐标数据丢进【阳性-正确】点数组
-        PTPointAoa.push([pointX, pointY])
+        // 好的点，把初始坐标数据丢进阳性点集
+        PPointAoa.push([pointX, pointY])
         // 基线参考点：取y值更大的点（也就是更低的点）
         if (baselinePoint[1] < pointY) {
           baselinePoint = [pointX, pointY]
         }
       }
-      // 把用于统计计算的数值装箱
+      // 返回点半径和椭圆半径
+      return [pointR, ellipseR]
+    }
+    // 遍历所有旧的阳性轮廓点
+    forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
+      // 筛选点。对阳性点集来说，阳性点集当中的阳性 == PT，阳性点集当中的阴性 == PF
+      const [newPointR, ellipseR] = pointFilter(positivePointAoa[i],
+        PTPointAoa, PFPointAoa, minPosttiveTolerance, maxPosttiveTolerance)
+      // 把用于统计计算椭圆拟合R²的数值装箱
       statisticDataArr.push([newPointR, ellipseR])
       statisticPointRSum = statisticPointRSum + newPointR
     }
     // 用椭圆方程来筛选点（阴性）
     // 阴性点的筛选条件
-    const maxNegativeTolerance = 1 + tolerancePercentage * negativePointThreshold
-    const minNegativeTolerance = 1 - tolerancePercentage * negativePointThreshold
+    const maxNegativeTolerance = 1 + toleranceValue * NP_TO_PP_THRESHOLD
+    const minNegativeTolerance = 1 - toleranceValue * NP_TO_PP_THRESHOLD
     // 遍历所有旧的阴性轮廓点
     // 其实和上面的操作几乎完全相同，只有最后2步不同
     forEachNegativePoint: for (let i = 0; i < negativePointAoa.length; i++) {
-      // 接X和Y坐标值
-      const pointX = negativePointAoa[i][0]
-      const pointY = negativePointAoa[i][1]
-      // 去中心化
-      const pointXCentered = pointX - ellipseCenterX
-      const pointYCentered = pointY - ellipseCenterY
-      // 旋转迁移：
-      // x' = xcosθ - ysinθ
-      // y' = xsinθ + ycosθ
-      const newPointX = pointXCentered * ellipseAngleCos - pointYCentered * ellipseAngleSin
-      const newPointY = pointXCentered * ellipseAngleSin + pointYCentered * ellipseAngleCos
-      // 计算点的半径
-      const newPointR = Math.sqrt(newPointX ** 2 + newPointY ** 2)
-      // 计算角度（弧度单位）
-      const pointRad = Math.atan2(newPointY, newPointX)
-      // 通过角度（弧度单位）计算距离椭圆最近的相关点的r
-      // r²·{[(cosθ)/(w/2)]²+[(sinθ)/(h/2)]²} = 1
-      // => r² = (w² · h² / 4) / [(h · cosθ)² + (w · sinθ)²]
-      const ellipseRSquare = ellipseHalfHWSquare / 
-        (((ellipseH * Math.cos(pointRad)) ** 2) + ((ellipseW * Math.sin(pointRad)) ** 2))
-      // 计算椭圆在该方向的半径
-      const ellipseR = ellipseRSquare ** 0.5
-      // 筛选点
-      if (
-        (newPointR < ellipseR * minNegativeTolerance)
-          || (newPointR > ellipseR * maxNegativeTolerance)
-      ) {
-        // 不好的【阴性】点，把初始坐标数据丢进【阴性-正确】点数组
-        NTPointAoa.push([pointX, pointY])
-      } else {
-        // 好的【阴性】点，把初始坐标数据丢进【阴性-错误】点数组
-        NFPointAoa.push([pointX, pointY])
-        // 基线参考点：取y值更大的点（也就是更低的点）
-        if (baselinePoint[1] < pointY) {
-          baselinePoint = [pointX, pointY]
-        }
-      }
-      // 阴性点不需要统计计算
+      // 筛选点。对阴性点集来说，阴性点集中的阳性 == NF，阴性点集中的阴性 == NT
+      // 阴性点不需要统计计算，就不需要返回值了
+      pointFilter(negativePointAoa[i],
+        NFPointAoa, NTPointAoa, minNegativeTolerance, maxNegativeTolerance)
     }
-    // 处理统计数据，获得R²
+    // 处理统计数据，获得R²。算法为：
     // R² = 1 - SSE / SST = SSR / SST
     //    = 1 - 平方和[(r拟合值 - r个体值)²] / 平方和[(r个体值 - r均值)²]
     //    = 平方和[(r拟合值 - r均值)²] / 平方和[(r个体值 - r均值)²]
@@ -1740,26 +1747,33 @@ function ellipsePointIterate(contourPointAoa) { try {
       // SST
       SST = SST + ((newPointR - pointRAve) ** 2)
     }
-    // 计算R²
+    // 更新R²
     R2 = SSR / SST
     // 看一看当前条件下的迭代是否收敛，即看看错误的数组是否为空
     if ((PFPointAoa.length === 0) && (NFPointAoa.length === 0)) {
       // 如果当前收敛了，就再看看R²是否满足要求，筛选容差还能不能再降
-      if ((R2 >= R2Threshold) || (tolerancePercentage < realMinTolerancePercentage)) {
+      if ((R2 >= R2_THRESHOLD) || (toleranceValue < TOLERANCE_VALUE_MIN)) {
         // 如果R²达到0.99，或者筛选容差没有下降空间了
         isConverge = true
       // 如果R²不到0.99，同时筛选容差还有下降空间
       } else {
-        // 那就上强度：筛选容差再降一半
-        tolerancePercentage = tolerancePercentage / 2
+        // 那就上强度
+        toleranceValue = toleranceValue * ITERATION_WEIGHT
       }
     // 如果当前没收敛
     } else {
-      // 更新阳性、阴性点点数组
+      // 更新阳性、阴性点数组
       positivePointAoa.length = 0
       positivePointAoa.push(...PTPointAoa, ...NFPointAoa)
       negativePointAoa.length = 0
       negativePointAoa.push(...PFPointAoa, ...NTPointAoa)
+    }
+    // 如果当前迭代没收敛，但是positivePointAoa数组长度小于等于5了，那么还是得强行收敛，否则报错
+    if ((isConverge === false) && (positivePointAoa.length <= 5)) {
+      // 强行收敛
+      isConverge = true
+      // 弹窗通知
+      my.dialog(lang.value.ContourFitIterationErrorContent)
     }
   }
   // 迭代完毕，绘制椭圆轮廓

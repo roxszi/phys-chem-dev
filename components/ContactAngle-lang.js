@@ -233,6 +233,9 @@ en.ContourFitLoadingContent = "Fitting droplet contour..."
 root.ContourFitErrorContent = "轮廓点数据不够，无法拟合。"
 en.ContourFitErrorContent = "Not enough contour points data, cannot fit."
 
+root.ContourFitIterationErrorContent = "有效数据点不足，已强行停止迭代。请仔细权衡本次轮廓拟合结果！"
+en.ContourFitIterationErrorContent = "Insufficient valid data points, iteration has been forcibly stopped. Please carefully weigh the contour fitting results this time!"
+
 root.ResultDialogContent = [
   "本次所测得接触角为 ",
   "° 。可调整参数多次测量，具体结果详见下方数据表格。"
