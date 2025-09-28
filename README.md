@@ -1,10 +1,16 @@
 # CPU物化助手
 
-> 项目源码：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+> 项目源码（国内）：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+>
+> 项目源码（国外）：[https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
 > 
-> **项目展示页面：**[**https://cpuer.atomgit.net/phys-chem**](https://cpuer.atomgit.net/phys-chem)
+> **项目展示页面（国内）：**[**https://cpuer.atomgit.net/phys-chem**](https://cpuer.atomgit.net/phys-chem)
+>
+> 展示页面备份（国外）：[https://roxszi.github.io/phys-chem/](https://roxszi.github.io/phys-chem/)
 
 以[VitePress](https://vitepress.dev/zh/)构建的物理化学学习工具项目，引入了[TDsign](https://tdesign.tencent.com/vue-next/overview)组件库与[VueUse](https://vueuse.nodejs.cn/)工具集以实现更为丰富的交互效果。旨在学习。
+
+**简体中文** | [**English**](./README.en.md)
 
 ## 1. 技术栈选型说明
 
@@ -18,11 +24,11 @@
 
 - 后续面向教学/科研的产品(WebApp等服务)，本项目最初的打算就是直接让学生用手机/电脑浏览器实现模型的应用及训练(WebGPU/WebGL硬件加速)。这样设计的原因有3：
 
-	1. 可借助学生每个人手上的算力资源，完成教学及简单的科研任务。
+  1. 可借助学生每个人手上的算力资源，完成教学及简单的科研任务。
 
-	2. 可突破Nvidia显卡/CUDA平台的限制，核心显卡/集成显卡甚至手机，只要支持WebGPU/WebGL即可实现硬件加速运算。
+  2. 可突破Nvidia显卡/CUDA平台的限制，核心显卡/集成显卡甚至手机，只要支持WebGPU/WebGL即可实现硬件加速运算。
 
-	3. 可免费通过[AtomGit平台的Pages服务](https://docs.atomgit.com/app/pages/)实现部署，配合Vite，操作极为方便。且无需应用分发(拷贝给学生或要求学生下载)或安装部署指导(写教程或教学生如何安装/部署/设置等)，极大降低海量的工作量。
+  3. 可免费通过[AtomGit平台的Pages服务](https://docs.atomgit.com/app/pages/)实现部署，配合Vite，操作极为方便。且无需应用分发(拷贝给学生或要求学生下载)或安装部署指导(写教程或教学生如何安装/部署/设置等)，极大降低海量的工作量。
 
 - 在上述考虑的基础上，为进一步降低开发和产品化间的各种额外工作量，尽可能专注于业务，本项目就毫无悬念的选用了[**TensorFlowJS**](https://tensorflow.google.cn/js)这一技术栈，其开发及构建几乎都基于前端，少数的数据预处理、代码调试工作也可借助NodeJS在后端简单完成而不涉及跨语言的问题，这极大降低了项目开发的工作量。
 
@@ -142,8 +148,58 @@
 
 ## 版权&许可证
 
-- 本项目代码采用 [木兰宽松许可证, 第2版](LICENSE)
+本应用的源码链接为：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 
-- 主要依赖的第三方库：
+本应用的版权/著作权归 司承运@中国药科大学 所有。
 
-  - [@techstark/opencv-js](https://github.com/tech-stark/opencv-js) ([Apache-2.0](public/LICENSES/LICENSE-2.0.txt))
+源码及文档以 [木兰宽松许可证, 第2版](https://license.coscl.org.cn/MulanPSL2) 开源。
+
+本应用依赖的第三方开源库如下（排名不分先后）：
+
+- [**VitePress**](https://vitepress.dev/)
+
+  本应用的页面框架，由 [Vite](https://cn.vitejs.dev/) 和 [Vue](https://cn.vuejs.org/) 驱动的静态站点生成器。
+
+  遵循 [MIT](/LICENSES/vitepress.txt) 开源协议。
+
+- [**TDesign**](https://tdesign.tencent.com/)
+
+  组件库，腾讯业务团队推出的一套UI设计体系。本应用具体使用了其中的 [vue-next](https://tdesign.tencent.com/vue-next/overview) 组件库。
+
+  遵循 [MIT](/LICENSES/tdsign.txt) 开源协议。
+
+- [**OpenCV.js**](https://docs.opencv.org/4.12.0/d5/d10/tutorial_js_root.html)
+
+  计算机视觉库。
+
+  遵循 [Apache-2.0](/LICENSES/opencv.txt) 开源协议。
+
+- [**SheetJS**](https://docs.sheetjs.com/)
+
+  Excel表格库。
+
+  遵循 [Apache-2.0](/LICENSES/sheetjs.txt) 开源协议。
+
+- [**Vue.js**](https://cn.vuejs.org/)
+
+  JavaScript应用开发的运行时框架。
+
+  遵循 [MIT](/LICENSES/vuejs.txt) 开源协议。
+
+- [**VueUse**](https://vueuse.org/)
+
+  适用于Vue项目开发的组合式工具集。
+
+  遵循 [MIT](/LICENSES/vueuse.txt) 开源协议。
+
+- [**unplugin-auto-import**](https://www.npmjs.com/package/unplugin-auto-import)
+
+  由 [unplugin](https://unplugin.unjs.io/) 驱动的可实现自动导入组件的插件。
+
+  遵循 [MIT](/LICENSES/unplugin-auto-import.txt) 开源协议。
+
+- [**unplugin-vue-components**](https://www.npmjs.com/package/unplugin-vue-components)
+
+  可实现自动注册所导入的Vue组件的插件。
+
+  遵循 [MIT](/LICENSES/unplugin-vue-components.txt) 开源协议。

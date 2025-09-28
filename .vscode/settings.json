@@ -3,6 +3,7 @@
   "explorer.fileNesting.patterns": {
     "package.json": "package-lock.json, pnpm*, .yarnrc*, yarn*, .eslint*, eslint*, .prettier*, prettier*, .editorconfig",
     ".gitignore": ".git*",
-    "jsconfig.json": "jsconfig*, *.d.ts, vite.config.*,, vitest.config.*, cypress.config.*, playwright.config.*"
+    "jsconfig.json": "jsconfig*, *.d.ts, vite.config.*,, vitest.config.*, cypress.config.*, playwright.config.*",
+    "README.md": "README*"
   }
 }

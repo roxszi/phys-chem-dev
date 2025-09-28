@@ -32,7 +32,7 @@ Everything is aimed at learning. Warmly welcome bug feedback and all kinds of te
 
 ## Open Source Code
 
-The application source code links to: [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+The application source code links to: [https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
 
 The copyright of this application belongs to SI_Cheng-Yun @ China Pharmaceutical University. The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2).
 
@@ -40,7 +40,7 @@ The third-party open-source libraries relied upon by this application are as fol
 
 - [**VitePress**](https://vitepress.dev/)
 
-  The page framework of this application. A static site generator driven by [Vite](https://cn.vitejs.dev/) and [Vue](https://cn.vuejs.org/).
+  The page framework of this application. A static site generator driven by [Vite](https://vite.dev/) and [Vue](https://vuejs.org/).
 
   Follow the [MIT](/LICENSES/vitepress.txt) open source license.
 
