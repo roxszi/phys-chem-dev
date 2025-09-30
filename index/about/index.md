@@ -32,7 +32,7 @@
 
 ## 开放源代码
 
-本应用的源码链接为：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+本应用的源码链接为：[https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
 
 本应用的版权/著作权归 司承运@中国药科大学 所有。
 

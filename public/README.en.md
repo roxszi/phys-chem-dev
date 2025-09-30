@@ -6,8 +6,8 @@ The `Pages` page of the CPU Physical Chemistry Learning Helper, which is used fo
 
 - Project source code: [https://github.com/roxszi/phys-chem-dev](https://github.com/roxszi/phys-chem-dev)
 
-  Specifically for Chinese mainland: [https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
+  Project source code (specifically for China mainland): [https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
 
 - Project showcase page: [https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
 
-  Specifically for Chinese mainland: [https://cpuer.atomgit.net/phys-chem/](https://cpuer.atomgit.net/phys-chem/)
+  Project showcase page (specifically for China mainland): [https://cpuer.atomgit.net/phys-chem/](https://cpuer.atomgit.net/phys-chem/)
