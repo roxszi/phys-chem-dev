@@ -1,5 +1,7 @@
 # Physical Chemistry Learning Helper @ CPU
 
+## [**简体中文**](./README.md) | **English**
+
 > Project source code: [https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
 > 
 > Project source code (specifically for Chinese mainland): [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
@@ -9,8 +11,6 @@
 > Project showcase page (specifically for Chinese mainland): [https://cpuer.atomgit.net/phys-chem/](https://cpuer.atomgit.net/phys-chem/)
 
 A physical chemistry learning tool project built with [VitePress](https://vitepress.dev/zh/), incorporating the [TDsign](https://tdesign.tencent.com/vue-next/overview) component library and [VueUse](https://vueuse.nodejs.cn/) utility set to achieve richer interactive effects. Aimed at learning.
-
-[**简体中文**](./README.md) | **English**
 
 ## 1. Technology Stack Selection
 

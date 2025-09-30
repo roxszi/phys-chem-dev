@@ -1,5 +1,7 @@
 # CPU物化助手
 
+## **简体中文** | [**English**](./README.en.md)
+
 > 项目源码：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 >
 > 项目源码（国外访问）：[https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
@@ -9,8 +11,6 @@
 > 项目展示页面（国外访问）：[https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
 
 以[VitePress](https://vitepress.dev/zh/)构建的物理化学学习工具项目，引入了[TDsign](https://tdesign.tencent.com/vue-next/overview)组件库与[VueUse](https://vueuse.nodejs.cn/)工具集以实现更为丰富的交互效果。旨在学习。
-
-**简体中文** | [**English**](./README.en.md)
 
 ## 1. 技术栈选型说明
 
