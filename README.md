@@ -2,9 +2,9 @@
 
 ## **简体中文** | [**English**](./README.en.md)
 
-> 项目源码：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+> 项目源码：[https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
 >
-> 项目源码（国外访问）：[https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
+> 项目源码（国外访问）：[https://github.com/roxszi/phys-chem-dev](https://github.com/roxszi/phys-chem-dev)
 > 
 > **项目展示页面：**[**https://cpuer.atomgit.net/phys-chem**](https://cpuer.atomgit.net/phys-chem)
 >
@@ -147,8 +147,6 @@
 - [VitePress原生样式](https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css)
 
 ## 版权&许可证
-
-本应用的源码链接为：[https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
 
 本应用的版权/著作权归 司承运@中国药科大学 所有。
 

@@ -2,9 +2,9 @@
 
 ## [**简体中文**](./README.md) | **English**
 
-> Project source code: [https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
+> Project source code: [https://github.com/roxszi/phys-chem-dev](https://github.com/roxszi/phys-chem-dev)
 > 
-> Project source code (specifically for Chinese mainland): [https://atomgit.com/cpuer/phys-chem-admin](https://atomgit.com/cpuer/phys-chem-admin)
+> Project source code (specifically for Chinese mainland): [https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
 >
 > **Project showcase page:** [**https://roxszi.github.io/phys-chem/en/**](https://roxszi.github.io/phys-chem/en/)
 >
@@ -147,8 +147,6 @@ Fork this project directly.
 - [VitePress Native Styles](https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css)
 
 ## Copyright & License
-
-The application source code links to: [https://github.com/roxszi/phys-chem-admin](https://github.com/roxszi/phys-chem-admin)
 
 The copyright of this application belongs to SI_Cheng-Yun @ China Pharmaceutical University. The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2).
 

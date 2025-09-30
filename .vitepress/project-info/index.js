@@ -71,6 +71,7 @@ export default {
     // 一些node项目的配置文件
     "node_modules/(.*)",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "package.json",
     "package-lock.json",
