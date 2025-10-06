@@ -36,4 +36,9 @@ features:
     details: After the contact Angle measurement, various processing works need to be carried out on the image to finally obtain the contact Angle data.
     link: en/experiment/contact-angle/drop-pic-process.md
     linkText: Enter Application
+  - title: Contour processing colorimetric method
+    icon: 🎨
+    details: Contour processing colorimetric function.
+    link: experiment/outline-colorimetric/
+    linkText: Enter Application
 ---

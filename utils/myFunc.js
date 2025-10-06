@@ -173,6 +173,25 @@ export function myMessage(paramObj) {
 }
 
 
+/**
+ * 报错处理方法
+ * @param { String } [errorText = "程序报错"] 报错文案
+ * @param { Error } errorObj 报错对象
+ * @param { Function } [callBack] 回调函数
+ */
+function myError(errorText = "程序报错", errorObj, callBack) {
+  // 先在控制台打印错误信息
+  console.log(errorText, errorObj)
+  // 如果有回调，则执行回调（回调的第一个参数是错误对象）
+  if (callBack) {
+    callBack(errorObj)
+  // 否则，直接抛出错误
+  } else {
+    throw new Error(errorText, { cause: errorObj })
+  }
+}
+
+
 // 声明一个等待方法
 async function wait(ms) {
   // 以Promise对象强行异步等待
@@ -192,4 +211,5 @@ export default {
   loading: myLoading,
   dialog: myDialog,
   message: myMessage,
+  error: myError,
 }

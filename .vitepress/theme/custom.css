@@ -41,6 +41,11 @@ mjx-container {
 .t-slider__rail {
   height: var(--td-size-4) !important;
 }
+/* t-slider滑轨的尺寸 */
 .t-slider__track {
   height: var(--td-size-4) !important;
+}
+/* t-slider滑轨下方文字的尺寸 */
+.t-slider__mark-text {
+  font: var(--td-font-body-medium) !important;
 }

@@ -1,9 +1,8 @@
 "use strict"
 
 
+const isOK = Boolean("false")
 
-function test([a, b], c) {
-  return a + b + c
-}
 
-console.log(test([1, 2], 3)) // 3
+
+console.log("isOK: ", isOK)

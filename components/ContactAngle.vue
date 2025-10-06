@@ -38,12 +38,8 @@
  -->
 <template><MySpace>
 
-
-  
   <!-- 警报框 -->
-  <t-alert
-    theme="info" :title="lang.FunctionIntroductionTitle"
-  >
+  <t-alert theme="info" :title="lang.FunctionIntroductionTitle">
     <div v-for="(content, index) of lang.FunctionIntroductionContent" :key="index">
       {{ content }}
     </div>
@@ -174,12 +170,14 @@
     v-if="taskStatusRef === 2"
     class="center"
   >
+    <!-- 裁剪图片 -->
     <myButton
       @click="onSureRect"
       :block="false"
     >
       {{ lang.CutPictureButtonText }}
     </myButton>
+    <!-- 裁剪完成 -->
     <myButton
       @click="onDetermineRect"
       :block="false" theme="danger"
@@ -434,7 +432,7 @@ const thresholdNumArrRef = ref([
   // 辅助参数的mark标记
   0, 85, 170, 255
 ])
-/** 
+/**
  * 第三步寻找轮廓的算法切换对象
  * @type { import("vue").Ref<Boolean> }
  * @value true - Canny算法
@@ -670,6 +668,7 @@ function onCanvasLongPress() { try {
 /**
  * 点击<canvas>触发的回调
  * 步骤2：选框
+ * 步骤3：遮罩
  * 步骤4：绘制基线
  */
 function onCanvasClick() { try {
