@@ -222,7 +222,7 @@ root.ErrorDialogTitle = "程序报错"
 en.ErrorDialogTitle = "Program Error"
 
 root.ErrorDialogContent = "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
-en.ErrorDialogContent = "Welcome to inform the software development personnel (+8613611580728 SI_Cheng-Yun) of this bug actively so that it can be repaired in time."
+en.ErrorDialogContent = "Welcome to inform the software development personnel (+8613611580728 SI_Cheng-Yun) of this bug actively so that it can be repaired in time. "
 
 root.PicLoadingContent = "正在读取照片..."
 en.PicLoadingContent = "Loading picture..."

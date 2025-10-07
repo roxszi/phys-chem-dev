@@ -75,13 +75,13 @@ en.CutPictureCompleteButtonText = "Complete Cut"
 
 root.ThresholdParamsLabel = [
   "二值化阈值",
-  "近圆度",
+  // "近圆度",
   "面积滤过率(%)",
   "圆径缩放"
 ]
 en.ThresholdParamsLabel = [
   "Binary Threshold",
-  "Circularity",
+  // "Circularity",
   "Area Filter Rate (%)",
   "Diameter Scaling"
 ]

@@ -129,7 +129,7 @@
     v-else-if="taskStatusRef === 3"
     size="small"
   >
-    <!-- 遍历4个参数 -->
+    <!-- 遍历3个参数 -->
     <mySpace
       v-for="(thresholdNumArr, index) of thresholdNumAoaRef" :key="index"
       size="small"
@@ -211,8 +211,8 @@ const thresholdNumAoaRef = ref([])
 const thresholdNumAoaConst = [
   // 二值化阈值：当前值、最小值、最大值、marks标记、是否range、步长
   [50, 0, 255, [0, 85, 170, 255], false, 1],
-  // 近圆度：当前值、最小值、最大值、marks标记、是否range、步长
-  [[0.0, 1.0], 0, 1, [0, 0.25, 0.5, 0.75, 1], true, 0.01],
+  // // 近圆度：当前值、最小值、最大值、marks标记、是否range、步长
+  // [[0.0, 1.0], 0, 1, [0, 0.25, 0.5, 0.75, 1], true, 0.01],
   // 面积位次：当前值、最小值、最大值、marks标记、是否range、步长
   [[0, 100], 0, 100, [0, 25, 50, 75, 1], true, 1],
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
@@ -465,7 +465,8 @@ async function onPicChange(event) { try {
   // 获取文件的位图数据，并赋值给全局对象contactAngleObj的位图对象imageBitmap
   outlineColorimetricObj.imageBitmap = await window.createImageBitmap(event[0].raw)
   // 把图片绘制到canvas上
-  canvasRestore()
+  // 等到了第2步再绘制，不然会出现尺寸错位的问题
+  // canvasRestore()
   // 第一阶段完成，任务进度改为2
   taskToStep2()
   // 停止加载框
@@ -517,7 +518,7 @@ function taskToStep2() {
   ctxSetting()
   // 任务进度改为2
   taskStatusRef.value = 2
-  // 下个渲染周期，滚动canvas到视图中
+  // 下个渲染周期，绘制canvas
   nextTick(canvasRestore)
 }
 
@@ -528,10 +529,9 @@ function taskToStep2() {
 function chooseRect() {
   /** 选框的初始相对尺寸 @const { Number } */
   const RECT_SCALE = 0.8
-  // 接遮罩数组
-  const rect = outlineColorimetricObj.rect
+  // 接遮罩数组、缩放比例
+  const { rect, canvasScaling } = outlineColorimetricObj
   // 点击位置的实际X、Y坐标
-  const canvasScaling = outlineColorimetricObj.canvasScaling
   const realElementX = elementX.value * canvasScaling
   const realElementY = elementY.value * canvasScaling
   // 如果选框X边界未定义，即第一次点击，需记录下选框的坐标
@@ -685,7 +685,7 @@ async function onSureRect(isDetermine) { try {
       rect.xMin, rect.yMin, (rect.xMax - rect.xMin), (rect.yMax - rect.yMin)
     )
     // 更新全局canvas的图像位图元数据
-    outlineColorimetricObj.imageBitmap.close()
+    outlineColorimetricObj.imageBitmap?.close()
     outlineColorimetricObj.imageBitmap = imageBitmap
     // 更新canvas的图像位图元数据后，把图片绘制到canvas上
     canvasRestore()
@@ -744,8 +744,13 @@ function taskToStep3() {
   thresholdNumRestore()
   // 任务进度改为3
   taskStatusRef.value = 3
-  // 下一次刷新时，用轮廓查找方法刷新一次轮廓渲染
-  nextTick(getAndDrawContours)
+  // 下一个DOM周期：
+  nextTick(() => {
+    // 刷新canvas
+    canvasRestore()
+    // 用轮廓查找方法刷新一次轮廓渲染
+    getAndDrawContours()
+  })
 }
 
 /**
@@ -909,9 +914,9 @@ function getAndDrawContours() {
  */
 function drawContours() {
   // 接参数：近圆率、面积位次、缩放
-  const [circularityMin, circularityMax] = thresholdNumAoaRef.value[1][0]
-  const [areaPercentOrderMin, areaPercentOrderMax] = thresholdNumAoaRef.value[2][0]
-  const scale = thresholdNumAoaRef.value[3][0]
+  // const [circularityMin, circularityMax] = thresholdNumAoaRef.value[1][0]
+  const [areaPercentOrderMin, areaPercentOrderMax] = thresholdNumAoaRef.value[1][0]
+  const scale = thresholdNumAoaRef.value[2][0]
   // 接参数：canvas上下文、轮廓数组、近圆率、圆面积
   const { ctx, contourAoa, circleAreaArr } = outlineColorimetricObj
   // 轮廓数量
@@ -933,8 +938,8 @@ function drawContours() {
   forEachContours: for (const contour of contourAoa) {
     // 若不符合条件，则跳过
     if (
-      (contour[0] < circularityMin) || (contour[0] > circularityMax)
-        || (contour[1] < circleAreaMin) || (contour[1] > circleAreaMax)
+      // (contour[0] < circularityMin) || (contour[0] > circularityMax)
+      (contour[1] < circleAreaMin) || (contour[1] > circleAreaMax)
     ) {
       // 标记为false，表示不绘图
       contour[5] = false
@@ -980,7 +985,7 @@ function contourToMatrix() {
   // 接轮廓数组
   const { contourAoa } = outlineColorimetricObj
   // 接缩放参数
-  const scale = thresholdNumAoaRef.value[3][0]
+  const scale = thresholdNumAoaRef.value[2][0]
   // 建立X、Y的排序表
   const xAoa = []
   const yAoa = []

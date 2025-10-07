@@ -702,38 +702,31 @@ function onCanvasClick() { try {
     chooseBaseline()
   }
 } catch (error) {
-  console.log("onCanvasClick()报错：", error)
-  errorDialog()
+  my.error("onCanvasClick()报错：", error, errorDialog)
 }}
 
 /**
  * 清空canvas上的矩形标记数据
  */
-function canvasRectDataRemove() { try {
+function canvasRectDataRemove() {
   // 清空选框的X和Y边界值
   contactAngleObj.rectXmax = null
   contactAngleObj.rectYmax = null
   contactAngleObj.rectXmin = null
   contactAngleObj.rectYmin = null
-} catch (error) {
-  console.log("canvasRectDataRemove()报错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 设置canvas的绘图上下文ctx
  */
-function ctxSetting() { try {
+function ctxSetting() {
   // 红色笔迹
   contactAngleObj.ctx.strokeStyle = "red"
   // 线宽：2像素 x 缩放比例
   contactAngleObj.ctx.lineWidth = 2 * contactAngleObj.canvasScaling
   // 填充色：灰色
   contactAngleObj.ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
-} catch (error) {
-  console.log("ctxSetting()报错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 滑轨调节的事件回调钩子
@@ -754,8 +747,7 @@ function onSlideChange() { try {
     drawBaselineThrottled()
   }
 } catch (error) {
-  console.log("onSlideChange()报错：", error)
-  errorDialog()
+  my.error("onSlideChange()报错：", error, errorDialog)
 }}
 
 /**
@@ -773,20 +765,18 @@ function onContourSlideChangeEnd() { try {
     refreshBaselineFineSlider()
   }
 } catch (error) {
-  console.log("onContourSlideChangeEnd()报错：", error)
-  errorDialog()
+  my.error("onContourSlideChangeEnd()报错：", error, errorDialog)
 }}
 
 /**
  * 报错的通知方法
- * 这是个统一化的报错通知，这个就不进行外部try...catch了
  */
-function errorDialog() {
+function errorDialog(error) {
   // 直接对话框报错
   my.dialog({
     theme: "danger",
     header: lang.value.ErrorDialogTitle,
-    body: lang.value.ErrorDialogContent
+    body: lang.value.ErrorDialogContent + error
   })
 }
 
@@ -797,16 +787,13 @@ function errorDialog() {
 /**
  * 任务进度切换到步骤1
  */
-function taskToStep1() { try {
+function taskToStep1() {
   taskStatusRef.value = 1
   // 清空canvas上的矩形标记数据
   canvasRectDataRemove()
   // 恢复遮罩的默认设置
   contourFilterAlgorithmSwitchRef.value = false
-} catch (error) {
-  console.log("taskToStep1()报错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 图片上传或改变时触发的回调
@@ -890,8 +877,7 @@ async function onPicChange(event) { try {
   // 停止加载框
   my.loading(false)
   // 报错处理
-  console.log("onPicChange()方法出错：", error)
-  errorDialog()
+  my.error("onPicChange()报错：", error, errorDialog)
 }}
 
 /**
@@ -902,19 +888,16 @@ async function onPicChange(event) { try {
 /**
  * 任务进度切换到步骤2
  */
-function taskToStep2() { try {
+function taskToStep2() {
   // 任务进度改为2
   taskStatusRef.value = 2
-} catch (error) {
-  console.log("taskToStep2()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 选框方法
  * 用于更新选框的X、Y坐标边界值
  */
-function chooseRect() { try {
+function chooseRect() {
   // 点击位置的实际X、Y坐标
   const realElementX = elementX.value * contactAngleObj.canvasScaling
   const realElementY = elementY.value * contactAngleObj.canvasScaling
@@ -1015,17 +998,14 @@ function chooseRect() { try {
   }
   // 选框边界更新完毕，返回
   return
-} catch (error) {
-  console.log("chooseRect()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 绘制选框
  * @note 会调用全局对象contactAngleObj的ctx
  * @note 会读取全局变量contactAngleObj的rectXmax、rectYmax、rectXmin、rectYmin
  */
-function drawRect() { try {
+function drawRect() {
   // 先对选框进行初始化
   contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
   // 然后直接绘图即可
@@ -1035,10 +1015,7 @@ function drawRect() { try {
     contactAngleObj.rectXmax - contactAngleObj.rectXmin,
     contactAngleObj.rectYmax - contactAngleObj.rectYmin
   )
-} catch (error) {
-  console.log("drawRect()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 点击“裁剪图片”按钮的事件回调钩子
@@ -1047,8 +1024,7 @@ function onSureRect() { try {
   // 直接执行裁剪方法
   sureRect(false)
 } catch (error) {
-  console.log("onSureRect()方法出错：", error)
-  errorDialog()
+  my.error("onSureRect()报错：", error, errorDialog)
 }}
 
 /**
@@ -1058,15 +1034,14 @@ function onDetermineRect() { try {
   // 直接执行裁剪方法，并确定完成裁剪
   sureRect(true)
 } catch (error) {
-  console.log("onDetermineRect()方法出错：", error)
-  errorDialog()
+  my.error("onDetermineRect()报错：", error, errorDialog)
 }}
 
 /**
  * “裁剪图片”或“完成裁剪”的具体方法
  * @param { Boolean } [isDetermine = false] 是否确定完成裁剪
  */
-function sureRect(isDetermine = false) { try {
+function sureRect(isDetermine = false) {
   // 如果没有选框
   if (!contactAngleObj.rectXmax) {
     // 如果是“完成裁剪”，则直接进入下一步即可
@@ -1117,10 +1092,7 @@ function sureRect(isDetermine = false) { try {
     // 任务状态进展到“3”
     taskToStep3()
   }
-} catch (error) {
-  console.log("sureRect()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * @步骤3 选择轮廓
@@ -1136,7 +1108,7 @@ function sureRect(isDetermine = false) { try {
 /**
  * 任务进度切换到步骤3
  */
-function taskToStep3() { try {
+function taskToStep3() {
   // 初始化一些数据
   // 粗调
   isContourCoarseRef.value = true
@@ -1166,10 +1138,7 @@ function taskToStep3() { try {
   taskStatusRef.value = 3
   // 用轮廓查找方法刷新一次轮廓渲染
   slideContour(false)
-} catch (error) {
-  console.log("taskToStep3()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 寻找轮廓算法的切换算法事件钩子
@@ -1178,8 +1147,7 @@ function onContourAlgorithmSwitchChange() { try {
   // 直接调用轮廓查找方法，刷新一次轮廓渲染即可
   slideContour(false)
 } catch (error) {
-  console.log("onContourAlgorithmSwitchChange()方法出错：", error)
-  errorDialog()
+  my.error("onContourAlgorithmSwitchChange()报错：", error, errorDialog)
 }}
 
 /**
@@ -1189,14 +1157,13 @@ function onDetermineContour() { try {
   // 直接执行轮廓查找方法，并确定完成轮廓查找
   slideContour(true)
 } catch (error) {
-  console.log("onDetermineContour()方法出错：", error)
-  errorDialog()
+  my.error("onDetermineContour()报错：", error, errorDialog)
 }}
 
 /**
  * 选择轮廓过滤线的具体实现方法
  */
-function chooseContourFilterLine() { try {
+function chooseContourFilterLine() {
   // 接点击位置的实际X、Y坐标
   const realElementX = elementX.value * contactAngleObj.canvasScaling
   // 接canvas的半宽
@@ -1212,30 +1179,24 @@ function chooseContourFilterLine() { try {
   }
   // 直接绘制轮廓过滤区即可，此处应重绘
   drawContourFilter(true)
-} catch (error) {
-  console.log("chooseContourFilterLine()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 选择轮廓过滤框的具体实现方法
  */
-function chooseContourFilterRect() { try {
+function chooseContourFilterRect() {
   // 直接调用选框方法，更新选框边界
   chooseRect()
   // 直接绘制轮廓过滤区即可，此处应重绘
   drawContourFilter(true)
-} catch (error) {
-  console.log("chooseContourFilterLine()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 绘制轮廓过滤遮罩的具体实现方法
  * @param { Boolean } [isRedrawing = false] 是否是重新绘制，为true时会先刷新canvas再绘制
  * 会读取左右轮廓遮罩线，中心轮廓遮罩区的相关对象数据
  */
-function drawContourFilter(isRedrawing = false) { try {
+function drawContourFilter(isRedrawing = false) {
   // 先判断是否重绘。如果重绘
   if (isRedrawing === true) {
     // 则刷新canvas
@@ -1291,10 +1252,7 @@ function drawContourFilter(isRedrawing = false) { try {
     // 中间线框
     contactAngleObj.ctx.strokeRect(rectXmin, rectYmin, rectW, rectH)
   }
-} catch (error) {
-  console.log("drawContourFilter()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 选择轮廓方法的防抖方法
@@ -1311,7 +1269,7 @@ const slideContourThrottled = useThrottleFn(slideContour, 500, true)
  * 然后寻找轮廓、处理轮廓
  * @note 会读取thresholdNumArrRef
  */
-function slideContour(isDetermine = false) { try {
+function slideContour(isDetermine = false) {
   // 防抖的bug防范：只有在“3”任务状态时，才允许执行
   // 这可以防止进入步骤4的瞬间执行此方法，造成canvas不正常的刷新回退
   if (taskStatusRef.value !== 3) { return }
@@ -1358,17 +1316,14 @@ function slideContour(isDetermine = false) { try {
   makeContour(matBinary, isDetermine)
   // 销毁二值化对象
   matBinary.delete()
-} catch (error) {
-  console.log("slideContour()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 寻找并处理轮廓
  * @param { import("@techstark/opencv-js").Mat } matBinary 二值化的Mat图像
  * @param { Boolean } [isDetermine = false] 是否确定轮廓
  */
-function makeContour(matBinary, isDetermine = false) { try {
+function makeContour(matBinary, isDetermine = false) {
   // 先寻找轮廓
   // 初始化轮廓AOA数组metVectorContours
   let metVectorContours = new contactAngleObj.cv.MatVector()
@@ -1451,10 +1406,7 @@ function makeContour(matBinary, isDetermine = false) { try {
   metHierarchy.delete()
   // 销毁本地轮廓点AOA数组的MetVector数据
   metVectorContours.delete()
-} catch (error) {
-  console.log("makeContour()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 初始化轮廓点
@@ -1536,11 +1488,10 @@ function initializeContourPointSet(metVectorContours) { try {
     my.loading(false)
   }
 } catch (error) {
-  // 报错处理
-  console.log("initializeContourPointSet()方法出错：", error)
   // 关闭加载框
   my.loading(false)
-  throw Error(error)
+  // 报错处理
+  my.error("initializeContourPointSet()报错：", error)
 }}
 
 /**
@@ -1577,7 +1528,7 @@ function initializeContourPointSet(metVectorContours) { try {
  * 3.  每次迭代稳定后，即阳性点集、阴性点集均不再变化，则收紧容差值，并重复迭代。
  * 4.  所以相当于有2层迭代。外层是容差值收紧；内层则是阳性/阴性点集的迭代。
  */
-function ellipsePointIterate(contourPointAoa) { try {
+function ellipsePointIterate(contourPointAoa) {
   // --------设置参数--------
   /** 迭代筛选时候的初始容差 @type { Number } */
   const TOLERANCE_VALUE_INIT = 0.2
@@ -1781,16 +1732,12 @@ function ellipsePointIterate(contourPointAoa) { try {
   contactAngleObj.ellipseR2 = R2
   contactAngleObj.ellipseObj = ellipse
   contactAngleObj.baselinePoint = baselinePoint
-} catch (error) {
-  // 报错处理
-  console.log("ellipsePointIterate()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 绘制椭圆
  */
-function drawEllipse(rotatedRectEllipse) { try {
+function drawEllipse(rotatedRectEllipse) {
   // 拷贝一个灰度图的原画布Mat对象，用于绘制轮廓
   let ellipseHandleMat = new contactAngleObj.cv.Mat()
   contactAngleObj.matGray.copyTo(ellipseHandleMat)
@@ -1839,17 +1786,13 @@ function drawEllipse(rotatedRectEllipse) { try {
   )
   // 释放Mat对象
   ellipseHandleMat.delete()
-} catch (error) {
-  // 报错处理
-  console.log("drawEllipse()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 轮廓粗细调的切换
  * @note 会触发绘制轮廓
  */
-function contourCoarseToggle() { try {
+function contourCoarseToggle() {
   // 如果目前是细调，则要修改为粗调
   if (isContourCoarseRef.value === false) {
     // 粗调的阈值数组
@@ -1878,16 +1821,13 @@ function contourCoarseToggle() { try {
     // 更新标记：切换为细调
     isContourCoarseRef.value = false
   }
-} catch (error) {
-  console.log("contourCoarseToggle()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 步骤3里刷新细调滑块的具体方法
  * @note 会触发绘制轮廓
  */
-function refreshContourFineSlider() { try {
+function refreshContourFineSlider() {
   // 接收主参数和辅助参数
   const mainParam = thresholdNumArrRef.value[0]
   const auxParam = thresholdNumArrRef.value[1]
@@ -1915,10 +1855,7 @@ function refreshContourFineSlider() { try {
   // 赋值
   // （这一步会触发绘图）
   thresholdNumArrRef.value = thresholdNumArr
-} catch (error) {
-  console.log("refreshContourFineSlider()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * @步骤4 选择基线
@@ -1939,7 +1876,7 @@ function refreshContourFineSlider() { try {
 /**
  * 步骤4的初始化方法
  */
-function taskToStep4() { try {
+function taskToStep4() {
   // canvas初始化
   ctxSetting()
   // 初始化截距
@@ -1949,10 +1886,7 @@ function taskToStep4() { try {
   drawBaseline()
   // 状态机切换到4
   taskStatusRef.value = 4
-} catch (error) {
-  console.log("taskToStep4()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 初始化基线截距的值
@@ -1960,7 +1894,7 @@ function taskToStep4() { try {
  * 以椭圆旋转的角度的tan值来得到初始化的截距
  * 这一截距是视椭圆为“正”的
  */
-function initialBaseline() { try {
+function initialBaseline() {
   // 读椭圆角度
   const ellipseAngle = contactAngleObj.ellipseObj.angle
   // 读有效轮廓最低点坐标
@@ -1991,10 +1925,7 @@ function initialBaseline() { try {
   // 刷新滑块
   // （这一步会触发绘图，但是前提是滑轨组件加载完毕）
   refreshBaselineFineSlider(userLeftIntercept, userRightIntercept)
-} catch (error) {
-  console.log("taskToStep4()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 步骤4里刷新滑块的具体方法
@@ -2002,7 +1933,7 @@ function initialBaseline() { try {
  * @param { Number } [rightInterceptValue] 右截距
  * @note 会触发绘制基线截距
  */
-function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { try {
+function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) {
   // 接收左截距和右截距
   const leftIntercept =
     leftInterceptValue
@@ -2041,10 +1972,7 @@ function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { tr
   // 赋值
   // 这一步会触发绘图
   interceptNumArrRef.value = interceptNumArr
-} catch (error) {
-  console.log("refreshBaselineFineSlider()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 截距粗调的具体实现方法
@@ -2053,7 +1981,7 @@ function refreshBaselineFineSlider(leftInterceptValue, rightInterceptValue) { tr
  * 这里以用户视角来设置截距值，所以要用canvasRef.value.height - realElementY
  * @note 会触发绘制基线截距
  */
-function chooseBaseline() { try {
+function chooseBaseline() {
   // 点击位置的实际X、Y坐标：canvas视角
   const realElementX = elementX.value * contactAngleObj.canvasScaling
   const realElementY = elementY.value * contactAngleObj.canvasScaling
@@ -2107,10 +2035,7 @@ function chooseBaseline() { try {
     // （这一步会触发绘图）
     refreshBaselineFineSlider(newLeftIntercept, newRightIntercept)
   }
-} catch (error) {
-  console.log("chooseBaseline()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 绘制基线方法的防抖方法
@@ -2121,7 +2046,7 @@ const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
 /**
  * 步骤4里绘制基线的具体方法
  */
-function drawBaseline() { try {
+function drawBaseline() {
   // 接收左截距和右截距
   const leftIntercept = interceptNumArrRef.value[0]
   const rightIntercept = interceptNumArrRef.value[1]
@@ -2141,10 +2066,7 @@ function drawBaseline() { try {
   contactAngleObj.ctx.lineTo(canvasWidth, realRightY)
   // 连线
   contactAngleObj.ctx.stroke()
-} catch (error) {
-  console.log("drawBaseline()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 步骤4里返回上一步的事件回调钩子
@@ -2156,8 +2078,7 @@ function onBackToStep3() { try {
   // 用轮廓查找方法刷新一次轮廓渲染
   slideContour(false)
 } catch (error) {
-  console.log("onBackToStep3()方法出错：", error)
-  throw Error(error)
+  my.error("onBackToStep3()报错：", error, errorDialog)
 }}
 
 /**
@@ -2200,8 +2121,7 @@ function onDetermineBaseline() { try {
       + lang.value.ResultDialogContent[1],
   )
 } catch (error) {
-  console.log("onDetermineBaseline()方法出错：", error)
-  errorDialog()
+  my.error("onDetermineBaseline()报错：", error, errorDialog)
 }}
 
 /**
@@ -2218,7 +2138,7 @@ function onDetermineBaseline() { try {
  *     斜率 = - (1 / tanθ) · (h / w)²
  * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
  */
-function calculateContactAngle() { try {
+function calculateContactAngle() {
   /** 接椭圆对象 @type { import("@techstark/opencv-js").RotatedRect } */
   const ellipse = contactAngleObj.ellipseObj
   // 先把2个截距点化归到以标准椭圆为坐标系的坐标内
@@ -2429,11 +2349,7 @@ function calculateContactAngle() { try {
     // 返回接触角均值结果
     return contactAngleAverage
   }
-} catch (error) {
-  // 报错处理
-  console.log("calculateContactAngle()方法出错：", error)
-  throw Error(error)
-}}
+}
 
 /**
  * 删除单个数据结果
@@ -2461,9 +2377,7 @@ function deleteUniResult(resultsIndex) { try {
     }
   })
 } catch (error) {
-  // 报错处理
-  console.log("deleteUniResult()方法出错：", error)
-  errorDialog()
+  my.error("deleteUniResult()报错：", error, errorDialog)
 }}
 
 /**
@@ -2491,9 +2405,7 @@ function deleteAllResult() { try {
     }
   })
 } catch (error) {
-  // 报错处理
-  console.log("deleteUniResult()方法出错：", error)
-  errorDialog()
+  my.error("deleteUniResult()报错：", error, errorDialog)
 }}
 
 /**
@@ -2524,9 +2436,7 @@ function downloadResult() { try {
   //   my.dialog("Mac系统如遇到锁权限情况，请手动复制表格数据。")
   // }
 } catch (error) {
-  // 报错处理
-  console.log("downloadResult()方法出错：", error)
-  errorDialog()
+  my.error("downloadResult()报错：", error, errorDialog)
 }}
 
 </script>

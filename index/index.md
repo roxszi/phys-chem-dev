@@ -26,6 +26,9 @@ hero:
     - theme: brand
       text: 接触角
       link: experiment/contact-angle/
+    - theme: brand
+      text: 动力学
+      link: experiment/outline-colorimetric/
     - theme: alt
       text: 关于
       link: about/

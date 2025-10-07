@@ -20,6 +20,9 @@ hero:
     - theme: brand
       text: Contact Angle
       link: experiment/contact-angle/
+    - theme: brand
+      text: Dynamics
+      link: experiment/outline-colorimetric/
     - theme: alt
       text: About
       link: about/
