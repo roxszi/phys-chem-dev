@@ -55,16 +55,16 @@ en.Setp2Content = [
 root.Setp3Content = [
   "为方便采集数据，提供了[二值化阈值]、[近圆度]、[面积滤过率]、[圆径缩放]滑轨。",
   "二值化即以0为黑，255为白。设定一个[二值化阈值]，对于灰度化处理后的照片，每个像素点高于阈值的均赋值为白(255)，低于阈值的均赋值为黑(0)。阈值越低(越黑)，则越多深色像素被定义为白；反之阈值越高(越白)，则越多浅色像素被定义为黑。",
-  "近圆度即[轮廓面积] ÷ [最小外接圆面积]。对于一个完美的圆形，其近圆度应为1。",
+  // "近圆度即[轮廓面积] ÷ [最小外接圆面积]。对于一个完美的圆形，其近圆度应为1。",
   "面积滤过率即对识别到的轮廓面积进行排序，过滤掉排序低于或高于阈值的轮廓。",
-  "圆径缩放即对识别到的轮廓的半径/直径进行缩放，缩放后可更准确地采集数据。"
+  "圆径缩放即对识别到的轮廓的半径/直径进行缩放，缩放后可更准确地采集数据。建议为0.5。"
 ]
 en.Setp3Content = [
   "To facilitate data collection, [Binary Threshold], [Circularity], [Area Filter Rate], and [Diameter Scaling] sliders are provided.",
   "Binarization means taking 0 as black and 255 as white. Set a [binarization threshold]. For the photos after grayscale processing, each pixel above the threshold is assigned a white value (255), and each pixel below the threshold is assigned a black value (0). The lower the threshold (the darker), the more dark pixels are defined as white. Conversely, the higher the threshold (the whiter), the more light-colored pixels are defined as black.",
-  "Circularity is [Contour Area] ÷ [Minimum Enclosing Circle Area]. For a perfect circle, its circularity should be 1.",
+  // "Circularity is [Contour Area] ÷ [Minimum Enclosing Circle Area]. For a perfect circle, its circularity should be 1.",
   "Area Filter Rate is to sort the recognized contour area and filter out the contours that are below or above the threshold.",
-  "Diameter Scaling is to scale the radius/diameter of the recognized contour. After scaling, data can be collected more accurately."
+  "Diameter Scaling is to scale the radius/diameter of the recognized contour. After scaling, data can be collected more accurately. It is recommended to be 0.5."
 ]
 
 root.CutPictureButtonText = "裁剪图片"

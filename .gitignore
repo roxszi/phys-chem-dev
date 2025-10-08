@@ -12,3 +12,6 @@ dist/
 # 临时目录
 .temp/
 temp/
+
+# 临时文件
+temp.js

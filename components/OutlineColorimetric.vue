@@ -162,7 +162,7 @@
 // 导入VUE的各类响应式方法
 import { useTemplateRef, onMounted, onBeforeUnmount, ref, shallowRef, watch, nextTick } from "vue"
 // 导入VueUse的各类响应式方法
-import { useParentElement, useMouseInElement, useThrottleFn } from "@vueuse/core"
+import { useMouseInElement, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
 import my from "@/utils/myFunc.js"
 // 导入xlsx相关方法
@@ -194,12 +194,6 @@ const fileArrRef = ref([])
  */
 const canvasRef = useTemplateRef("canvasRef")
 /**
- * 视图层<canvas>的父元素对象
- * @type { import("vue").ShallowRef<HTMLCanvasElement> }
- * 用于计算<canvas>的宽度的。
- */
-const canvasParentRef = useParentElement(canvasRef)
-/**
  * 第三步确定轮廓的上下限范围数组对象
  * @type { import("vue").Ref<Number[][]> }
  */
@@ -214,7 +208,7 @@ const thresholdNumAoaConst = [
   // // 近圆度：当前值、最小值、最大值、marks标记、是否range、步长
   // [[0.0, 1.0], 0, 1, [0, 0.25, 0.5, 0.75, 1], true, 0.01],
   // 面积位次：当前值、最小值、最大值、marks标记、是否range、步长
-  [[0, 100], 0, 100, [0, 25, 50, 75, 1], true, 1],
+  [[0, 100], 0, 100, [0, 25, 50, 75, 100], true, 1],
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
   [0.5, 0, 1, [0, 0.25, 0.5, 0.75, 1], false, 0.1]
 ]
@@ -277,7 +271,6 @@ const {
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
 onMounted(() => {
-
   // 语言刷新。获取当前语言
   const localeIndexValue = useData().localeIndex.value
   // 如果当前语言不是默认语言
@@ -285,41 +278,44 @@ onMounted(() => {
     // 则以当前语言刷新语言包
     lang.value = langAll[localeIndexValue]
   }
-
-  // 先给个加载框
+  // 给个加载框
   my.loading(lang.value.OpenCVLoadingContent)
-
   // 用于阻止页面刷新和关闭
   // 该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
-
-  // 如果canvas没有初始化（第一次进入页面），则初始化
-  if (!canvasRef.value || !canvasParentRef.value) {
+  // 如果canvas没有初始化（第一次进入页面）
+  if (!canvasRef.value) {
     // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
     // 解构赋值，得到监听钩子的stop()方法，用于停止监听
     const { stop: stopCanvasWatch } = watch(
-      // 监听：canvasRef和canvasParentRef
-      [canvasRef, canvasParentRef],
+      // 监听：canvasRef
+      canvasRef,
       // 回调
-      (newValue) => {
-        // 解构得到canvasRef和canvasParentRef的新值
-        const [newCanvasRef, newCanvasParentRef] = newValue
+      (newCanvas) => {
         // 得确保新值均不为null，则完成初始化
-        if (newCanvasRef && newCanvasParentRef) {
+        if (newCanvas) {
           // 停止监听
           stopCanvasWatch()
           // 初始化canvas的绘图上下文对象ctx，赋值给全局对象contactAngleObj
-          outlineColorimetricObj.ctx = canvasRef.value.getContext(
+          outlineColorimetricObj.ctx = newCanvas.getContext(
             // CanvasRenderingContext2D接口的2D渲染上下文
             "2d",
-            // 为频繁读取做优化。但仅Gecko内核（FireFox浏览器）支持，就不再专门设置了
-            // { willReadFrequently: true },
+            // 为频繁读取做优化，但仅Gecko内核（FireFox浏览器）支持
+            { willReadFrequently: true }
           )
         }
       }
     )
+  // 如果canvas已经初始化（刷新页面），则直接初始化
+  } else {
+    // 初始化canvas的绘图上下文对象ctx，赋值给全局对象contactAngleObj
+    outlineColorimetricObj.ctx = canvasRef.value.getContext(
+      // CanvasRenderingContext2D接口的2D渲染上下文
+      "2d",
+      // 为频繁读取做优化，但仅Gecko内核（FireFox浏览器）支持
+      { willReadFrequently: true }
+    )
   }
-
   // 导入OpenCV.js库
   loadOpenCV().then((cvReady) => {
     // 赋值给全局变量cv
@@ -327,25 +323,37 @@ onMounted(() => {
     // 停止加载框
     my.loading(false)
   })
-
   // 注册一个对taskStatusRef的监听：
   // 任务状态改变时，始终保持canvas滚动到视图中间
-  watch(
-    taskStatusRef,
-    // 回调：下个渲染周期将canvas滚动到视图中
-    () => { nextTick(() => {
-      canvasRef.value.scrollIntoView({
-        // 平滑滚动
-        behavior: "smooth",
-        // 垂直中心对齐
-        block: "center",
-        // 水平就近对齐
-        inline: "nearest"
-      })
-    })}
-  )
-
+  watch(taskStatusRef, nextTickFocusOnCanvas)
 })
+
+/**
+ * 聚焦canvas
+ * 下个DOM渲染周期将canvas滚动到视图中
+ */
+function nextTickFocusOnCanvas() {
+  // 下个渲染周期执行focusOnCanvas()
+  nextTick(focusOnCanvas).catch((error) => {
+    my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
+  })
+  /**
+   * 聚焦canvas的内部方法
+   */
+  function focusOnCanvas() {
+    // 接参数
+    const canvas = canvasRef.value
+    // 滚动到canvas
+    canvas.scrollIntoView({
+      // 平滑滚动
+      behavior: "smooth",
+      // 垂直中心对齐
+      block: "center",
+      // 水平就近对齐
+      inline: "nearest"
+    })
+  }
+}
 
 // 生命周期钩子，组件卸载前执行
 // 用于进行必要的各类初始化操作
@@ -369,14 +377,12 @@ function beforeunloadHandler(event) {
  * 报错的通知方法
  * 这是个统一化的报错通知，这个就不进行外部try...catch了
  */
-function errorDialog(err) {
+function errorDialog(error) {
   // 直接对话框报错
   my.dialog({
     theme: "danger",
     header: lang.value.ErrorDialogTitle,
-    body: 
-      `${ lang.value.ErrorDialogContent }
-      ${ err }`
+    body: lang.value.ErrorDialogContent + error
   })
 }
 
@@ -404,32 +410,6 @@ function onCanvasClick() { try {
 }}
 
 /**
- * 清空canvas的mask遮罩标记数据
- */
-function canvasRectDataRemove() {
-  // 清空选框的[上|右|下|左]遮罩边界值
-  const rect = outlineColorimetricObj.rect
-  rect.xMin = null
-  rect.yMin = null
-  rect.xMax = null
-  rect.yMax = null
-}
-
-/**
- * 设置canvas的绘图上下文ctx
- */
-function ctxSetting() {
-  // 接ctx及缩放比例相关对象
-  const { ctx, canvasScaling } = outlineColorimetricObj
-  // 红色笔迹
-  ctx.strokeStyle = "red"
-  // 线宽：2像素 x 缩放比例
-  ctx.lineWidth = 2 * canvasScaling
-  // 填充色：半透明
-  ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
-}
-
-/**
  * @步骤1 传图
  */
 
@@ -437,8 +417,6 @@ function ctxSetting() {
  * 任务进度切换到步骤1
  */
 function taskToStep1() {
-  // 清空canvas上的矩形标记数据
-  canvasRectDataRemove()
   // 任务进度切换到步骤1
   taskStatusRef.value = 1
 }
@@ -458,15 +436,16 @@ async function onPicChange(event) { try {
   }
   // 加载框
   my.loading(lang.value.PicLoadingContent)
+  // 接参数
+  const { imageBitmap } = outlineColorimetricObj
   // 接收文件名
   outlineColorimetricObj.filename = event[0].name
+  // 获取文件的位图数据
+  const imageBitmapNew = await window.createImageBitmap(event[0].raw)
   // 清空之前的位图文件的数据，释放GPU内存
-  outlineColorimetricObj.imageBitmap?.close()
-  // 获取文件的位图数据，并赋值给全局对象contactAngleObj的位图对象imageBitmap
-  outlineColorimetricObj.imageBitmap = await window.createImageBitmap(event[0].raw)
-  // 把图片绘制到canvas上
-  // 等到了第2步再绘制，不然会出现尺寸错位的问题
-  // canvasRestore()
+  imageBitmap?.close()
+  // 赋值给全局对象contactAngleObj的位图对象imageBitmap
+  outlineColorimetricObj.imageBitmap = imageBitmapNew
   // 第一阶段完成，任务进度改为2
   taskToStep2()
   // 停止加载框
@@ -479,33 +458,6 @@ async function onPicChange(event) { try {
 }}
 
 /**
- * 以imageBitmap恢复canvas
- * @note 会同时根据canvas父级元素的内宽刷新canvas的宽
- * @note 会同时根据imageBitmap尺寸修改canvas的实际宽高、以及显示高
- */
-function canvasRestore() {
-  // 获取对象（此法只能获取对象，因为只有对象是浅拷贝的）
-  const canvas = canvasRef.value
-  const { ctx, imageBitmap } = outlineColorimetricObj
-  // 调整canvas的实际宽高：
-  // 以图片的原始宽高设定canvas的【实际】宽高，防止图片尺寸和canvas实际尺寸不一致导致的显示问题
-  canvas.width = imageBitmap.width
-  canvas.height = imageBitmap.height
-  // 调整canvas的显示宽高：
-  // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
-  outlineColorimetricObj.canvasStyleWidth = canvasParentRef.value.clientWidth
-  canvas.style.width = outlineColorimetricObj.canvasStyleWidth + "px"
-  // 计算canvas的缩放比例：实际宽度/显示宽度
-  outlineColorimetricObj.canvasScaling = imageBitmap.width / outlineColorimetricObj.canvasStyleWidth
-  // 设定canvas的显示高度
-  canvas.style.height = imageBitmap.height / outlineColorimetricObj.canvasScaling + "px"
-  // 把图片绘制到canvas上
-  ctx.drawImage(imageBitmap, 0, 0)
-  // 最后，恢复ctx的设置
-  ctxSetting()
-}
-
-/**
  * @步骤2 裁剪图片
  * 此处的选框方法，放在上面的全局canvas监听里了
  */
@@ -514,12 +466,84 @@ function canvasRestore() {
  * 任务进度切换到步骤2
  */
 function taskToStep2() {
-  // 对ctx做简要设置并保存设置
-  ctxSetting()
+  // 清空canvas上的矩形标记数据
+  canvasRectDataRemove()
   // 任务进度改为2
   taskStatusRef.value = 2
   // 下个渲染周期，绘制canvas
-  nextTick(canvasRestore)
+  nextTick(canvasRestore).catch((error) => {
+    my.error("taskToStep2().nextTick()报错：", error, errorDialog)
+  })
+}
+
+/**
+ * 清空canvas的mask遮罩标记数据
+ */
+function canvasRectDataRemove() {
+  // 清空选框的[上|右|下|左]遮罩边界值
+  const rect = outlineColorimetricObj.rect
+  rect.xMin = null
+  rect.yMin = null
+  rect.xMax = null
+  rect.yMax = null
+}
+
+/**
+ * 以imageBitmap恢复canvas
+ * @note 会同时根据canvas父级元素的内宽刷新canvas的宽
+ * @note 会同时根据imageBitmap尺寸修改canvas的实际宽高、以及显示高
+ */
+function canvasRestore() {
+  // 获取对象
+  const canvas = canvasRef.value
+  const { ctx, imageBitmap } = outlineColorimetricObj
+  // 调整canvas的实际宽高：
+  // 以图片的原始宽高设定canvas的【实际】宽高，防止图片尺寸和canvas实际尺寸不一致导致的显示问题
+  canvas.width = imageBitmap.width
+  canvas.height = imageBitmap.height
+  // 调整canvas的显示高：
+  // 接canvas父元素的最大内宽
+  const canvasParentClientWidth = canvas.parentElement.clientWidth
+  // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
+  outlineColorimetricObj.canvasStyleWidth = canvasParentClientWidth
+  canvas.style.width = canvasParentClientWidth + "px"
+  // 计算canvas的缩放比例：实际宽度/显示宽度
+  const canvasScaling = canvas.width / canvasParentClientWidth
+  outlineColorimetricObj.canvasScaling = canvasScaling
+  // 设定canvas的显示高度
+  canvas.style.height = canvas.height / canvasScaling + "px"
+  // 把图片绘制到canvas上
+  ctx.drawImage(imageBitmap, 0, 0)
+  // 设置canvas的绘图上下文
+  ctxSetting()
+}
+
+/**
+ * 以canvas父元素宽度为依据，使canvas进行尺寸自适应
+ */
+function canvasFit() {
+  // 接参数
+  const canvas = canvasRef.value
+  // 接canvas父元素的最大内宽
+  const canvasParentClientWidth = canvas.parentElement.clientWidth
+  // canvas父元素的最大内宽赋值给全局变量
+  outlineColorimetricObj.canvasStyleWidth = canvasParentClientWidth
+  // 设置canvas的显示宽度
+  canvas.style.width = canvasParentClientWidth + "px"
+}
+
+/**
+ * 设置canvas的绘图上下文ctx
+ */
+function ctxSetting() {
+  // 接ctx及缩放比例相关对象
+  const { ctx, canvasScaling } = outlineColorimetricObj
+  // 红色笔迹
+  ctx.strokeStyle = "red"
+  // 线宽：2像素 x 缩放比例
+  ctx.lineWidth = 2 * canvasScaling
+  // 填充色：半透明
+  ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
 }
 
 /**
@@ -536,20 +560,17 @@ function chooseRect() {
   const realElementY = elementY.value * canvasScaling
   // 如果选框X边界未定义，即第一次点击，需记录下选框的坐标
   if (!rect.xMax) {
-    // 接canvas宽高
-    const {
-      width: canvasWidth,
-      height: canvasHeight
-    } = canvasRef.value
+    // 接canvas
+    const canvas = canvasRef.value
     // 计算初始化选框的半宽/半高
-    const rectHalfX = canvasWidth * RECT_SCALE * 0.5
+    const rectHalfX = canvas.width * RECT_SCALE * 0.5
     // Y轴半高：适当压扁一点
-    const rectHalfY = canvasHeight * RECT_SCALE * 0.5
+    const rectHalfY = canvas.height * RECT_SCALE * 0.5
     // 根据点击位置记录坐标
     // rectXmax：点击位置X坐标 + 选框半宽，有可能大于<canvas>宽，则取两者小值
-    rect.xMax = Math.min((realElementX + rectHalfX), canvasWidth)
+    rect.xMax = Math.min((realElementX + rectHalfX), canvas.width)
     // rectYmax原理同上
-    rect.yMax = Math.min((realElementY + rectHalfY), canvasHeight)
+    rect.yMax = Math.min((realElementY + rectHalfY), canvas.height)
     // rectXmin：点击位置X坐标 - 选框半宽，有可能小于零，则取两者大值
     rect.xMin = Math.max((realElementX - rectHalfX), 0)
     // rectYmin原理同上
@@ -635,35 +656,25 @@ function chooseRect() {
  * @note 会读取全局对象canvasRef的height、width
  */
 function drawRect() {
-  // 接遮罩对象
-  const {
-    xMax: rectXmax,
-    yMax: rectYmax,
-    xMin: rectXmin,
-    yMin: rectYmin
-  } = outlineColorimetricObj.rect
+  // 接对象
+  const { rect, ctx, imageBitmap } = outlineColorimetricObj
   // 接canvas对象
-  const {
-    height: canvasHeight,
-    width: canvasWidth
-  } = canvasRef.value
+  const canvas = canvasRef.value
   // 接绘制框的宽高
-  const rectWidth = rectXmax - rectXmin
-  const rectHeight = rectYmax - rectYmin
-  // 接canvas的绘图上下文对象
-  const ctx = outlineColorimetricObj.ctx
+  const rectWidth = rect.xMax - rect.xMin
+  const rectHeight = rect.yMax - rect.yMin
   // 先对canvas进行重绘制，去掉上一次的绘制
-  canvasRestore()
+  ctx.drawImage(imageBitmap, 0, 0)
   // 给一个遮罩
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
   // 重绘选框中部
   ctx.drawImage(
-    outlineColorimetricObj.imageBitmap,
-    rectXmin, rectYmin, rectWidth, rectHeight,
-    rectXmin, rectYmin, rectWidth, rectHeight
+    imageBitmap,
+    rect.xMin, rect.yMin, rectWidth, rectHeight,
+    rect.xMin, rect.yMin, rectWidth, rectHeight
   )
   // 绘制中间线框
-  ctx.strokeRect(rectXmin, rectYmin, rectWidth, rectHeight)
+  ctx.strokeRect(rect.xMin, rect.yMin, rectWidth, rectHeight)
 }
 
 /**
@@ -672,21 +683,19 @@ function drawRect() {
  */
 async function onSureRect(isDetermine) { try {
   // 接选框对象
-  const rect = outlineColorimetricObj.rect
+  const { rect, imageBitmap } = outlineColorimetricObj
   // 接canvas对象
   const canvas = canvasRef.value
   // 如果有选框
   if (rect.xMax) {
-    // 先重绘canvas，去掉之前的选框标记
-    canvasRestore()
-    // 获取canvas的图像位图元数据
-    const imageBitmap = await window.createImageBitmap(
-      canvas,
+    // 以选框获取新的imageBitmap图像位图元数据
+    const imageBitmapNew = await window.createImageBitmap(
+      imageBitmap,
       rect.xMin, rect.yMin, (rect.xMax - rect.xMin), (rect.yMax - rect.yMin)
     )
     // 更新全局canvas的图像位图元数据
-    outlineColorimetricObj.imageBitmap?.close()
-    outlineColorimetricObj.imageBitmap = imageBitmap
+    imageBitmap?.close()
+    outlineColorimetricObj.imageBitmap = imageBitmapNew
     // 更新canvas的图像位图元数据后，把图片绘制到canvas上
     canvasRestore()
     // 清空裁剪标记
@@ -698,13 +707,13 @@ async function onSureRect(isDetermine) { try {
   // 3.  进入下一步
   if (isDetermine === true) {
     // 接绘图上下文ctx对象、cv对象、图片的宽高
-    const { ctx, cv, imageBitmap: { width, height }} = outlineColorimetricObj
-    // 备份imageData
+    const { ctx, cv, matGray, imageBitmap: { width, height } } = outlineColorimetricObj
+    // 备份imageData，后面直接读取RGB用
     outlineColorimetricObj.imageData = ctx.getImageData(0, 0, width, height)
     // 读取图片文件为OpenCV的Mat对象
     const matOrigin = cv.imread(canvas)
     // 如果全局灰度图Mat对象存在且有成员对象delete方法，则先删除
-    outlineColorimetricObj.matGray?.delete()
+    matGray?.delete()
     // 初始化全局灰度图Mat对象
     outlineColorimetricObj.matGray = new cv.Mat()
     // 将原始图像Mat转为灰度Mat，赋值给全局灰度图Mat对象
@@ -744,12 +753,9 @@ function taskToStep3() {
   thresholdNumRestore()
   // 任务进度改为3
   taskStatusRef.value = 3
-  // 下一个DOM周期：
-  nextTick(() => {
-    // 刷新canvas
-    canvasRestore()
-    // 用轮廓查找方法刷新一次轮廓渲染
-    getAndDrawContours()
+  // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
+  nextTick(getAndDrawContours).catch((error) => {
+    my.error("taskToStep3().nextTick()报错：", error, errorDialog)
   })
 }
 
@@ -763,11 +769,12 @@ function thresholdNumRestore() {
   const thresholdNumAoa = thresholdNumAoaRef.value
   // 如果滑轨参数为空，则初始化滑轨参数
   if (thresholdNumAoa.length === 0) {
-    thresholdNumAoaRef.value = thresholdNumAoaConst
+    // 直接深拷贝一份副本然后赋值即可
+    thresholdNumAoaRef.value = structuredClone(thresholdNumAoaConst)
   // 否则，保留每个参数的取值
   } else {
-    // 先接参数副本
-    const thresholdNumAoaTemp = thresholdNumAoaConst
+    // 先深拷贝一份参数副本
+    const thresholdNumAoaTemp = structuredClone(thresholdNumAoaConst)
     // 用参数副本的第一个值值覆盖
     for (let i = 0; i < thresholdNumAoa.length; i++) {
       thresholdNumAoaTemp[i][0] = thresholdNumAoa[i][0]
@@ -880,8 +887,8 @@ function getAndDrawContours() {
     //   nu30, nu21, nu12, nu03：三阶归一化中心矩
     //   归一化中心矩用于描述轮廓或点的形状，这些矩是尺度不变的
     const { m00: circleArea } = cv.moments(matContour, true)
-    // 如果轮廓面积小于1，则忽略此轮廓
-    if (circleArea < 1) {
+    // 如果轮廓面积小于等于1，则忽略此轮廓
+    if (circleArea <= 1) {
       continue forEachContours
     }
     // 获取该轮廓的最小外接圆。有center.x, center.y, radius
@@ -914,9 +921,15 @@ function getAndDrawContours() {
  */
 function drawContours() {
   // 接参数：近圆率、面积位次、缩放
+  const [ ,
+    // [[circularityMin, circularityMax]],
+    [[areaPercentOrderMin, areaPercentOrderMax]],
+    [scale]
+  ] = thresholdNumAoaRef.value
+
   // const [circularityMin, circularityMax] = thresholdNumAoaRef.value[1][0]
-  const [areaPercentOrderMin, areaPercentOrderMax] = thresholdNumAoaRef.value[1][0]
-  const scale = thresholdNumAoaRef.value[2][0]
+  // const [areaPercentOrderMin, areaPercentOrderMax] = thresholdNumAoaRef.value[1][0]
+  // const scale = thresholdNumAoaRef.value[2][0]
   // 接参数：canvas上下文、轮廓数组、近圆率、圆面积
   const { ctx, contourAoa, circleAreaArr } = outlineColorimetricObj
   // 轮廓数量
@@ -1097,7 +1110,7 @@ function contourToMatrix() {
  * @returns { Number[][][] } 结果矩阵，最外层为[R-ave, R-sd, G-ave, G-sd, B-ave, B-sd]的[][]
  */
 function contourMatrixToRGB(contourMatrixAoaoa) {
-  // 接canvas图片的宽高
+  // 接imageData数据，用于提取RGB值
   const { width: imageDataWidth, data: imageDataArray } = outlineColorimetricObj.imageData
   // 构建用于输出的数组
   const dataAoaoa = []
