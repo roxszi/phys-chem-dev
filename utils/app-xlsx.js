@@ -33,17 +33,14 @@ import { downloadFile } from "./app-utils.js"
  * @param { File | Response } xlsxFile XLSX文件对象
  * @returns { Promise<XLSX.WorkBook> } 工作簿对象
  */
-export async function readXlsxFile(xlsxFile) { try {
+export async function readXlsxFile(xlsxFile) {
   // file(File类)继承Blob类的arrayBuffer()方法，直接转ArrayBuffer格式
   const dataBuffer = await xlsxFile.arrayBuffer()
   // 将ArrayBuffer对象读取为工作簿
   const workbook = XLSX.read(dataBuffer, { type: "file" })
   // 返回工作簿
   return workbook
-} catch (error) {
-  console.error("readXlsxFile()报错: ", error)
-  throw new Error(error)
-}}
+}
 
 /**
  * 从工作簿对象中提取指定工作表的数据为AOA对象
@@ -52,7 +49,7 @@ export async function readXlsxFile(xlsxFile) { try {
  * @param { String } sheetName 表格名称
  * @returns { T[][] } AOA数组
  */
-export function sheetToAoa(workbook, sheetName) { try {
+export function sheetToAoa(workbook, sheetName) {
   // 根据工作表的名字，从工作簿中获取工作表
   const workSheet = workbook.Sheets[sheetName]
   // 如果工作簿中不存在指定的工作表
@@ -69,17 +66,14 @@ export function sheetToAoa(workbook, sheetName) { try {
   })
   // 返回AOA数据
   return sheetDataAoa
-} catch (error) {
-  console.error("sheetToAoa()报错: ", error)
-  throw new Error(error)
-}}
+}
 
 /**
  * 剔除标题数组里可能存在的前后空格
  * @param { String[] } arr 待剔除空格的数组
  * @returns { String[] } 剔除空格后的数组
  */
-export function arrTrim(arr) { try {
+export function arrTrim(arr) {
   // 遍历数组，如果是字符串，则提出空格
   const arrTrimed = arr.map((str) => {
     if (typeof str === "string") {
@@ -90,10 +84,7 @@ export function arrTrim(arr) { try {
   })
   // 返回剔除空格后的数组
   return arrTrimed
-} catch (error) {
-  console.error("arrTrim()报错: ", error)
-  throw new Error(error)
-}}
+}
 
 /**
  * 数组转置
@@ -101,7 +92,7 @@ export function arrTrim(arr) { try {
  * @param { Number } [dataNumber] 需要获取的数据数(列)，默认为AOA的最大列数
  * @returns { Number[][] } 转置后的AOA数组
  */
-export function aoaTranspose(aoa, dataNumber) { try {
+export function aoaTranspose(aoa, dataNumber) {
   // 获取(最大)行数
   const rowNumber = aoa.length || 0
   // 如果数组为空，则应报错
@@ -130,10 +121,7 @@ export function aoaTranspose(aoa, dataNumber) { try {
   }
   // 返回转置后的数组
   return transposedAoa
-} catch (error) {
-  console.error("aoaTranspose()报错: ", error)
-  throw new Error(error)
-}}
+}
 
 /**
  * AOA的键值对Map数据转为工作簿对象
@@ -141,7 +129,7 @@ export function aoaTranspose(aoa, dataNumber) { try {
  * @param { Map<String, T[][]> } aoaMap AOA数组的Map对象
  * @returns { XLSX.WorkBook } 工作簿
  */
-export function aoaMapToWorkbook(aoaMap) { try {
+export function aoaMapToWorkbook(aoaMap) {
   // 创建一个新的工作簿对象
   const workbook = XLSX.utils.book_new()
   // 遍历AOA数组的Map对象，将每个AOA数组转为工作表，并添加到工作簿中
@@ -153,23 +141,17 @@ export function aoaMapToWorkbook(aoaMap) { try {
   })
   // 返回工作簿对象
   return workbook
-} catch (error) {
-  console.error("aoaMapToWorkbook()报错: ", error)
-  throw new Error(error)
-}}
+}
 
 /**
  * 下载工作簿xlsx文件
  * @param { XLSX.WorkBook } workbook 工作簿对象
  * @param { String } xlsxName 文件名
  */
-export function downloadXlsx(workbook, xlsxName) { try {
+export function downloadXlsx(workbook, xlsxName) {
   // 工作簿转为Buffer
   const xlsxBuffer = XLSX.write(workbook, { type: "buffer" })
   // 下载文件
   const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   downloadFile(xlsxBuffer, xlsxName, fileType)
-} catch (error) {
-  console.error("downloadXlsx()报错: ", error)
-  throw new Error(error)
-}}
+}

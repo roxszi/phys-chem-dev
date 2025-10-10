@@ -207,6 +207,12 @@ en.ResultTableProcessingLabel = "Process"
 root.ResultTableDeleteButtonLabel = "删除"
 en.ResultTableDeleteButtonLabel = "Delete"
 
+root.ResultTableReverseButtonLabel = "结果倒序"
+en.ResultTableReverseButtonLabel = "Reverse Order"
+
+root.ResultTableNormalButtonLabel = "结果正序"
+en.ResultTableNormalButtonLabel = "Normal Order"
+
 root.ResultTableExportButtonLabel = "下载结果"
 en.ResultTableExportButtonLabel = "Download Result"
 
@@ -223,6 +229,9 @@ en.ErrorDialogTitle = "Program Error"
 
 root.ErrorDialogContent = "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
 en.ErrorDialogContent = "Welcome to inform the software development personnel (+8613611580728 SI_Cheng-Yun) of this bug actively so that it can be repaired in time. "
+
+root.DataInitErrorContent = "数据结构被破坏，错误数据已删除。"
+en.DataInitErrorContent = "Data structure is broken, error data has been deleted."
 
 root.PicLoadingContent = "正在读取照片..."
 en.PicLoadingContent = "Loading picture..."

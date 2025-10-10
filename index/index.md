@@ -14,7 +14,7 @@ hero:
   # 副标题/标语
   tagline: 助力物理化学理论与实验教学
   # logo图
-  image: logo-pure.webp
+  # image: logo-pure.webp
   # 操作按钮（链接）
   actions:
     # - theme: brand

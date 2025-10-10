@@ -14,7 +14,7 @@ hero:
   # 副标题/标语
   tagline: Helper in the theoretical and experimental teaching of physical chemistry.
   # logo图
-  image: logo-pure.webp
+  # image: logo-pure.webp
   # 操作按钮（链接）
   actions:
     - theme: brand

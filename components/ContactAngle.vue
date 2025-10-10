@@ -305,44 +305,69 @@
     数据结果的呈现：数据表格、下载按钮
    -->
   <mySpace
-    v-if="resultRef[0]"
+    v-if="resultTableDataRef?.length !== 0"
     size="small"
   >
-    <!-- 接触角数据 -->
-    <div class="center"><table>
-      <!-- 表头 -->
-      <thead>
-        <tr>
-          <th v-for="(content, index) of lang.ResultTableContent" :key="index">
-            {{ content }}
-          </th>
-          <!-- 处理 -->
-          <th>{{ lang.ResultTableProcessingLabel }}</th>
-        </tr>
-      </thead>
-      <!-- 表格体 -->
-      <tbody>
-        <tr v-for="(resultArr, resultsIndex) in resultRef" :key="resultsIndex">
-          <td>{{ resultsIndex + 1 }}</td>
-          <td>{{ resultArr[0] }}</td>
-          <td>{{ resultArr[1]?.toFixed(2) }}</td>
-          <td>{{ resultArr[2]?.toFixed(2) }}</td>
-          <td>{{ resultArr[3]?.toFixed(2) }}</td>
-          <td>{{ resultArr[4]?.toFixed(2) }}</td>
-          <td>{{ resultArr[5]?.toFixed(2) }}</td>
-          <td>{{ resultArr[6]?.toFixed(4) }}</td>
-          <!-- 删除按钮 -->
-          <td><myButton
-            @click="onDeleteUniResult(resultsIndex)"
-            :block="false" theme="danger"
-          >
-            {{ lang.ResultTableDeleteButtonLabel }}
-          </myButton></td>
-        </tr>
-      </tbody>
-    </table></div>
+    <!-- 表格和翻页器容器 -->
+    <div>
+      <!-- 接触角数据表格 -->
+      <div class="center"><table>
+        <!-- 表头 -->
+        <thead>
+          <tr>
+            <th v-for="(content, index) of lang.ResultTableContent" :key="index">
+              {{ content }}
+            </th>
+            <!-- 处理 -->
+            <th>{{ lang.ResultTableProcessingLabel }}</th>
+          </tr>
+        </thead>
+        <!-- 表格体 -->
+        <tbody>
+          <tr v-for="(resultArr, index) in resultTableDataRef" :key="index">
+            <td>{{ resultArr[0] + 1 }}</td>
+            <td>{{ resultArr[1] }}</td>
+            <td>{{ resultArr[2]?.toFixed(2) }}</td>
+            <td>{{ resultArr[3]?.toFixed(2) }}</td>
+            <td>{{ resultArr[4]?.toFixed(2) }}</td>
+            <td>{{ resultArr[5]?.toFixed(2) }}</td>
+            <td>{{ resultArr[6]?.toFixed(2) }}</td>
+            <td>{{ resultArr[7]?.toFixed(4) }}</td>
+            <!-- 删除按钮 -->
+            <td><myButton
+              @click="onDeleteUniResult(resultArr[0])"
+              :block="false" theme="danger"
+            >
+              {{ lang.ResultTableDeleteButtonLabel }}
+            </myButton></td>
+          </tr>
+        </tbody>
+      </table></div>
+      <!-- 分页器 -->
+      <t-pagination
+        v-model:current="resuleTableCurrentPageRef"
+        :total="resultRef.length"
+        :showFirstAndLastPageBtn="false"
+        :showJumper="true"
+        :showPageNumber="false"
+        :showPageSize="false"
+        :showPreviousAndNextBtn="true"
+      /><t-divider />
+    </div>
+
     <!-- 容器（按钮容器） -->
     <div class="center">
+      <!-- 倒序/正序 -->
+      <myButton
+        @click="onReverseResultOrder"
+        :block="false" theme="default"
+      >
+        {{
+          isResultReverseRef === false
+            ? lang.ResultTableReverseButtonLabel
+            : lang.ResultTableNormalButtonLabel
+        }}
+      </myButton>
       <!-- 下载数据 -->
       <myButton
         @click="onDownloadResult"
@@ -438,7 +463,21 @@ const interceptNumAoaRef = ref([])
  * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
 const resultRef = ref([])
-
+/** 第五步最终结果表格的页码 @type { import("vue").Ref<Number> } */
+const resuleTableCurrentPageRef = ref(1)
+/**
+ * 第五步最终结果数据是否倒序显示
+ * @type { import("vue").Ref<Boolean> }
+ * @value false - 升序
+ * @value true - 数据倒置
+ */
+const isResultReverseRef = ref(false)
+/**
+ * 第五步最终结果的表格内容
+ * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number, Number, Number][]> }
+ * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²、原表序号
+ */
+const resultTableDataRef = ref([])
 /**
  * 接触角业务的全局对象
  * @typedef { Object } ContactAngle
@@ -511,7 +550,7 @@ const {
 
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
-onMounted(() => {
+onMounted(() => { try {
   // 语言刷新。获取当前语言
   const localeIndexValue = useData().localeIndex.value
   // 如果当前语言不是默认语言
@@ -524,8 +563,15 @@ onMounted(() => {
   // 接下来做一些该WebApp的准备工作
   // 阻止页面刷新和关闭，该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
-  // 初始化数据结果resultRef，尝试从localStorage中读取
-  resultRef.value = JSON.parse(localStorage.getItem("contactAngleResult")) || []
+  // 初始化数据结果resultRef
+  initResultData()
+  // 监听resultRef，实现表格数据resultTableDataRef刷新
+  watch([resultRef, resuleTableCurrentPageRef], refreshResultTableData, {
+    // 立即执行
+    immediate: true,
+    // 深度监听：2，（1是本体，2是子数组）
+    deep: 2
+  })
   // 如果canvas没有初始化（第一次进入页面）
   if (!canvasRef.value) {
     // 注册一个监听钩子，用于实现canvasRef的初始化监听
@@ -590,7 +636,93 @@ onMounted(() => {
     // 配置：长按时间
     // { delay: 500 }
   )
-})
+} catch (error) {
+  my.error("onMounted()报错：", error, errorDialog)
+}})
+
+/**
+ * 数据初始化
+ * 图表上呈现的数据
+ */
+function initResultData() {
+  // 从localStorage中读取
+  const resultDataStr = localStorage.getItem("contactAngleResult")
+  // 如果没有数据
+  if (!resultDataStr) {
+    // 直接跳出即可
+    return
+  }
+  // 处理数据，将字符串转为JSON对象
+  const resultDataAoa = JSON.parse(resultDataStr)
+  // 数据检查
+  if(!dataInitCheck(resultDataAoa)) {
+    return
+  }
+  // 遍历数据
+  for (const resultDataArr of resultDataAoa) {
+    // 数据检查
+    if(!dataInitCheck(resultDataArr)) {
+      return
+    }
+    // 强行让数据长度为7
+    resultDataArr.length = 7
+  }
+  // 检查完毕，赋值给resultRef
+  resultRef.value = resultDataAoa
+  /**
+   * 数据检查
+   * @param dataArr 数据数组
+   */
+  function dataInitCheck(dataArr) {
+    // 如果数据格式有问题，则清空数据
+    if (!Array.isArray(dataArr)) {
+      // 清空数据
+      localStorage.removeItem("contactAngleResult")
+      // 通知
+      my.message(lang.value.DataInitErrorContent)
+      // 跳出
+      return false
+    } else {
+      return true
+    }
+  }
+}
+
+/**
+ * 刷新数据呈现
+ * @param { [[String, Number, Number, Number, Number, Number, Number], Number] } 新结果数据和页码数据
+ * 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
+ */
+function refreshResultTableData([newResultAoa, newResuleTablePage]) {
+  // 接参数
+  const dataNumberPerPage = 10
+  const endIndex = newResuleTablePage * dataNumberPerPage
+  const startIndex = endIndex - dataNumberPerPage
+  const isResultReverse = isResultReverseRef.value
+  // 如果新数据为空，则清空表格数据
+  if (newResultAoa.length === 0) {
+    // 赋值空值
+    resultTableDataRef.value = []
+    // 直接返回
+    return
+  }
+  // 接收新数据。这一步的操作是为了避免原数组长度不足endIndex造成的bug
+  const resultTableDataAoaTemp = newResultAoa.slice(startIndex, endIndex)
+  // 建立一个空数组，用于存放处理后的数据
+  const resultTableDataAoa = []
+  // 遍历取值 + 补一个原index
+  for (let i = 0; i < resultTableDataAoaTemp.length; i++) {
+    // 把原index加上，推进新数组里
+    resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoa[i]])
+  }
+  // 如果是倒序
+  if (isResultReverse) {
+    // 倒序处理
+    resultTableDataAoa.reverse()
+  }
+  // 赋值给表格数据
+  resultTableDataRef.value = resultTableDataAoa
+}
 
 /**
  * 聚焦canvas
@@ -2405,6 +2537,17 @@ function onDeleteAllResult() { try {
   })
 } catch (error) {
   my.error("onDeleteAllResult()报错：", error, errorDialog)
+}}
+
+/**
+ * 结果正序/倒序排序的回调
+ */
+function onReverseResultOrder() { try {
+  // 直接反转即可
+  resultTableDataRef.value.reverse()
+  isResultReverseRef.value = !isResultReverseRef.value
+} catch (error) {
+  my.error("onReverseResultOrder()报错：", error, errorDialog)
 }}
 
 /**

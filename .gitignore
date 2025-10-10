@@ -13,5 +13,3 @@ dist/
 .temp/
 temp/
 
-# 临时文件
-temp.js
