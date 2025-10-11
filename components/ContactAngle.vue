@@ -713,7 +713,7 @@ function refreshResultTableData([newResultAoa, newResuleTablePage]) {
   // 遍历取值 + 补一个原index
   for (let i = 0; i < resultTableDataAoaTemp.length; i++) {
     // 把原index加上，推进新数组里
-    resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoa[i]])
+    resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoaTemp[i]])
   }
   // 如果是倒序
   if (isResultReverse) {
