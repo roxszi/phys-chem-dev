@@ -85,5 +85,16 @@ en.SupportedLabel = "Supported"
 root.NotSupportedLabel = "不支持"
 en.NotSupportedLabel = "Not Supported"
 
+root.NotSupportedAllLabel = "传感器不支持，请更换手机。"
+en.NotSupportedAllLabel = "The sensor is not supported, please change the phone."
+
 root.EndButtonLabel = "结束校准"
 en.EndButtonLabel = "End Calibration"
+
+// --------------------------
+
+root.ErrorDialogTitle = "程序报错"
+en.ErrorDialogTitle = "Program Error"
+
+root.ErrorDialogContent = "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。"
+en.ErrorDialogContent = "Welcome to inform the software development personnel (+8613611580728 SI_Cheng-Yun) of this bug actively so that it can be repaired in time. "

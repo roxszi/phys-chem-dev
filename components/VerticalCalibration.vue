@@ -70,7 +70,7 @@
   </t-alert>
 
   <!-- 重力感应数据 -->
-  <div class="center"><table>
+  <div class="center"><table ref="tableRef">
     <!-- 表头 -->
     <thead>
       <tr>
@@ -82,26 +82,39 @@
     <tbody>
       <tr>
         <td>{{ lang.GravityTableData[0][0] }}</td>
-        <td>{{ acceleration.x === null ? 0 : acceleration.x.toFixed(1) }}</td>
+        <td>{{ accelerationThrottled.x === null ? "N/A" : accelerationThrottled.x.toFixed(1) }}</td>
         <td>{{ lang.GravityTableData[1][0] }}</td>
-        <td>{{ orientationAlpha === null ? 0 : orientationAlpha.toFixed(1) }}</td>
+        <td>{{ orientationAlphaThrottled === null ? "N/A" : orientationAlphaThrottled.toFixed(1) }}</td>
       </tr>
       <tr>
         <td>{{ lang.GravityTableData[0][1] }}</td>
-        <td>{{ acceleration.y === null ? 0 : acceleration.y.toFixed(1) }}</td>
+        <td>{{ accelerationThrottled.y === null ? "N/A" : acceleration.y.toFixed(1) }}</td>
         <td>{{ lang.GravityTableData[1][1] }}</td>
-        <td>{{ orientationBeta === null ? 0 : orientationBeta.toFixed(1) }}</td>
+        <td>{{ orientationBetaThrottled === null ? "N/A" : orientationBeta.toFixed(1) }}</td>
       </tr>
       <tr>
         <td>{{ lang.GravityTableData[0][2] }}</td>
-        <td>{{ acceleration.z === null ? 0 : acceleration.z.toFixed(1) }}</td>
+        <td>{{ accelerationThrottled.z === null ? "N/A" : acceleration.z.toFixed(1) }}</td>
         <td>{{ lang.GravityTableData[1][2] }}</td>
-        <td>{{ orientationGamma === null ? 0 : orientationGamma.toFixed(1) }}</td>
+        <td>{{ orientationGammaThrottled === null ? "N/A" : orientationGamma.toFixed(1) }}</td>
       </tr>
       <!-- 地磁传感器 -->
       <tr v-if="isGeomagneticSupported">
         <th :colspan="2">{{ lang.GeomagneticLabel }}</th>
         <td :colspan="2">{{ isGeomagneticSupported ? lang.SupportedLabel : lang.NotSupportedLabel }}</td>
+      </tr>
+      <!-- 备注 -->
+      <tr
+        v-if="
+          (accelerationThrottled.x === null)
+            && (accelerationThrottled.y === null)
+            && (accelerationThrottled.z === null)
+            && (orientationAlphaThrottled === null)
+            && (orientationBetaThrottled === null)
+            && (orientationGammaThrottled === null)
+        "
+      >
+        <th :colspan="4">{{ lang.NotSupportedAllLabel }}</th>
       </tr>
     </tbody>
   </table></div>
@@ -121,9 +134,11 @@
  -->
 <script setup>
 // 从vue库导入生命周期钩子
-import { onMounted, shallowRef } from "vue"
+import { onMounted, shallowRef, watch, nextTick } from "vue"
 // 从vueuse库导入运动传感器和方向传感器
-import { useDeviceMotion, useDeviceOrientation } from "@vueuse/core"
+import { useDeviceMotion, useDeviceOrientation, refThrottled } from "@vueuse/core"
+// 导入自有方法
+import my from "@/utils/myFunc.js"
 // 导入语言包
 import { langAll, useData } from "./VerticalCalibration-lang.js"
 
@@ -165,9 +180,30 @@ const {
   gamma: orientationGamma,
 } = useDeviceOrientation()
 
+// 节流处理
+const accelerationThrottled = refThrottled(acceleration, 500)
+const orientationAlphaThrottled = refThrottled(orientationAlpha, 500)
+const orientationBetaThrottled = refThrottled(orientationBeta, 500)
+const orientationGammaThrottled = refThrottled(orientationGamma, 500)
+
+// 获取表格引用
+const tableRef = shallowRef(null)
+
+/**
+ * 报错的通知方法
+ */
+function errorDialog(error) {
+  // 直接对话框报错
+  my.dialog({
+    theme: "danger",
+    header: lang.value.ErrorDialogTitle,
+    body: lang.value.ErrorDialogContent + error
+  })
+}
+
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
-onMounted(() => {
+onMounted(() => { try {
   // 语言刷新。获取当前语言
   const localeIndexValue = useData().localeIndex.value
   // 如果当前语言不是默认语言
@@ -175,7 +211,39 @@ onMounted(() => {
     // 则以当前语言刷新语言包
     lang.value = langAll[localeIndexValue]
   }
-})
+
+  // 获取硬件权限后，保持数据表格滚动到视图中间
+  watch(permissionGranted, nextTickFocusOnTable)
+} catch (error) {
+  my.error("onMounted()报错：", error, errorDialog)
+}})
+
+/**
+ * 获取硬件权限后，保持数据表格滚动到视图中间
+ */
+function nextTickFocusOnTable() {
+  // 下个渲染周期执行focusOnCanvas()
+  nextTick(focusOnTable).catch((error) => {
+    my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
+  })
+  /**
+   * 聚焦table的内部方法
+   */
+  function focusOnTable() {
+    // 接参数
+    const table = tableRef.value
+    // 滚动到canvas
+    table.scrollIntoView({
+      // 平滑滚动
+      behavior: "smooth",
+      // 垂直中心对齐
+      block: "center",
+      // 水平就近对齐
+      inline: "nearest"
+    })
+  }
+}
+
 </script>
 
 
