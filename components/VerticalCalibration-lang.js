@@ -68,12 +68,12 @@ en.GravityTableHead = [
 ]
 
 root.GravityTableData = [
-  ["X方向:", "Y方向:", "Z方向:"],
-  ["Alpha轴:", "Beta轴:", "Gamma轴:"]
+  ["X", "Y", "Z"],
+  ["α", "β", "γ"]
 ]
 en.GravityTableData = [
-  ["X-axis:", "Y-axis:", "Z-axis:"],
-  ["Alpha axis:", "Beta axis:", "Gamma axis:"]
+  ["X", "Y", "Z"],
+  ["α", "β", "γ"]
 ]
 
 root.GeomagneticLabel = "地磁传感器"

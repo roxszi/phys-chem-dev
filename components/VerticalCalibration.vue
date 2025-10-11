@@ -89,15 +89,15 @@
         </tr>
         <tr>
           <td>{{ lang.GravityTableData[0][1] }}</td>
-          <td>{{ accelerationThrottled.y === null ? "N/A" : acceleration.y.toFixed(1) }}</td>
+          <td>{{ accelerationThrottled.y === null ? "N/A" : accelerationThrottled.y.toFixed(1) }}</td>
           <td>{{ lang.GravityTableData[1][1] }}</td>
-          <td>{{ orientationBetaThrottled === null ? "N/A" : orientationBeta.toFixed(1) }}</td>
+          <td>{{ orientationBetaThrottled === null ? "N/A" : orientationBetaThrottled.toFixed(1) }}</td>
         </tr>
         <tr>
           <td>{{ lang.GravityTableData[0][2] }}</td>
-          <td>{{ accelerationThrottled.z === null ? "N/A" : acceleration.z.toFixed(1) }}</td>
+          <td>{{ accelerationThrottled.z === null ? "N/A" : accelerationThrottled.z.toFixed(1) }}</td>
           <td>{{ lang.GravityTableData[1][2] }}</td>
-          <td>{{ orientationGammaThrottled === null ? "N/A" : orientationGamma.toFixed(1) }}</td>
+          <td>{{ orientationGammaThrottled === null ? "N/A" : orientationGammaThrottled.toFixed(1) }}</td>
         </tr>
         <!-- 地磁传感器 -->
         <tr v-if="isGeomagneticSupported">
@@ -105,16 +105,7 @@
           <td :colspan="2">{{ isGeomagneticSupported ? lang.SupportedLabel : lang.NotSupportedLabel }}</td>
         </tr>
         <!-- 备注 -->
-        <tr
-          v-if="
-            (accelerationThrottled.x === null)
-              && (accelerationThrottled.y === null)
-              && (accelerationThrottled.z === null)
-              && (orientationAlphaThrottled === null)
-              && (orientationBetaThrottled === null)
-              && (orientationGammaThrottled === null)
-          "
-        >
+        <tr v-if="isNotSupportedAllRef">
           <th :colspan="4">{{ lang.NotSupportedAllLabel }}</th>
         </tr>
       </tbody>
@@ -136,7 +127,7 @@
  -->
 <script setup>
 // 从vue库导入生命周期钩子
-import { onMounted, shallowRef, watch, nextTick } from "vue"
+import { onMounted, useTemplateRef, shallowRef, watch, nextTick } from "vue"
 // 从vueuse库导入运动传感器和方向传感器
 import { useDeviceMotion, useDeviceOrientation, refThrottled } from "@vueuse/core"
 // 导入自有方法
@@ -183,13 +174,15 @@ const {
 } = useDeviceOrientation()
 
 // 节流处理
-const accelerationThrottled = refThrottled(acceleration, 1000)
-const orientationAlphaThrottled = refThrottled(orientationAlpha, 1000)
-const orientationBetaThrottled = refThrottled(orientationBeta, 1000)
-const orientationGammaThrottled = refThrottled(orientationGamma, 1000)
+const accelerationThrottled = refThrottled(acceleration, 500)
+const orientationAlphaThrottled = refThrottled(orientationAlpha, 500)
+const orientationBetaThrottled = refThrottled(orientationBeta, 500)
+const orientationGammaThrottled = refThrottled(orientationGamma, 500)
 
 // 获取表格引用
-const tableRef = shallowRef(null)
+const tableRef = useTemplateRef("tableRef")
+// “是否其实并不支持”标记
+const isNotSupportedAllRef = shallowRef(false)
 
 /**
  * 报错的通知方法
@@ -213,19 +206,33 @@ onMounted(() => { try {
     // 则以当前语言刷新语言包
     lang.value = langAll[localeIndexValue]
   }
-
   // 获取硬件权限后，保持数据表格滚动到视图中间
-  watch(permissionGranted, nextTickFocusOnTable)
+  watch(permissionGranted, watchPermissionGrantedHandle)
 } catch (error) {
   my.error("onMounted()报错：", error, errorDialog)
 }})
 
 /**
- * 获取硬件权限后，保持数据表格滚动到视图中间
+ * 获取硬件权限后：
+ * 1.  更新“是否支持”标记
+ * 2.  保持数据表格滚动到视图中间
  */
-function nextTickFocusOnTable(newPermissionGrantedValue) {
+function watchPermissionGrantedHandle(newPermissionGrantedValue) {
   // 如果权限为false，则不执行
   if (!newPermissionGrantedValue) { return }
+  // 更新“是否其实并不支持”标记
+  if (
+    (acceleration.value.x === null)
+      && (acceleration.value.y === null)
+      && (acceleration.value.z === null)
+      && (orientationAlpha.value === null)
+      && (orientationBeta.value === null)
+      && (orientationGamma.value === null)
+  ) {
+    isNotSupportedAllRef.value = true
+  } else {
+    isNotSupportedAllRef.value = false
+  }
   // 下个渲染周期执行focusOnCanvas()
   nextTick(focusOnTable).catch((error) => {
     my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
@@ -234,10 +241,8 @@ function nextTickFocusOnTable(newPermissionGrantedValue) {
    * 聚焦table的内部方法
    */
   function focusOnTable() {
-    // 接参数
-    const table = tableRef.value
     // 滚动到canvas
-    table.scrollIntoView({
+    tableRef.value.scrollIntoView({
       // 平滑滚动
       behavior: "smooth",
       // 垂直中心对齐
