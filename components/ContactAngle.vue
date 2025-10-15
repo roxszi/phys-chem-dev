@@ -345,7 +345,7 @@
       </table></div>
       <!-- 分页器 -->
       <t-pagination
-        v-model:current="resuleTableCurrentPageRef"
+        v-model:current="resultTableCurrentPageRef"
         :total="resultRef.length"
         :showFirstAndLastPageBtn="false"
         :showJumper="true"
@@ -464,7 +464,7 @@ const interceptNumAoaRef = ref([])
  */
 const resultRef = ref([])
 /** 第五步最终结果表格的页码 @type { import("vue").Ref<Number> } */
-const resuleTableCurrentPageRef = ref(1)
+const resultTableCurrentPageRef = ref(1)
 /**
  * 第五步最终结果数据是否倒序显示
  * @type { import("vue").Ref<Boolean> }
@@ -566,12 +566,16 @@ onMounted(() => { try {
   // 初始化数据结果resultRef
   initResultData()
   // 监听resultRef，实现表格数据resultTableDataRef刷新
-  watch([resultRef, resuleTableCurrentPageRef], refreshResultTableData, {
-    // 立即执行
-    immediate: true,
-    // 深度监听：2，（1是本体，2是子数组）
-    deep: 2
-  })
+  watch(
+    [resultRef, resultTableCurrentPageRef, isResultReverseRef],
+    refreshResultTableData,
+      {
+      // 立即执行
+      immediate: true,
+      // 深度监听：2，（1是本体，2是子数组）
+      deep: 2
+    }
+  )
   // 如果canvas没有初始化（第一次进入页面）
   if (!canvasRef.value) {
     // 注册一个监听钩子，用于实现canvasRef的初始化监听
@@ -690,22 +694,35 @@ function initResultData() {
 
 /**
  * 刷新数据呈现
- * @param { [[String, Number, Number, Number, Number, Number, Number], Number] } 新结果数据和页码数据
+ * @param { [[String, Number, Number, Number, Number, Number, Number], Number, Boolean] } 新结果数据和页码数据
  * 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
-function refreshResultTableData([newResultAoa, newResuleTablePage]) {
+function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultReverse]) {
   // 接参数
-  const dataNumberPerPage = 10
-  const endIndex = newResuleTablePage * dataNumberPerPage
-  const startIndex = endIndex - dataNumberPerPage
-  const isResultReverse = isResultReverseRef.value
+  const resultAoaLength = newResultAoa.length
   // 如果新数据为空，则清空表格数据
-  if (newResultAoa.length === 0) {
+  if (resultAoaLength === 0) {
     // 赋值空值
     resultTableDataRef.value = []
     // 直接返回
     return
   }
+  // 接参数
+  const dataNumberPerPage = 10
+  // 初始化起止索引（startIndexRaw必大于等于0）
+  const endIndexRaw = newResultTablePage * dataNumberPerPage
+  const startIndexRaw = endIndexRaw - dataNumberPerPage
+  // 根据是否倒置，计算起止索引
+  const [startIndex, endIndex] =
+    newIsResultReverse
+      ? [
+        Math.max(0, (resultAoaLength - endIndexRaw)),
+        (resultAoaLength - startIndexRaw)
+      ]
+      : [
+        startIndexRaw,
+        Math.min(resultAoaLength, endIndexRaw)
+      ]
   // 接收新数据。这一步的操作是为了避免原数组长度不足endIndex造成的bug
   const resultTableDataAoaTemp = newResultAoa.slice(startIndex, endIndex)
   // 建立一个空数组，用于存放处理后的数据
@@ -716,7 +733,7 @@ function refreshResultTableData([newResultAoa, newResuleTablePage]) {
     resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoaTemp[i]])
   }
   // 如果是倒序
-  if (isResultReverse) {
+  if (newIsResultReverse) {
     // 倒序处理
     resultTableDataAoa.reverse()
   }
@@ -2544,7 +2561,6 @@ function onDeleteAllResult() { try {
  */
 function onReverseResultOrder() { try {
   // 直接反转即可
-  resultTableDataRef.value.reverse()
   isResultReverseRef.value = !isResultReverseRef.value
 } catch (error) {
   my.error("onReverseResultOrder()报错：", error, errorDialog)
