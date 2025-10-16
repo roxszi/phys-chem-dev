@@ -204,9 +204,7 @@ const thresholdNumAoaRef = ref([])
  */
 const thresholdNumAoaConst = [
   // 二值化阈值：当前值、最小值、最大值、marks标记、是否range、步长
-  [50, 0, 255, [0, 85, 170, 255], false, 1],
-  // // 近圆度：当前值、最小值、最大值、marks标记、是否range、步长
-  // [[0.0, 1.0], 0, 1, [0, 0.25, 0.5, 0.75, 1], true, 0.01],
+  [50, 0, 200, [0, 50, 100, 150, 200], false, 1],
   // 面积位次：当前值、最小值、最大值、marks标记、是否range、步长
   [[0, 100], 0, 100, [0, 25, 50, 75, 100], true, 1],
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
@@ -908,11 +906,8 @@ function getAndDrawContours() {
     }
     // 获取该轮廓的最小外接圆。有center.x, center.y, radius
     const minEnclosingCircle = cv.minEnclosingCircle(matContour)
-    // 计算轮廓的近圆率
-    const circularity = circleArea / ((minEnclosingCircle.radius ** 2) * Math.PI)
     // 装箱
     contourAoa.push([
-      circularity,
       circleArea,
       minEnclosingCircle.center.x, minEnclosingCircle.center.y,
       minEnclosingCircle.radius,
@@ -922,7 +917,7 @@ function getAndDrawContours() {
     matContour.delete()
   }
   // 对面积数组进行排序
-  circleAreaArr.sort()
+  circleAreaArr.sort((a, b) => a - b)
   // 结束，释放WASM内存
   matBinary.delete()
   matVectorContours.delete()
@@ -935,28 +930,18 @@ function getAndDrawContours() {
  * 绘制轮廓
  */
 function drawContours() {
-  // 接参数：近圆率、面积位次、缩放
+  // 接参数：面积位次、缩放
   const [ ,
-    // [[circularityMin, circularityMax]],
     [[areaPercentOrderMin, areaPercentOrderMax]],
     [scale]
   ] = thresholdNumAoaRef.value
-
-  // const [circularityMin, circularityMax] = thresholdNumAoaRef.value[1][0]
-  // const [areaPercentOrderMin, areaPercentOrderMax] = thresholdNumAoaRef.value[1][0]
-  // const scale = thresholdNumAoaRef.value[2][0]
-  // 接参数：canvas上下文、轮廓数组、近圆率、圆面积
+  // 接参数：canvas上下文、轮廓数组、圆面积排序数组
   const { ctx, contourAoa, circleAreaArr } = outlineColorimetricObj
   // 轮廓数量
   const circleCount = circleAreaArr.length
-  // 位次下取小，又不能小于0
-  const circleAreaMinIndex = Math.max(
-    Math.floor(circleCount * areaPercentOrderMin / 100), 0
-  )
-  // 位次上取大，又不能大于数组长度
-  const circleAreaMaxIndex = Math.min(
-    Math.ceil(circleCount * areaPercentOrderMax / 100), (circleCount - 1)
-  )
+  // 位次下取大，上取小
+  const circleAreaMinIndex = Math.ceil(circleCount * areaPercentOrderMin / 100)
+  const circleAreaMaxIndex = Math.floor(circleCount * areaPercentOrderMax / 100)
   // 获得面积的最小值和最大值
   const circleAreaMin = circleAreaArr[circleAreaMinIndex]
   const circleAreaMax = circleAreaArr[circleAreaMaxIndex]
@@ -964,24 +949,21 @@ function drawContours() {
   canvasRestore()
   // 遍历所有轮廓
   forEachContours: for (const contour of contourAoa) {
-    // 若不符合条件，则跳过
-    if (
-      // (contour[0] < circularityMin) || (contour[0] > circularityMax)
-      (contour[1] < circleAreaMin) || (contour[1] > circleAreaMax)
-    ) {
+    // 若面积不符合条件，则跳过
+    if ((contour[0] < circleAreaMin) || (contour[0] > circleAreaMax)) {
       // 标记为false，表示不绘图
-      contour[5] = false
+      contour[4] = false
       continue forEachContours
     // 否则绘图
     } else {
       // 标记为true，表示绘图
-      contour[5] = true
+      contour[4] = true
       // 开始绘图
       ctx.beginPath()
       // 圆环
       ctx.arc(
-        contour[2], contour[3],
-        (contour[4] * scale),
+        contour[1], contour[2],
+        (contour[3] * scale),
         0, (2 * Math.PI)
       )
       // 绘制
@@ -1020,16 +1002,16 @@ function contourToMatrix() {
   // 遍历所有轮廓
   forEachContour1: for (const contour of contourAoa) {
     // 如果不绘图，则跳过
-    if (contour[5] === false) {
+    if (contour[4] === false) {
       continue forEachContour1
     }
     // 获取轮廓的X、Y中心坐标和边界坐标
-    const xCenter = contour[2]
-    const xLeft = contour[2] - contour[4]
-    const xRight = contour[2] + contour[4]
-    const yCenter = contour[3]
-    const yDown = contour[3] - contour[4]
-    const yUp = contour[3] + contour[4]
+    const xCenter = contour[1]
+    const xLeft = contour[1] - contour[3]
+    const xRight = contour[1] + contour[3]
+    const yCenter = contour[2]
+    const yDown = contour[2] - contour[3]
+    const yUp = contour[2] + contour[3]
     // 遍历X轮廓数组
     const xAoaLength = xAoa.length
     let xIndex = 0
@@ -1092,12 +1074,12 @@ function contourToMatrix() {
   // 遍历所有轮廓
   forEachContour2: for (const contour of contourAoa) {
     // 如果不绘图，则跳过
-    if (contour[5] === false) {
+    if (contour[4] === false) {
       continue forEachContour2
     }
     // 获取x点、y点
-    const xCenter = contour[2]
-    const yCenter = contour[3]
+    const xCenter = contour[1]
+    const yCenter = contour[2]
     // 遍历所有行(Y轴)
     for (let row = 0; row < yAoa.length; row++) {
       // 看看y中心点是否在Y轴范围内
@@ -1108,7 +1090,7 @@ function contourToMatrix() {
           if ((xCenter >= xAoa[col][0]) && (xCenter <= xAoa[col][1])) {
             // 如果在，则把轮廓数据添加到该位置：x、y、缩放后的半径
             contourMatrixAoa[row][col] = [
-              contour[2], contour[3], contour[4] * scale
+              contour[1], contour[2], contour[3] * scale
             ]
           }
         }
