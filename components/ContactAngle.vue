@@ -1304,17 +1304,32 @@ function thresholdNumAoaRestore() {
   // 如果滑轨参数为空，则初始化滑轨参数
   if (thresholdNumAoa.length === 0) {
     // 直接深拷贝一份副本然后赋值即可
-    thresholdNumAoaRef.value = window.structuredClone(thresholdNumAoaConst)
+    thresholdNumAoaRef.value = deepCopyAoa(thresholdNumAoaConst)
   // 否则，保留每个参数的取值
   } else {
     // 先深拷贝一份参数副本
-    const thresholdNumAoaTemp = window.structuredClone(thresholdNumAoaConst)
+    const thresholdNumAoaTemp = deepCopyAoa(thresholdNumAoaConst)
     // 用参数副本的第一个值值覆盖
     for (let i = 0; i < thresholdNumAoa.length; i++) {
       thresholdNumAoaTemp[i][0] = thresholdNumAoa[i][0]
     }
     // 赋值
     thresholdNumAoaRef.value = thresholdNumAoaTemp
+  }
+  /**
+   * 深拷贝AOA数组
+   * @param aoa AOA二维数组
+   */
+  function deepCopyAoa(aoa) {
+    // 深拷贝AOA数组
+    const aoaTemp = []
+    // 遍历每一行
+    for (let i = 0; i < aoa.length; i++) {
+      // 推进新数组
+      aoaTemp.push([...aoa[i]])
+    }
+    // 返回新数组
+    return aoaTemp
   }
 }
 
