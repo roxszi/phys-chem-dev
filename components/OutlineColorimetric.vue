@@ -770,11 +770,11 @@ function thresholdNumRestore() {
   // 如果滑轨参数为空，则初始化滑轨参数
   if (thresholdNumAoa.length === 0) {
     // 直接深拷贝一份副本然后赋值即可
-    thresholdNumAoaRef.value = structuredClone(thresholdNumAoaConst)
+    thresholdNumAoaRef.value = window.structuredClone(thresholdNumAoaConst)
   // 否则，保留每个参数的取值
   } else {
     // 先深拷贝一份参数副本
-    const thresholdNumAoaTemp = structuredClone(thresholdNumAoaConst)
+    const thresholdNumAoaTemp = window.structuredClone(thresholdNumAoaConst)
     // 用参数副本的第一个值值覆盖
     for (let i = 0; i < thresholdNumAoa.length; i++) {
       thresholdNumAoaTemp[i][0] = thresholdNumAoa[i][0]
