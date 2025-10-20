@@ -1,4 +1,4 @@
-# Physical Chemistry Learning Helper @ CPU
+# Physical Chemistry Learning Helper
 
 ## [**简体中文**](./README.md) | **English**
 

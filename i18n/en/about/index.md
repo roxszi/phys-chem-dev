@@ -34,7 +34,7 @@ Everything is aimed at learning. Warmly welcome bug feedback and all kinds of te
 
 The application source code links to: [https://github.com/roxszi/phys-chem-dev](https://github.com/roxszi/phys-chem-dev)
 
-The copyright of this application belongs to SI_Cheng-Yun @ China Pharmaceutical University. The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2).
+The copyright of this application belongs to SI_Cheng-Yun. The source code and documentation of this online software (WebApp) follow the [MulanPSL-2.0](https://license.coscl.org.cn/MulanPSL2).
 
 The third-party open-source libraries relied upon by this application are as follows (in no particular order):
 

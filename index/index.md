@@ -9,7 +9,7 @@ layout: home
 # 主页主体部分
 hero:
   # 彩色标题(name)及黑白标题(text)
-  name: "CPU物化助手"
+  name: "物化助手"
   # text: "A VitePress Site"
   # 副标题/标语
   tagline: 助力物理化学理论与实验教学

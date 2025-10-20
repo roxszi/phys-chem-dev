@@ -20,9 +20,9 @@ export default {
     label: "简体中文",
     lang: "zh-CN",
     // 网站标题
-    title: "CPU物化助手",
+    title: "物化助手",
     // 网站名称的自定义后缀，一般为简称
-    // titleTemplate: "CPU物化助手",
+    // titleTemplate: "物化助手",
     // 网站描述
     description: "助力物理化学理论与实验教学",
     // 自定义网站头部内容
