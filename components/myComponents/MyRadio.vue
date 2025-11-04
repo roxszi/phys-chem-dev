@@ -50,7 +50,7 @@ const props = defineProps({
   size: {
     type: String,
     required: false,
-    default: "large"
+    default: "medium"
   },
   // 选框内容
   radioContentArr: {
