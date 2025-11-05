@@ -1574,8 +1574,8 @@ function chooseBaseline() {
   const { canvasScaling, baseline } = contactAngleObj
   const canvas = canvasRef.value
   // 基线的左右截距，如无值则初始化为canvas.height
-  let leftIntercept = baseline.left || canvas.height
-  let rightIntercept = baseline.right || canvas.height
+  let leftIntercept = baseline.left ?? canvas.height
+  let rightIntercept = baseline.right ?? canvas.height
   // 点击位置的实际X、Y坐标
   const realElementX = elementX.value * canvasScaling
   const realElementY = elementY.value * canvasScaling
@@ -1777,22 +1777,22 @@ function filterContourPoints(metVectorContours) {
   // 声明一个数组用来接所有轮廓点，即集合P(0)
   const contourPointAoa = []
   // 如果指定了过滤线，宽按两边遮罩过滤线来；否则按canvas宽来
-  const canvasWidthMin = colLine.left || Math.ceil(canvas.width * CANVAS_EDGE_PERCENTAGE)
-  const canvasWidthMax = colLine.right || Math.floor(canvas.width * (1 - CANVAS_EDGE_PERCENTAGE))
+  const canvasWidthMin = colLine.left ?? Math.ceil(canvas.width * CANVAS_EDGE_PERCENTAGE)
+  const canvasWidthMax = colLine.right ?? Math.floor(canvas.width * (1 - CANVAS_EDGE_PERCENTAGE))
   // 顶部区域（高度最小值）
   const canvasHeightMin = Math.ceil(canvas.height * CANVAS_EDGE_PERCENTAGE)
   // 底部区域（高度最大值），含左和右两个点，以兼容基线遮罩
   const canvasHeightMax = Math.floor(canvas.height * (1 - CANVAS_EDGE_PERCENTAGE))
-  const canvasHeightMaxLeft = baseline.left || canvasHeightMax
-  const canvasHeightMaxRight = baseline.right || canvasHeightMax
+  const canvasHeightMaxLeft = baseline.left ?? canvasHeightMax
+  const canvasHeightMaxRight = baseline.right ?? canvasHeightMax
   // 用于参考的底部区域（高度最大值）的斜率：y / x
   const canvasHeightDifference = canvasHeightMaxRight - canvasHeightMaxLeft
   const canvasHeightMaxSlope = canvasHeightDifference / canvas.width
   // 接遮罩框：这里是删除区，所以无值的时候，取值和过滤区要反过来
-  const canvasMaskWidthMin = rect.xMin || canvasWidthMax
-  const canvasMaskHeightMin = rect.yMin || canvasHeightMax
-  const canvasMaskWidthMax = rect.xMax || canvasWidthMin
-  const canvasMaskHeightMax = rect.yMax || canvasHeightMin
+  const canvasMaskWidthMin = rect.xMin ?? canvasWidthMax
+  const canvasMaskHeightMin = rect.yMin ?? canvasHeightMax
+  const canvasMaskWidthMax = rect.xMax ?? canvasWidthMin
+  const canvasMaskHeightMax = rect.yMax ?? canvasHeightMin
   // 声明一个数组用来接轮廓点到基线的距离
   const contourPointToBaselineDistanceArr = []
   // 轮廓点到底部基线的距离²的计算公式：

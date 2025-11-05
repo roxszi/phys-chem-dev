@@ -90,7 +90,7 @@ export function myDialog(paramObj) {
   } = paramObj
   // 取消按钮要独立处理：如果没有确认回调，那就不用显示了
   const cancelBtn = paramObj.onConfirmCallBack
-    ? paramObj.cancelBtn || undefined
+    ? paramObj.cancelBtn
     : null
   // 创建对话框实例，赋值给全局对象
   myPluginObj.dialogInstance = DialogPlugin({
