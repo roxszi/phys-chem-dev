@@ -1988,7 +1988,7 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
     forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
       // 筛选点。对阳性点集来说，阳性点集当中的阳性 == PT，阳性点集当中的阴性 == PF
       const [newPointR, ellipseR] = pointFilter(
-        positivePointAoa[i], positivePointToBaselineDistanceArr[i],
+        positivePointAoa[i], positivePointToBaselineDistanceArr[i], 1,
         PTPointAoa, PFPointAoa, PTPointToBaselineDistanceArr, PFPointToBaselineDistanceArr,
         [minPosttiveTolerance, maxPosttiveTolerance], ellipseParamArr
       )
@@ -2006,7 +2006,7 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
       // 筛选点。对阴性点集来说，阴性点集中的阳性 == NF，阴性点集中的阴性 == NT
       // 阴性点不需要统计计算，就不需要返回值了
       pointFilter(
-        negativePointAoa[i], negativePointToBaselineDistanceArr[i],
+        negativePointAoa[i], negativePointToBaselineDistanceArr[i], NP_TO_PP_THRESHOLD,
         NFPointAoa, NTPointAoa, NFPointToBaselineDistanceArr, NTPointToBaselineDistanceArr,
         [minNegativeTolerance, maxNegativeTolerance], ellipseParamArr
       )
@@ -2078,17 +2078,18 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
    * @note ellipsePointIterate()内部变量很多，所以这里用到了内部函数来实现一层闭包
    * @param { Number[] } param1 [pointX, pointY] X和Y坐标值
    * @param { Number } pointToBaselineDistance 点距离基线的距离
+   * @param { Number } distanceCoefficient 点距离基线的距离的系数
    * @param { Number[][] } PPointAoa 阳性点集
    * @param { Number[][] } NPointAoa 阴性点集
    * @param { Number[][] } PPointToBaselineDistanceArr 阳性点集距离基线距离数组
    * @param { Number[][] } NPointToBaselineDistanceArr 阴性点集距离基线距离数组
    * @param { Number } minTolerance 最小容差
    * @param { Number } maxTolerance 最大容差
-   * @param { Number[] } param8 椭圆参数数组
+   * @param { Number[] } param9 椭圆参数数组
    * @returns { Number[] } [pointR, ellipseR] 返回点半径和椭圆半径
    */
   function pointFilter(
-    [pointX, pointY], pointToBaselineDistance,
+    [pointX, pointY], pointToBaselineDistance, distanceCoefficient,
     PPointAoa, NPointAoa, PPointToBaselineDistanceArr, NPointToBaselineDistanceArr,
     [minTolerance, maxTolerance],
     [ellipseH, ellipseW, ellipseHalfHWSquare, ellipseCenterX, ellipseCenterY, ellipseAngleSin, ellipseAngleCos]
@@ -2116,8 +2117,8 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
     const pointToEllipsePointDistance = Math.abs(pointR - ellipseR)
     // 筛选点
     if (
-      (pointR < ellipseR * minTolerance) || (pointR > ellipseR * maxTolerance)
-        || (pointToEllipsePointDistance > pointToBaselineDistance)
+      (pointR < (ellipseR * minTolerance)) || (pointR > (ellipseR * maxTolerance))
+        || (pointToEllipsePointDistance > (pointToBaselineDistance / distanceCoefficient))
     ) {
       // 不好的点，把初始坐标数据丢进阴性点集
       NPointAoa.push([pointX, pointY])
