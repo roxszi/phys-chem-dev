@@ -111,17 +111,17 @@ en.ContourAlgorithmContent = [
 root.ContourMaskTitle = "遮罩"
 en.ContourMaskTitle = "Contour Mask"
 
-root.ContourMaskContentArr = ["两边遮罩", "基线遮罩", "中心遮罩"]
-en.ContourMaskContentArr = ["Sides", "Baseline", "Central"]
+root.ContourMaskContentArr = ["基线遮罩", "两边遮罩", "中心遮罩"]
+en.ContourMaskContentArr = ["Baseline", "Sides", "Central"]
 
 root.ContourMaskContent = [
   {
-    strong: "两边遮罩",
-    normal: "。用于去除轮廓两边基线误识别的伪轮廓。可点击图片左部或右部设置遮罩。"
-  },
-  {
     strong: "基线遮罩",
     normal: "。用于去除轮廓基线及基线下方的误识别伪轮廓。可点集图片左、中、右侧以调整基线。"
+  },
+  {
+    strong: "两边遮罩",
+    normal: "。用于去除轮廓两边基线误识别的伪轮廓。可点击图片左部或右部设置遮罩。"
   },
   {
     strong: "中心遮罩",
@@ -131,12 +131,12 @@ root.ContourMaskContent = [
 ]
 en.ContourMaskContent = [
   {
-    strong: "Side Masks",
-    normal: ". is used to remove the pseudo contour of the contour base line misrecognition on both sides of the contour. Click on the left or right side of the image to set the mask, the contour points that are masked will not participate in the subsequent fitting."
-  },
-  {
     strong: "Baseline Masks",
     normal: ". is used to remove the pseudo contour below the contour baseline. Click on the left, middle or right side of the image to set the mask."
+  },
+  {
+    strong: "Side Masks",
+    normal: ". is used to remove the pseudo contour of the contour base line misrecognition on both sides of the contour. Click on the left or right side of the image to set the mask, the contour points that are masked will not participate in the subsequent fitting."
   },
   {
     strong: "Central Mask",

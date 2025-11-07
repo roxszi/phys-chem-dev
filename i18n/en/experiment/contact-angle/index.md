@@ -120,17 +120,19 @@ Of course, there are also situations where parameter tuning cannot filter out mi
 
 #### 3.3.2 Mask
 
-This application offers two masking methods: **center masking** and **side masking**. The mask toggle switch and the mask function introduction are both located at the top of the picture. As shown in the following figure:
+This application provides three masking methods: **side masking**, **baseline masking**, and **center masking**. The mask toggle switch and the mask function introduction are both located at the top of the picture. As shown in the following figure:
 
 ![alt text](index_files/液滴照片处理说明8-2.jpg)
 
-When the light transmittance of a solid substrate is poor, the outline of the solid substrate may also be mistakenly identified as the outline of a droplet. At this point, you can use the "**Side Mask**" function. Click on the left or right part of the picture to set the mask and cover the contour lines that are mistakenly recognized on the solid base. The masked contour points will not participate in the subsequent fitting. **This step does not need to pursue extreme precision, as the iterative filtering algorithm of this software can automatically filter out a small number of unmasked misidentified solid substrate lines.** A typical situation of this kind is shown in the following figure:
+When the light transmittance of a solid substrate is poor, the outline of the solid substrate may also be mistakenly identified as the outline of a droplet. At this point, you can use the "**Side Mask**" function. Click on the left or right part of the picture to set the mask and cover the contour lines that are mistakenly recognized on the solid base. The masked contour points will not participate in the subsequent fitting. **This step does not need to pursue extreme precision, as the iterative filtering algorithm of this software can automatically filter out a small number of unmasked misidentified solid substrate lines**. A typical situation of this kind is shown in the following figure:
 
 ![液滴照片处理说明9](index_files/液滴照片处理说明9.jpg)
 
 Similarly, when the "misidentified contour lines" in the middle cannot be cleared through parameter adjustment, the "**Center Mask**" function can be used to manually filter out the misidentified contour lines. The interaction logic of the center mask is similar to that of image cropping and will not be elaborated here. A typical situation of this kind is shown in the following figure:
 
 ![alt text](index_files/液滴照片处理说明9-2.jpg)
+
+Similarly, the "**Baseline Mask**" function can be used to manually filter out misidentified baseline contour lines and various misidentified contour lines below the baseline. **This step does not need to pursue extreme precision, as the iterative filtering algorithm of this software can automatically filter out misidentified contours near the mask line**.
 
 By rationally using the parameter adjustment slide rail and mask functions, the true contour lines can be as many as possible and the misrecognized contour lines can be as few as possible. This can achieve a better contour recognition effect.
 

@@ -195,7 +195,7 @@
     size="small"
   >
     <!-- 滑轨：主参数 -->
-    <div>{{ lang.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}</div>
+    {{ lang.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
     <t-slider
       @change="onSliderChange" @changeEnd="onSliderChangeEnd"
       v-model="thresholdNumAoaRef[0][0]"
@@ -209,7 +209,7 @@
       v-if="contourAlgorithmRadioRef === 0"
       size="small"
     >
-      <div>{{ lang.ContourSliderAuxiliaryParameterLabel }}</div>
+      {{ lang.ContourSliderAuxiliaryParameterLabel }}
       <t-slider
         @change="onSliderChange" @changeEnd="onSliderChangeEnd"
         v-model="thresholdNumAoaRef[1][0]"
@@ -255,7 +255,7 @@
     size="small"
   >
     <!-- 滑轨：左截距 -->
-    <div>{{ lang.InterceptLeftSliderLabel }}</div>
+    {{ lang.InterceptLeftSliderLabel }}
     <t-slider
       @change="onSliderChange" @changeEnd="onSliderChangeEnd"
       v-model="interceptNumAoaRef[0][0]"
@@ -265,7 +265,7 @@
       :inputNumberProps="false" :label="true" layout="horizontal"
     /><t-divider />
     <!-- 滑轨：右截距 -->
-    <div>{{ lang.InterceptRightSliderLabel }}</div>
+    {{ lang.InterceptRightSliderLabel }}
     <t-slider
       @change="onSliderChange" @changeEnd="onSliderChangeEnd"
       v-model="interceptNumAoaRef[1][0]"
@@ -439,8 +439,8 @@ const isContourCoarseRef = ref(true)
 /** 
  * 第三步寻找轮廓的遮罩算法选框对象
  * @type { import("vue").Ref<Number> }
- * @value 0 - 两边遮罩
- * @value 1 - 基线遮罩
+ * @value 0 - 基线遮罩
+ * @value 1 - 两边遮罩
  * @value 2 - 中心遮罩
  */
 const contourFilterAlgorithmRadioRef = ref(0)
@@ -1525,12 +1525,12 @@ function chooseMask() {
   // 接参数
   const { ctx, imageData } = contactAngleObj
   const contourFilterAlgorithmRadio = contourFilterAlgorithmRadioRef.value
-  // 选框值为0：两边遮罩
+  // 选框值为0：基线遮罩
   if (contourFilterAlgorithmRadio === 0) {
-    chooseColLine()
-  // 选框值为1：基线遮罩
-  } else if (contourFilterAlgorithmRadio === 1) {
     chooseBaseline()
+  // 选框值为1：两边遮罩
+  } else if (contourFilterAlgorithmRadio === 1) {
+    chooseColLine()
   // 选框值为其它（2）：中心遮罩
   } else {
     chooseRect()
@@ -1981,34 +1981,29 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
       ellipseAngleSin, ellipseAngleCos
     ]
     // 用椭圆方程来筛选点（阳性）
-    // 阳性点的筛选条件
-    const maxPosttiveTolerance = 1 + toleranceValue
-    const minPosttiveTolerance = 1 - toleranceValue
     // 遍历所有旧的阳性轮廓点
     forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
       // 筛选点。对阳性点集来说，阳性点集当中的阳性 == PT，阳性点集当中的阴性 == PF
       const [newPointR, ellipseR] = pointFilter(
-        positivePointAoa[i], positivePointToBaselineDistanceArr[i], 1,
+        positivePointAoa[i], toleranceValue, positivePointToBaselineDistanceArr[i], 1,
         PTPointAoa, PFPointAoa, PTPointToBaselineDistanceArr, PFPointToBaselineDistanceArr,
-        [minPosttiveTolerance, maxPosttiveTolerance], ellipseParamArr
+        ellipseParamArr
       )
       // 把用于统计计算椭圆拟合R²的数值（点到圆心的距离，椭圆半径）装箱
       statisticDataArr.push([newPointR, ellipseR])
       statisticPointRSum = statisticPointRSum + newPointR
     }
     // 用椭圆方程来筛选点（阴性）
-    // 阴性点的筛选条件
-    const maxNegativeTolerance = 1 + toleranceValue * NP_TO_PP_THRESHOLD
-    const minNegativeTolerance = 1 - toleranceValue * NP_TO_PP_THRESHOLD
     // 遍历所有旧的阴性轮廓点
     // 其实和上面的操作几乎完全相同，只有最后2步不同
     forEachNegativePoint: for (let i = 0; i < negativePointAoa.length; i++) {
       // 筛选点。对阴性点集来说，阴性点集中的阳性 == NF，阴性点集中的阴性 == NT
       // 阴性点不需要统计计算，就不需要返回值了
       pointFilter(
-        negativePointAoa[i], negativePointToBaselineDistanceArr[i], NP_TO_PP_THRESHOLD,
+        negativePointAoa[i], (toleranceValue * NP_TO_PP_THRESHOLD),
+        negativePointToBaselineDistanceArr[i], NP_TO_PP_THRESHOLD,
         NFPointAoa, NTPointAoa, NFPointToBaselineDistanceArr, NTPointToBaselineDistanceArr,
-        [minNegativeTolerance, maxNegativeTolerance], ellipseParamArr
+        ellipseParamArr
       )
     }
     // 处理统计数据，获得R²。算法为：
@@ -2077,21 +2072,19 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
    * 会根据椭圆参数，调整点的相对坐标。然后再筛选
    * @note ellipsePointIterate()内部变量很多，所以这里用到了内部函数来实现一层闭包
    * @param { Number[] } param1 [pointX, pointY] X和Y坐标值
+   * @param { Number } tolerance 容差
    * @param { Number } pointToBaselineDistance 点距离基线的距离
    * @param { Number } distanceCoefficient 点距离基线的距离的系数
    * @param { Number[][] } PPointAoa 阳性点集
    * @param { Number[][] } NPointAoa 阴性点集
    * @param { Number[][] } PPointToBaselineDistanceArr 阳性点集距离基线距离数组
    * @param { Number[][] } NPointToBaselineDistanceArr 阴性点集距离基线距离数组
-   * @param { Number } minTolerance 最小容差
-   * @param { Number } maxTolerance 最大容差
    * @param { Number[] } param9 椭圆参数数组
    * @returns { Number[] } [pointR, ellipseR] 返回点半径和椭圆半径
    */
   function pointFilter(
-    [pointX, pointY], pointToBaselineDistance, distanceCoefficient,
+    [pointX, pointY], tolerance, pointToBaselineDistance, distanceCoefficient,
     PPointAoa, NPointAoa, PPointToBaselineDistanceArr, NPointToBaselineDistanceArr,
-    [minTolerance, maxTolerance],
     [ellipseH, ellipseW, ellipseHalfHWSquare, ellipseCenterX, ellipseCenterY, ellipseAngleSin, ellipseAngleCos]
   ) {
     // 去中心化
@@ -2115,9 +2108,11 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
     const ellipseR = ellipseRSquare ** 0.5
     // 点距离真值的距离
     const pointToEllipsePointDistance = Math.abs(pointR - ellipseR)
+    // 点距离真值的距离相对值
+    const pointRToEllipseRRelative = pointToEllipsePointDistance / ellipseR
     // 筛选点
     if (
-      (pointR < (ellipseR * minTolerance)) || (pointR > (ellipseR * maxTolerance))
+      (pointRToEllipseRRelative > tolerance)
         || (pointToEllipsePointDistance > (pointToBaselineDistance / distanceCoefficient))
     ) {
       // 不好的点，把初始坐标数据丢进阴性点集
