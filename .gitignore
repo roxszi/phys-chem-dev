@@ -7,9 +7,8 @@ node_modules/
 .vitepress/cache
 
 # 打包发布目录
-dist/
+dist-*/
 
 # 临时目录
 .temp/
 temp/
-

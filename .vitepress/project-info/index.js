@@ -15,24 +15,35 @@ import i18n from "./i18n.js"
  * 项目根目录地址
  * 对于Pages服务，项目往往并不托管于根路径“/”，而是“/some-pages/”这样。
  * 为了自动化区分dev和build环境，构建了`baseUrl`环境变量。
- * npm脚本里，以`set VITE_BUILD_KIND=atomgit&& balabala...`构建环境变量。
- * 即`process.env.VITE_BUILD_KIND`的值是"atomgit"。
- * 根据环境变量值，自动构建`baseUrl`根路径。
+ * npm脚本里，以`set VITE_BUILD_KIND=balabala&& balabalabala...`构建环境变量。
+ * 即`process.env.VITE_BUILD_KIND`的值是"root"、"subpage"。
+ * "subpage" - 以Pages服务的子页面路径为输出目标进行构建
+ * "root" - 以 域名根路径 为输出目标进行构建
  */
+const buildKind = process.env.VITE_BUILD_KIND
+console.log(
+  (buildKind === "root")
+    ? "以 根路径 为输出目标进行构建："
+    : "以 子页面路径 为输出目标进行构建：",
+)
+// 网站的根目录
 const baseUrl =
-  (process.env.VITE_BUILD_KIND === "atomgit")
-    ? "/phys-chem/"
-    : "/"
+  (buildKind === "root")
+    ? "/"
+    : "/phys-chem/"
 
 // 直接作为默认导出
 export default {
-
   // 项目根目录地址
   baseUrl: baseUrl,
   // Web包的输出目录
-  outDir: "./dist",
+  outDir: `./dist-${ buildKind }`,
   // 网站地图的引用地址，即根目录地址
-  sitemap: { hostname: `https://cpuer.atomgit.net${ baseUrl }` },
+  sitemap: {
+    hostname: (buildKind === "root")
+      ? "https://www.yaodasci.com/"
+      : `https://roxszi.github.io${ baseUrl }`
+  },
   // 网站logo
   logo: "/favicon.ico",
 
@@ -41,18 +52,17 @@ export default {
     // 网站图标。public目录默认映射根目录，但是base得有
     ["link", { rel: "icon", href: (baseUrl + "favicon.ico") }],
     // 百度统计
-    (baseUrl === "/") ? []
-      : [
-        "script",
-        { type: "text/javascript", id: "baidu-tongji" },
-        `var _hmt = _hmt || [];
-        (function() {
-          var hm = document.createElement("script");
-          hm.src = "https://hm.baidu.com/hm.js?6185c255f38aa19b8374234dfb43440b";
-          var s = document.getElementsByTagName("script")[0]; 
-          s.parentNode.insertBefore(hm, s);
-        })();`
-      ],
+    [
+      "script",
+      { type: "text/javascript", id: "baidu-tongji" },
+      `var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "https://hm.baidu.com/hm.js?6185c255f38aa19b8374234dfb43440b";
+        var s = document.getElementsByTagName("script")[0]; 
+        s.parentNode.insertBefore(hm, s);
+      })();`
+    ],
   ],
 
   // 路由重写
