@@ -8,7 +8,7 @@
 > 
 > Project source code (specifically for China mainland): [https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
 >
-> **Project showcase page:** [**https://roxszi.github.io/phys-chem/en/**](https://roxszi.github.io/phys-chem/en/)
+> **Project showcase page**: [**https://www.phys-chem.top**](https://www.phys-chem.top)
 >
 > Project showcase page (specifically for China mainland): [https://cpuer.atomgit.net/phys-chem/](https://cpuer.atomgit.net/phys-chem/)
 
@@ -28,9 +28,9 @@ A physical chemistry learning tool project built with [VitePress](https://vitepr
 
   1. It can leverage the computing power of each student's device to complete teaching and simple research tasks.
 
-  1. It can break through the limitations of Nvidia GPUs/CUDA platforms. Core graphics cards, integrated graphics cards, or even mobile phones can achieve hardware-accelerated computation as long as they support WebGPU/WebGL.
+  2. It can break through the limitations of Nvidia GPUs/CUDA platforms. Core graphics cards, integrated graphics cards, or even mobile phones can achieve hardware-accelerated computation as long as they support WebGPU/WebGL.
 
-  2. It can be deployed for free via the [Pages service](https://docs.github.com/en/pages), and with Vite, the process is very convenient. There is no need for application distribution (copying to students or requiring them to download) or installation guidance (writing tutorials or teaching students how to install, deploy, or configure), which greatly reduces the workload.
+  3. It can be deployed for free via the [Pages service](https://docs.github.com/en/pages), and with Vite, the process is very convenient. There is no need for application distribution (copying to students or requiring them to download) or installation guidance (writing tutorials or teaching students how to install, deploy, or configure), which greatly reduces the workload.
 
 - Based on the above considerations, to further reduce the various additional workloads between development and productization and focus as much as possible on the business, this project naturally chose the [**TensorFlowJS**](https://github.com/tensorflow/tfjs) technology stack. Most of its development and building are frontend-based, and minor data preprocessing and code debugging can also be easily completed with NodeJS on the backend without involving cross-language issues, which significantly reduces the project development workload.
 

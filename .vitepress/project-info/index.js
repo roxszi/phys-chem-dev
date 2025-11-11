@@ -86,7 +86,7 @@ export default {
     "package.json",
     "package-lock.json",
     // 打包发布
-    "dist/**",
+    "dist-*/**",
   ],
 
   // toc精确到哪一级

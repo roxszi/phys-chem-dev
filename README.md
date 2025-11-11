@@ -8,7 +8,7 @@
 >
 > 项目源码（国外访问）：[https://github.com/roxszi/phys-chem-dev](https://github.com/roxszi/phys-chem-dev)
 > 
-> **项目展示页面：**[**https://cpuer.atomgit.net/phys-chem**](https://cpuer.atomgit.net/phys-chem)
+> **项目展示页面**：[**https://www.phys-chem.top**](https://www.phys-chem.top)
 >
 > 项目展示页面（国外访问）：[https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
 
@@ -30,7 +30,7 @@
 
   2. 可突破Nvidia显卡/CUDA平台的限制，核心显卡/集成显卡甚至手机，只要支持WebGPU/WebGL即可实现硬件加速运算。
 
-  3. 可免费通过[AtomGit平台的Pages服务](https://docs.atomgit.com/app/pages/)实现部署，配合Vite，操作极为方便。且无需应用分发(拷贝给学生或要求学生下载)或安装部署指导(写教程或教学生如何安装/部署/设置等)，极大降低海量的工作量。
+  3. ~~可免费通过[AtomGit平台的Pages服务](https://docs.atomgit.com/app/pages/)实现部署，配合Vite，操作极为方便。且无需应用分发(拷贝给学生或要求学生下载)或安装部署指导(写教程或教学生如何安装/部署/设置等)，极大降低海量的工作量。~~
 
 - 在上述考虑的基础上，为进一步降低开发和产品化间的各种额外工作量，尽可能专注于业务，本项目就毫无悬念的选用了[**TensorFlowJS**](https://tensorflow.google.cn/js)这一技术栈，其开发及构建几乎都基于前端，少数的数据预处理、代码调试工作也可借助NodeJS在后端简单完成而不涉及跨语言的问题，这极大降低了项目开发的工作量。
 
