@@ -37,7 +37,7 @@ export function loadOpenCV() {
       // 设置属性：javascript文本文件
       script.type = "text/javascript"
       // 设置属性：OpenCV.js的URL
-      script.src = withBase("/opencv.js")
+      script.src = withBase("/assets/opencv-251112a.js")
       // 设置属性：OpenCV.js加载完成的回调
       script.onload = (event) => {
         // 返回cv
