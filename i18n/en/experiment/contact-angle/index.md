@@ -178,11 +178,16 @@ The "Download" button below the table allows you to download the excel table fil
 
 ImageJ is an open-source image processing software maintained by the National Institutes of Health (NIH) in the United States. This software is widely used in image analysis in fields such as biology, medicine, and physics. It can be said that ImageJ is the most commonly used image processing software in the scientific research field, without any doubt.
 
-This business drew on the contact Angle plugin of ImageJ and completed the development of the contact Angle image processing software.
+In the process of developing the contact Angle image processing software for this business, some ideas of the contact Angle plugin in ImageJ were borrowed.
 
 In addition, ImageJ is equipped with many powerful functions such as image filtering, morphological operations, edge detection, and region extraction. It can meet various business needs such as cell counting and measurement, protein gel analysis, quantitative analysis of tissue sections, and electron microscope image processing, providing great convenience for scientific researchers.
 
 The official website link of ImageJ: [https://imagej.net/ij/index.html](https://imagej.net/ij/index.html)
+
+### 4.2 Algorithm
+
+This business has designed its own algorithm to achieve the iteration and fitting of droplet contours.
+
 
 <!--
   样式层

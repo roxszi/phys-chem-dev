@@ -9,7 +9,8 @@ export default {
   /** 默认语言，即中文 @type { import("vitepress").DefaultTheme.NavItem[] } */
   root: [
     { text: "节点加速", items: [
-      { text: "国内访问", link: "https://www.phys-chem.top/" },
+      // { text: "国内访问", link: "https://phys-chem.top/" },
+      { text: "国内访问", link: "https://cpuer.atomgit.net/phys-chem/" },
       { text: "海外访问", link: "https://roxszi.github.io/phys-chem/" }
     ]},
     { text: "技术栈", items: [
@@ -21,7 +22,8 @@ export default {
   /** 英文 @type { import("vitepress").DefaultTheme.NavItem[] } */
   en: [
     { text: "Optimize Nodes", items: [
-      { text: "China Access", link: "https://www.phys-chem.top/en/" },
+      // { text: "China Access", link: "https://phys-chem.top/en/" },
+      { text: "China Access", link: "https://cpuer.atomgit.net/phys-chem/en/" },
       { text: "Global Access", link: "https://roxszi.github.io/phys-chem/en/" }
     ]},
     { text: "Tech Stack", items: [

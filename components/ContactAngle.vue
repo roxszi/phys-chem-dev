@@ -1418,7 +1418,8 @@ function getContour() {
       // 用于THRESH_BINARY和THRESH_BINARY_INV阈值类型的最大值
       255,
       // 阈值类型
-      cv.THRESH_BINARY
+      // 参见：https://docs.opencv.ac.cn/4.12.0/d7/d1b/group__imgproc__misc.html#gaa9e58d2860d4afa658ef70a9b1115576
+      cv.THRESH_BINARY_INV
     )
   }
   // 用获得的二值化对象matBinary寻找轮廓
