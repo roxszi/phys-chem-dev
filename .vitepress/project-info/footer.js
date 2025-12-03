@@ -26,7 +26,7 @@ export default {
       ? (
           "本作品采用 <a href='https://license.coscl.org.cn/MulanPSL2' target='_blank'>木兰宽松许可证 第2版</a> 授权"
             + "<br />"
-            + "<a href='https://beian.miit.gov.cn/'>ICP备案：苏ICP备2025161951号</a>"
+            + "<a href='https://beian.miit.gov.cn/' target='_Blank'>ICP备案：苏ICP备2025161951号</a>"
         )
       : (
           "版权 © 2025 司承运 保留所有权利"
@@ -42,7 +42,7 @@ export default {
       ? (
           "Licensed under <a href='https://license.coscl.org.cn/MulanPSL2' target='_blank'>Mulan PSL v2</a>"
           + "<br />"
-          + "<a href='https://beian.miit.gov.cn/'>China ICP Code：苏ICP备2025161951号</a>"
+          + "<a href='https://beian.miit.gov.cn/' target='_Blank'>China ICP Code：苏ICP备2025161951号</a>"
         )
       : (
         "Copyright © 2025 SI_Cheng-Yun. All rights reserved."

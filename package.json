@@ -9,7 +9,7 @@
     "dev": "set VITE_BUILD_KIND=root&& vitepress dev --port 8080",
     "build:root": "set VITE_BUILD_KIND=root&& vitepress build",
     "build:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build",
-    "build": "npm run build:root && npm run build:subpage"
+    "build": "pnpm run build:root && npm run build:subpage"
   },
   "devDependencies": {
     "@techstark/opencv-js": "^4.11.0-release.1",
