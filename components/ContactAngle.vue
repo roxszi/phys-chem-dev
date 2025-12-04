@@ -395,9 +395,9 @@ import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 import { loadOpenCV } from "@/utils/opencvLoader.js"
 // 导入语言包
 import { langAll, useData } from "./ContactAngle-lang.js"
-
-/** 语言包，默认"root"，即中文 @type { import("vue").ShallowRef<Object> }  */
+// 语言包设定为默认"root"，即中文
 const lang = shallowRef(langAll.root)
+
 /**
  * 任务状态：
  * 1 - 未开始，或删除了图片。正在等待读取图片；
@@ -406,21 +406,25 @@ const lang = shallowRef(langAll.root)
  * 4 - 完成了轮廓寻找，得到了液滴轮廓坐标。正在寻找基线；
  * 5 - 完成了基线寻找，得到了基线坐标。正在计算接触角。
  *     其实并不存在状态5，因为计算接触角是最后一步，没有下一步了。
- * @type { import("vue").Ref<Number> }
  */
 const taskStatusRef = ref(1)
-/** 用户上传的文件数组对象 @type { import("vue").Ref<File[]> } */
+/** 用户上传的文件数组对象 @type { Ref<File[]> } */
 const fileArrRef = ref([])
 /** 
  * 视图层的<canvas>Dom对象
- * @type { import("vue").ShallowRef<HTMLCanvasElement> }
  * canvas加载很慢，需要等，比较好的等待方法是watch监听钩子。
  * 实测nextTick、onMounted都不如watch。
  */
 const canvasRef = useTemplateRef("canvasRef")
-/** 第三步寻找轮廓的调参数组Ref对象 @type { import("vue").Ref<Number[][]> } */
+/**
+ * @typedef { [
+ *   number, number, number,          // 当前值、最小值、最大值
+ *   [number, number, number, number] // marks标记
+ * ] } ThresholdNumArr 调参数组
+ */
+/** 第三步寻找轮廓的调参数组Ref对象 @type { Ref<ThresholdNumArr[]> } */
 const thresholdNumAoaRef = ref([])
-/** 第三步寻找轮廓的调参数组常量对象 @type { Number[][] } */
+/** 第三步寻找轮廓的调参数组常量对象 @type { ThresholdNumArr[] } */
 const thresholdNumAoaConst = [
   // 主参数：当前值、最小值、最大值、marks标记
   [255, 0, 255, [0, 85, 170, 255]],
@@ -429,16 +433,16 @@ const thresholdNumAoaConst = [
 ]
 /**
  * 第三步寻找轮廓的算法选框对象
- * @type { import("vue").Ref<Number> }
+ * @type { Ref<number> }
  * @value 0 - Canny算法
  * @value 1 - 阈值化法
  */
 const contourAlgorithmRadioRef = ref(0)
-/** 第三步寻找轮廓是否是粗调模式 @type { import("vue").Ref<Boolean> } */
+/** 第三步寻找轮廓是否是粗调模式 @type { Ref<boolean> } */
 const isContourCoarseRef = ref(true)
 /** 
  * 第三步寻找轮廓的遮罩算法选框对象
- * @type { import("vue").Ref<Number> }
+ * @type { Ref<number> }
  * @value 0 - 基线遮罩
  * @value 1 - 两边遮罩
  * @value 2 - 中心遮罩
@@ -447,67 +451,73 @@ const contourFilterAlgorithmRadioRef = ref(0)
 
 /**
  * 第四步寻找基线的截距
- * @type { import("vue").Ref<Number[][]> }
+ * @type { Ref<InterceptNumAoa | []> }
  * 格式：左截距：当前值、最小值、最大值、marks标记，右截距：当前值、最小值、最大值、marks标记
  * @note 不能轻易赋值，因为在步骤4，一旦赋值，就会触发绘制基线等回调
+ * @typedef { [
+ *   [number, number, number, number[]], // 左截距：当前值、最小值、最大值、marks标记
+ *   [number, number, number, number[]]  // 右截距：当前值、最小值、最大值、marks标记
+ * ] } InterceptNumAoa 表格数据数组
  */
 const interceptNumAoaRef = ref([])
 /**
  * 第五步计算接触角的最终结果
- * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number, Number][]> }
+ * @type { Ref<[string, ...number[]][]> }
  * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
 const resultRef = ref([])
-/** 第五步最终结果表格的页码 @type { import("vue").Ref<Number> } */
+/** 第五步最终结果表格的页码 @type { Ref<number> } */
 const resultTableCurrentPageRef = ref(1)
 /**
  * 第五步最终结果数据是否倒序显示
- * @type { import("vue").Ref<Boolean> }
+ * @type { Ref<boolean> }
  * @value false - 升序
  * @value true - 数据倒置
  */
 const isResultReverseRef = ref(false)
 /**
  * 第五步最终结果的表格内容
- * @type { import("vue").Ref<[String, Number, Number, Number, Number, Number, Number, Number][]> }
- * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²、原表序号
+ * @type { Ref<[number, string, ...number[]][]> }
+ * 分别是：序号、文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²、原表序号
+ * @note resultTableDataRef比resultRef多了个序号
+ * 可能因版本差异，数组元素数量不足7个，所以用可选链，并需在软件初始化时做验证
  */
 const resultTableDataRef = ref([])
 /**
  * 接触角业务的全局对象
  * @typedef { Object } ContactAngle
- * @property { import("@techstark/opencv-js") } cv OpenCV.js对象
- * @property { Number } canvasStyleWidth canvas元素块的显示宽度
- * @property { String } filename 所上传文件的文件名
+ * @property { CV } cv OpenCV.js对象
+ * @property { number } canvasStyleWidth canvas元素块的显示宽度
+ * @property { string } filename 所上传文件的文件名
  * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
- * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
- * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
+ * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
+ * @property { CV.Mat } matGray 灰度图Mat对象
  * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
  * @property { Rect } rect canvas元素块选框
  * @property { ColLine } colLine 轮廓选择时用于过滤的两侧基线
  * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线
- * @property { [Number, Number] } baselineReferencePoint 基线参考点
- * @property { import("@techstark/opencv-js").RotatedRect } ellipseObj 拟合得到的椭圆对象
- * @property { Number } ellipseR2 椭圆拟合的决定系数R²
+ * @property { [number, number] } baselineReferencePoint 基线参考点
+ * @property { CV.Ellipse } ellipseObj 拟合得到的椭圆对象
+ * @property { number } ellipseR2 椭圆拟合的决定系数R²
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
  */
 /**
- * @typedef { Object } Rect canvas元素块选框
- * @property { Number } xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
- * @property { Number } yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
- * @property { Number } xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
- * @property { Number } yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
+ * @typedef { object } Rect canvas元素块选框
+ * @property { number } Rect.xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
  */
 /**
- * @typedef { Object } ColLine canvas元素块遮罩线
- * @property { Number } left canvas元素块遮罩线的左侧线X坐标
- * @property { Number } right canvas元素块遮罩线的右侧线X坐标
+ * @typedef { object } ColLine canvas元素块遮罩线
+ * @property { number } ColLine.left canvas元素块遮罩线的左侧线X坐标
+ * @property { number } ColLine.right canvas元素块遮罩线的右侧线X坐标
  */
 /**
- * @typedef { Object } Baseline canvas元素基线遮罩线
- * @property { Number } left canvas元素块基线遮罩线的左侧Y坐标
- * @property { Number } right canvas元素块基线遮罩线的右侧Y坐标
+ * @typedef { object } Baseline canvas元素基线遮罩线
+ * @property { number } Baseline.left canvas元素块基线遮罩线的左侧Y坐标
+ * @property { number } Baseline.right canvas元素块基线遮罩线的右侧Y坐标
  */
 /** 接触角业务的全局对象 @type { ContactAngle } */
 const contactAngleObj = {
@@ -661,7 +671,11 @@ function initResultData() {
     // 直接跳出即可
     return
   }
-  // 处理数据，将字符串转为JSON对象
+  /**
+   * 处理数据，将字符串转为JSON对象
+   * @type { ResultDataArr[] }
+   * @typedef { [string, ...number[]] } ResultDataArr 结果数组
+   */
   const resultDataAoa = JSON.parse(resultDataStr)
   // 数据检查
   if(!dataInitCheck(resultDataAoa)) {
@@ -680,7 +694,7 @@ function initResultData() {
   resultRef.value = resultDataAoa
   /**
    * 数据检查
-   * @param dataArr 数据数组
+   * @param { ResultDataArr | ResultDataArr[] } dataArr 数据数组
    */
   function dataInitCheck(dataArr) {
     // 如果数据格式有问题，则清空数据
@@ -699,7 +713,11 @@ function initResultData() {
 
 /**
  * 刷新数据呈现
- * @param { [[String, Number, Number, Number, Number, Number, Number], Number, Boolean] } 新结果数据和页码数据
+ * @param { [
+ *   [string, ...number[]][],  // newResultAoa - 新结果数据
+ *   number,                   // newResultTablePage - 新页码数据
+ *   boolean                   // newIsResultReverse - 新是否倒序数据
+ * ] } 新结果数据和页码数据
  * 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
 function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultReverse]) {
@@ -707,7 +725,7 @@ function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultRe
   const resultAoaLength = newResultAoa.length
   // 如果新数据为空，则清空表格数据
   if (resultAoaLength === 0) {
-    // 赋值空值
+    // 刷新为空数组
     resultTableDataRef.value = []
     // 直接返回
     return
@@ -728,9 +746,9 @@ function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultRe
         startIndexRaw,
         Math.min(resultAoaLength, endIndexRaw)
       ]
-  // 接收新数据。这一步的操作是为了避免原数组长度不足endIndex造成的bug
+  // 接收新数据。这一步操作是为了避免原数组长度不足endIndex造成的bug
   const resultTableDataAoaTemp = newResultAoa.slice(startIndex, endIndex)
-  // 建立一个空数组，用于存放处理后的数据
+  /** 建立一个空数组，用于存放处理后的数据 @type { [number, string, ...number[]][] } */
   const resultTableDataAoa = []
   // 遍历取值 + 补一个原index
   for (let i = 0; i < resultTableDataAoaTemp.length; i++) {
@@ -793,6 +811,7 @@ function beforeunloadHandler(event) {
 
 /**
  * 报错的通知方法
+ * @param { Error } error 报错信息
  */
 function errorDialog(error) {
   // 直接对话框报错
@@ -949,7 +968,7 @@ function taskToStep1() {
 
 /**
  * 图片上传或改变时触发的回调
- * @param { Array<T> } event 事件对象
+ * @param { TDesign.UploadFile[] } event 事件对象
  * @note 会读取全局对象contactAngleObj的<canvas>宽度对象canvasWidth
  * @note 会写入全局对象contactAngleObj的<canvas>高度对象canvasHeight
  * @note 会写入全局对象contactAngleObj的灰度图Mat对象matGray
@@ -1079,7 +1098,7 @@ function chooseRect() {
   const realElementY = elementY.value * canvasScaling
   // 如果选框X边界未定义，即第一次点击，需记录下选框的左上角坐标
   if (!rect.xMax) {
-    /** 画框比例 @const { Number } */
+    /** 画框比例 @const { number } */
     const RECT_SCALE = 0.5
     // 接canvas
     const canvas = canvasRef.value
@@ -1202,7 +1221,7 @@ function drawRect() {
 
 /**
  * “裁剪图片”或“完成裁剪”的回调方法
- * @param { Boolean } isDetermine 是否确定完成裁剪
+ * @param { boolean } isDetermine 是否确定完成裁剪
  */
 function onSureRect(isDetermine) { try {
   // 接参数
@@ -1330,10 +1349,11 @@ function thresholdNumAoaRestore() {
   }
   /**
    * 深拷贝AOA数组
-   * @param aoa AOA二维数组
+   * @param { ThresholdNumArr[] } aoa AOA二维数组
+   * @returns { ThresholdNumArr[] } 深拷贝后的AOA二维数组
    */
   function deepCopyAoa(aoa) {
-    // 深拷贝AOA数组
+    /** 深拷贝AOA数组 @type { ThresholdNumArr[] } */
     const aoaTemp = []
     // 遍历每一行
     for (let i = 0; i < aoa.length; i++) {
@@ -1373,10 +1393,7 @@ const chooseContourThrottled = useThrottleFn(chooseContour, 500, true)
  * 获取轮廓
  *   1.  先用2种算法（中的一个）得到二值化轮廓图
  *   2.  然后根据传参寻找轮廓
- * @returns {[
- *     import("@techstark/opencv-js").MatVector,
- *     import("@techstark/opencv-js").Mat
- *   ]} 轮廓AOA数组metVectorContours和轮廓层次结构metHierarchy
+ * @returns {[CV.MatVector, CV.Mat]} 轮廓AOA数组metVectorContours和轮廓层次结构metHierarchy
  * @note 返回的2个对象，务必记得在用完后手动删除，否则会一直占用WASM内存
  */
 function getContour() {
@@ -1458,10 +1475,7 @@ function getContour() {
 
 /**
  * 绘制轮廓
- * @param {[
- *     import("@techstark/opencv-js").MatVector,
- *     import("@techstark/opencv-js").Mat
- *   ]} 轮廓AOA数组metVectorContours和轮廓层次结构metHierarchy
+ * @param {[CV.MatVector, CV.Mat]} 轮廓AOA数组metVectorContours和轮廓层次结构metHierarchy
  * @note 传参的2个对象，务必记得在用完后手动删除，否则会一直占用WASM内存
  */
 function drawContour([metVectorContours, metHierarchy]) {
@@ -1717,7 +1731,7 @@ function refreshContourFineSlider() {
   const mainParamMin = Math.max(0, Math.min(243, (mainParam - 6)))
   // 找辅助参数的下限：辅助参数的下限必须不小于0，不大于243
   const auxParamMin = Math.max(0, Math.min(243, (auxParam - 6)))
-  // 细调的阈值数组
+  /** 细调的阈值数组 @type { ThresholdNumArr[] } */
   const thresholdNumAoaTemp = [
     // 主参数：当前值、下限、上限、mark标记
     [
@@ -1765,17 +1779,17 @@ function onDetermineContour() { try {
 
 /**
  * 过滤轮廓点，滤去明显有问题的轮廓点
- * @param { import("@techstark/opencv-js").MatVector } metVectorContours 轮廓点的MatVector对象
- * @returns { [Number, Number][] } 轮廓点AOA数组[x, y][]
+ * @param { CV.MatVector } metVectorContours 轮廓点的MatVector对象
+ * @returns { [[number, number][], number[]] } 轮廓点AOA数组[x, y][]
  * 从metVectorContours中遍历读取轮廓点，过滤掉1%边框位置的点，剩下的点进行下一步椭圆轮廓迭代。
  */
 function filterContourPoints(metVectorContours) {
-  /** 过滤线阈值，1%切边 @const { Number } */
+  /** 过滤线阈值，1%切边 @const { number } */
   const CANVAS_EDGE_PERCENTAGE = 0.01
   // 接参数
   const { colLine, rect, baseline } = contactAngleObj
   const canvas = canvasRef.value
-  // 声明一个数组用来接所有轮廓点，即集合P(0)
+  /** 声明一个数组用来接所有轮廓点，即集合P(0) @type { [number, number][] } */
   const contourPointAoa = []
   // 如果指定了过滤线，宽按两边遮罩过滤线来；否则按canvas宽来
   const canvasWidthMin = colLine.left ?? Math.ceil(canvas.width * CANVAS_EDGE_PERCENTAGE)
@@ -1857,8 +1871,8 @@ function filterContourPoints(metVectorContours) {
 
 /**
  * 获取椭圆 - 迭代拟合获得椭圆数据
- * @param { Number[][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
- * @param { Number[] } contourPointToBaselineDistanceArr 轮廓点到基线的距离数组
+ * @param { [number, number][] } contourPointAoa 椭圆轮廓点的AOA二维数组（x、y坐标为内维）
+ * @param { number[] } contourPointToBaselineDistanceArr 轮廓点到基线的距离数组
  * @note 会将ellipseObj、ellipseR2、baselinePoint写入全局对象
  * toleranceValue，容差，[点对拟合圆心的半径r/拟合最近点半径]超过（大于或小于）该阈值，
  *     则将该点排除进“阴性点集”。
@@ -1892,17 +1906,17 @@ function filterContourPoints(metVectorContours) {
  */
 function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
   // --------设置参数--------
-  /** 迭代筛选时候的初始容差 @type { Number } */
+  /** 迭代筛选时候的初始容差 @type { number } */
   const TOLERANCE_VALUE_INIT = 0.2
-  /** 迭代筛选时候的最小容差 @type { Number } */
+  /** 迭代筛选时候的最小容差 @type { number } */
   const TOLERANCE_VALUE_MIN = 0.001
-  /** 阴性点转阳性点的阈值叠加因子，即增加难度 @type { Number } */
+  /** 阴性点转阳性点的阈值叠加因子，即增加难度 @type { number } */
   const NP_TO_PP_THRESHOLD = 0.7
-  /** 每次迭代的加权因子 @type { Number } */
+  /** 每次迭代的加权因子 @type { number } */
   const ITERATION_WEIGHT = 0.7
-  /** R²的收敛阈值 @type { Number } */
+  /** R²的收敛阈值 @type { number } */
   const R2_THRESHOLD = 0.99
-  /** 最大迭代次数 @type { Number } */
+  /** 最大迭代次数 @type { number } */
   const ITERATION_COUNT_MAX = 100
   // --------计算--------
   // 接参数
@@ -1921,9 +1935,9 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
   let isConverge = false
   // 迭代次数指针
   let iterationCount = 0
-  // 椭圆对象
-  let ellipse = {}
-  // 基线参考点
+  /** 椭圆对象 @type { CV.Ellipse } */
+  let ellipse = null
+  /** 基线参考点 @type { [number, number] } */
   let baselineReferencePoint = [0, 0]
   // 迭代：拟合不收敛 且 迭代次数不超过最大迭代次数时执行
   // 迭代需要做的事情：
@@ -1934,7 +1948,7 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
     // 开始迭代，迭代次数+1
     iterationCount = iterationCount + 1
     // OpenCV工厂方法，把轮廓坐标点positivePointAoa转为轮廓Mat对象
-    const metContourPoints = new cv.matFromArray(
+    const metContourPoints = cv.matFromArray(
       // rows，行数：双通道，所以行数就是[x, y]作为一个Point的行数
       positivePointAoa.length,
       // cols，列数：1列，即一个Point维度
@@ -1975,7 +1989,10 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
     // canvas的椭圆旋转角是顺时针为正的，同时Y向下为正，那么数学公式应该刚好对称可用
     const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
     const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
-    // 打包椭圆参数，方便后面筛选点时传递
+    /**
+     * 打包椭圆参数，方便后面筛选点时传递
+     * @type { [number, number, number, number, number, number, number] }
+     */
     const ellipseParamArr = [
       ellipseH, ellipseW, ellipseHalfHWSquare,
       ellipseCenterX, ellipseCenterY,
@@ -2072,16 +2089,16 @@ function getEllipse(contourPointAoa, contourPointToBaselineDistanceArr) {
    * 内部函数：筛选点
    * 会根据椭圆参数，调整点的相对坐标。然后再筛选
    * @note ellipsePointIterate()内部变量很多，所以这里用到了内部函数来实现一层闭包
-   * @param { Number[] } param1 [pointX, pointY] X和Y坐标值
-   * @param { Number } tolerance 容差
-   * @param { Number } pointToBaselineDistance 点距离基线的距离
-   * @param { Number } distanceCoefficient 点距离基线的距离的系数
-   * @param { Number[][] } PPointAoa 阳性点集
-   * @param { Number[][] } NPointAoa 阴性点集
-   * @param { Number[][] } PPointToBaselineDistanceArr 阳性点集距离基线距离数组
-   * @param { Number[][] } NPointToBaselineDistanceArr 阴性点集距离基线距离数组
-   * @param { Number[] } param9 椭圆参数数组
-   * @returns { Number[] } [pointR, ellipseR] 返回点半径和椭圆半径
+   * @param { [number, number] } param1 [pointX, pointY] X和Y坐标值
+   * @param { number } tolerance 容差
+   * @param { number } pointToBaselineDistance 点距离基线的距离
+   * @param { number } distanceCoefficient 点距离基线的距离的系数
+   * @param { number[][] } PPointAoa 阳性点集
+   * @param { number[][] } NPointAoa 阴性点集
+   * @param { number[] } PPointToBaselineDistanceArr 阳性点集距离基线距离数组
+   * @param { number[] } NPointToBaselineDistanceArr 阴性点集距离基线距离数组
+   * @param { [number, number, number, number, number, number, number] } param9 椭圆参数数组
+   * @returns { [number, number] } [pointR, ellipseR] 返回点半径和椭圆半径
    */
   function pointFilter(
     [pointX, pointY], tolerance, pointToBaselineDistance, distanceCoefficient,
@@ -2293,8 +2310,8 @@ const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
 
 /**
  * 步骤4里刷新滑块数据的具体方法
- * @param { [Number, Number] } 左截距和右截距数据
- * @param { Boolean } [isConvertToUser = true] 是否需要转换成用户视角 
+ * @param { [number, number] } 左截距和右截距数据
+ * @param { boolean } [isConvertToUser = true] 是否需要转换成用户视角 
  * @note 会触发绘制基线截距
  */
 function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertToUser = true) {
@@ -2319,6 +2336,7 @@ function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertT
   // 右截距的下限
   const rightParamMin = rightIntercept - (delta * 3)
   // 细调的阈值数组
+  /** @type { InterceptNumAoa } */
   const interceptNumArr = [
     // 左截距：当前值、下限、上限、mark标记
     [
@@ -2417,7 +2435,7 @@ function onDetermineBaseline() { try {
  * 7.  计算两切线斜率和基线截距之间的夹角，即为接触角
  */
 function calculateContactAngle() {
-  /** 接椭圆对象 @type { import("@techstark/opencv-js").RotatedRect } */
+  // 接椭圆对象
   const ellipse = contactAngleObj.ellipseObj
   // 接canvas
   const canvas = canvasRef.value
@@ -2501,7 +2519,7 @@ function calculateContactAngle() {
     // 报错
     console.log("方程没有2个解，delta: ", delta)
     my.message({
-      type: "error",
+      theme: "error",
       content: lang.value.ContactErrorMessageContent,
       duration: 10000
     })
@@ -2637,7 +2655,7 @@ function calculateContactAngle() {
 
 /**
  * 删除单个数据结果
- * @param { Number } resultsIndex 结果的索引
+ * @param { number } resultsIndex 结果的索引
  */
 function onDeleteUniResult(resultsIndex) { try {
   // 接参数
@@ -2710,7 +2728,7 @@ function onReverseResultOrder() { try {
  * 下载结果
  */
 function onDownloadResult() { try {
-  // 接一个AOA对象，第一个元素是表头，后面是数据
+  /** 接一个AOA对象，第一个元素是表头，后面是数据 @type { (string | number)[][] } */
   const resultAoa = [[...lang.value.ResultTableContent]]
   // 填充数据：遍历resultRef.value
   const resultOrigin = resultRef.value

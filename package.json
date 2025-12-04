@@ -5,6 +5,7 @@
   "author": "SI_Cheng-Yun",
   "license": "MulanPSL-2.0",
   "type": "module",
+  "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev": "set VITE_BUILD_KIND=root&& vitepress dev --port 8080",
     "build:root": "set VITE_BUILD_KIND=root&& vitepress build",
@@ -13,6 +14,9 @@
   },
   "devDependencies": {
     "@techstark/opencv-js": "^4.11.0-release.1",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
+    "@tensorflow/tfjs-vis": "^1.5.1",
     "@vueuse/core": "^14.0.0",
     "markdown-it-mathjax3": "^4.3.2",
     "tdesign-vue-next": "^1.17.2",

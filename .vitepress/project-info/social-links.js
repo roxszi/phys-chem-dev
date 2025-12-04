@@ -99,69 +99,6 @@ RVh0ZGF0ZTpjcmVhdGUAMjAyNS0wNi0yNFQwOToyMDowMiswMDowMJKi5GEAAAAldEVYdGRhdGU6
 bW9kaWZ5ADIwMjUtMDYtMjRUMDk6MjA6MDIrMDA6MDDj/1zdAAAAAElFTkSuQmCC" />
 </svg>`
 
-// // AtomGit的logo
-// const atomSvg = 
-// `<svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48">
-// <image width="48" height="48" x="0" y="0" href="data:image/png;base64,
-// iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABGdBTUEAALGPC/xhBQAAACBjSFJN
-// AAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QA/wD/AP+gvaeTAAAA
-// CXBIWXMAAA7EAAAOxAGVKw4bAAAAB3RJTUUH6QYYCAwyjQMlDgAAC4tJREFUaN6lmn2wVVd5xn9r
-// n3O5QCDyEUJKDFgkGoEQkjHEmNAYATuT6IwmTYwNjLZjO9aM/pPp6NQhGEw7418dO7V+pcYObQYK
-// ZDryYcYwatAJhqYmUZMqQgiEpBDgQgQu99yz3+fpH3ufc88599zL5bpmzpy9115nred91/vxvGuf
-// xDjbnx8zl7rOmdQzOcE7gZuB9wLXAvOAKcDEcvgAcBY4BPwKeA7YAxzI3qI/psN/zErjwnHRv1pz
-// 1ACZE/OAO8rPEmA20DPGaerAMeCXFjsldtocIqGNV14cpDGPXn3MjfHvAv4CuBv4Y6AyLtUZbLAI
-// iYMSWy0eI2cfGd78zrFBu+Co+94wPVWwuQz4S+CvKExmfHsOWAV4aejagWUOWHxH4rtZ4kRu+P67
-// R19m1Kf3v2mckbLgRmA9sHLcGqcASgm8Cb68xs3rsNgl8VDU+e+sirdfOzLMEZ+sPiqAjJTuA/6B
-// wjHHibzUskFRgneXnRjaDWQOWfxd1L0xq6Af3JCNXYDS3nuAvy41P+MP0boFcgtIdZiPWoSKtr4+
-// i4ckvp0S9R8uGw53WM/qY8JJKbnyN8BXKcLhuLXeaS5NjTfAdvGHjvFnJb5Q749vVCdm/tEt7TvR
-// JsD9R02lAhJ3Ad8EZo0LexegwzTuLrvR3bmROW7xmUlTeeLcadh9+xDsaufiEWQpcQz4R2AhRdi8
-// CpgJTBiLuTRsvQ1st/tuO1KMGbQ5afGazD6LlzHHzvaRpQyNakIAq0+ZrB9UpZJgquGPgAWlMHOA
-// K4DLS6FmAFMsemyqCio2FYlkk1mgQBhLhE04yG0GLc7KnLI4afGmzVGLN2T2Ifbb/F8EZ3oqxLlB
-// 2PPBMfjAhdqaYwIpkVUmODEZmGoxzWKSRa/ERItJEhNteksTqVkM2Jy3PGClmkW/4bTFWZtzqYe6
-// c/zkDePIxGXUmQpMH5OND2VRW1jFN+V3n2FAOcnm8rL/TeUYmGgzwyKV5pNkkoPUzbnlYb7QuD8F
-// nPmfjybS/UeNIcsSfw+sAWJ09OVEwxdKNscwqxX8VsGf2XylBLYWsUXBu2X+3Wa2G0JfwB+GBQJT
-// sdigGl/KelA1JSjZ5L3AlWN10mYEaQfwTFbhlbzO9AQP2lxTRpQHLX4EvGJxwOK9nY4+7L6L87cI
-// dq8rfDfE7xpB9U5g/mhab04aEHn5CVD5HWJAYuPgAHWLJQoWRZRjgsUSS/OcegQbIxgo+4mWT3Pu
-// Rl8OoY774nq+gjttyIDJwKrRtC4NTdBITCqFafk8b7G7pAq3h5iqKDQWwRQFKyg0uFvB8x2/RV3m
-// dqO/HOPWZ2JVXmNyFbiags8PA85ombQ1CRVjt0j05bkvxen2zpiPuV1ieuT0AVtsbu5MYhfiSIo2
-// E15ic3UG3ERRjAwzl8a2tmk7b9dcaVYHLbZHDo60UMG1bdot5lqk4FoABdsVHGx9rhYTbc7dub7a
-// rmcruCkDrqOspJrmotJc8uHbGx2LRA4WO1Nif14HiQ9ITG8uODTPpQpWpgSVKvsV7IzWMQ0/0NCa
-// MYLSyr4eBddVgcUt1RHq3LoLM8e3DJsVCNFruNpF+j8ncb6cY5LFJTIL8uAS1TkHbJZYbfO2Dgba
-// ft2KY3gUXFy1mNtqb8N4y3CekrtI/4dkfmOxG7O3TIt1zBcwAPWUqDsBiZ5yl1OCgTIR7rX4W4vb
-// LN4jMVdimk11WA7QCEo1c9MnjviEzMy2xNTxQ8wZi9/ZPGPzU4v/tTkCnAZ8/ixMmAS1fq6ymIu5
-// TAW9mFLOc1bitMUJm8P8nteYUphfViGLYJrEVQoWWiy3uFligcyUkXanvD+Z7j3kgQZn6UgmA5hf
-// Suyw+YnNS/WcvmoF184B0AtMMxzXIDJMMnzP4iMlsauU2ZmSboSCus02i09hzuc5mcUs4LShphyA
-// zGZmKcwHLO6QWFJyrE5hapmFWyOMxQmLzTZrJO58bRvrE+yu1zhZqUL9PFemxCdtHre5j0EUxYTz
-// Hdxa2ntVQWqZNymols9utZhvw1tHkMV9Ch6POp9UcKXqGHE8H+TphX/CwxJ3Sqyx2GxxosOZne7a
-// 72MWl9v0YbbaPCrxYlahVu8vok6ll1TvZ77Nxy0+jllsc9Lmw8Deeg1sPoP5l5KcDS9MhuzYmM+S
-// +Ga9BgmWWWyXmSnxa4tNFpsi50BWgcEaZAkMvRbXOfi0xN0SM2zezBy87uJM5mM2DwB7ty1KteiH
-// /vOg4LL6OT5nsd3ikZImZBH8WOLFfBAimGCxUiq13pmp28NgUrAyH2RCkSj9YgQ/UZA5WGLxiMR2
-// mwfyQWZUK4Xwhz+XalFnr8QDEh+z2Org9fTR3/g6m/0JztWBHe9JrPq5ASokPmjzJcQtNtWWhDMA
-// rAa2Dp4HikLnKZm5wyovdY1mh21WAfvqNUiJeyQ2WPS2jKlLPO3gkcj5aVZBrz+YmLbO9PQCcInF
-// grbq4UO/Nj4DJKYbHsB83mZWKxcvgTwLfBg4UR8AzKdsHlXhuGOhBmHz6ZT43mANgFkutL6slVqX
-// QeWYxD9ZfAM41TMZjnx+CHazxP/QHhNnwTDP5lsWX5aYFS0ZMYZS/BMOTgz2g8JViVUSlU760Jmx
-// W+4rClYNnqeagMEBjiv4r+bYFvLoYLbFeolvRc682hmYsd7tAqzaY3JDMkttNljcI1HpmsLFYYtt
-// Ta6kNFfB+4aN6/CFTmapnPdh5lpFWajg+wqOSO0cqKQuFQf3WGyInKUYZj5cCJGteMaomOT9Fv9m
-// sbyV53c6pIMnLfY1zSG4SWJuxAgaz1uAqG135krc1CCEwG8V/LCNE+XtyrBZDjwGLBNm5sPlqYHN
-// IotHJZZEN00OMc8zEltCxPmzoJxMYqWiSP9tWh8pCpXAosgVK+v9ZAmoD5Ar2KzgrEUbgbRbPZWl
-// wLcTaYHLrAeFx/fGCNvfYv/POvh50ynNHIlbRtTaEJVuE6bBaCO4hQpzmkCDPQqea/L+8tC3S5sI
-// 5ACZBO+/lX3K2TiS5ktzCQWbZc44by5wo4J3DOPso/iCAjwk5DsiuLFh94ODvKVgiwK5O/BG26TE
-// qwnInr4t8eNdIPG4goONhSIfZgL7bJ60YOC8UaWWFKxU0NtpJp0ad4svNKJM+bxXwcrTx2uJZFJR
-// k/wAODAK+IPApsxwcl0qopAFn13BSw6+rpy8W3Ukse30Lg7LEJHQQO9si+VdfWU0X1DL86J/+eQp
-// vbOl1ChlDwI7RgCfA1/n7bzcOJLLAJ7508TXdoCCxyR2DdOiOOHgiam3wQt3p4b5XB/BgqZGW/1F
-// XXak05/ypmkusLnegr51iZQwsBU41UWAXcBjHIG+h1J7IgtDXqfPwXoFr7bas4OnJV6w4V3/6qLY
-// D1Y4mNRWu0ZXDXdNbi3F+iRgBcCMh40TOPEL4Gcd4F+leFfR13og2hTguY8kZDh6kD0Kvqigr1y0
-// FmKTRC0aNXPOTInbYgR/6RqKO45HOpz0NoqDYjIgmX5gM8XbTIA+4IvVQfaYIe23CQDw/F2JGXOA
-// xGaLtQ76HDzlYBeClz6RGhxniYJrWiLUiLmj80RhhOhyDeXRzskhcDuBp4ATwFpgcz4BTq1rP/zt
-// ehS8aIMBqobrMSdTxivKYaC/KGpt1hvWjlr0t1R4jUODC7Sv2DyUlSqVICXeTvGS5VdA3rfuDzxe
-// n/fPJsGlwA6ZW8cigDXm6X+WiiPO359cN3ZY2ZhH0gS3MILFXc2kxf6bmXTsbbFh4YU3apwCXPU1
-// N4Ats5g2AlNtOyq/yDYNWAZDTHMsrTrmkRQgU8YOiyss7pWY31oDN85TL7IZeAX4T0ZOYCO2i37F
-// dMVXTZZIIRZI3GGxyuIGm1kXoZAcOA78giLS7AT2A+67CPsflwCN9rYvm4kVyM1km4UUh8RLKf5u
-// M4fi/fIl5fBzFH+3eYMiorwAPJvg5WT6VYG+teOD8v8Byz1istt51gAAACV0RVh0ZGF0ZTpjcmVh
-// dGUAMjAyNS0wNi0yNFQwODoxMjo1MCswMDowMA1clJUAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjUt
-// MDYtMjRUMDg6MTI6NTArMDA6MDB8ASwpAAAAAElFTkSuQmCC" />
-// </svg>`
-
 // // vitepress的logo
 // const vitepressSvg = 
 // `<svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48">
@@ -345,10 +282,6 @@ export default [{
   // CPU官网
   icon: { svg: cpuSvg },
   link: "https://www.cpu.edu.cn/",
-// }, {
-//   // AtomGit项目地址
-//   icon: { svg: atomSvg },
-//   link: "https://atomgit.com/cpuer/phys-chem-dev",
 // }, {
 //   // VitePress
 //   icon: { svg: vitepressSvg },

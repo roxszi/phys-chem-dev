@@ -5,6 +5,8 @@
  * 包含了项目内容的配置信息
  */
 
+// 导入Node编译时环境变量
+import { env as processEnv } from "node:process"
 // 导入社交链接
 import socialLinks from "./social-links.js"
 // 导入i18n设置
@@ -20,7 +22,7 @@ import i18n from "./i18n.js"
  * "subpage" - 以Pages服务的子页面路径为输出目标进行构建
  * "root" - 以 域名根路径 为输出目标进行构建
  */
-const buildKind = process.env.VITE_BUILD_KIND
+const buildKind = processEnv.VITE_BUILD_KIND
 console.log(
   (buildKind === "root")
     ? "以 根路径 为输出目标进行构建："

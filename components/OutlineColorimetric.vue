@@ -171,9 +171,9 @@ import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 import { loadOpenCV } from "@/utils/opencvLoader.js"
 // 导入语言包
 import { langAll, useData } from "./OutlineColorimetric-lang.js"
-
-/** 语言包，默认"root"，即中文 @type { import("vue").ShallowRef<Object> }  */
+// 语言包设定为默认"root"，即中文
 const lang = shallowRef(langAll.root)
+
 /**
  * 任务状态：
  * 1 - 未开始，或删除了图片。正在等待读取图片；
@@ -181,26 +181,29 @@ const lang = shallowRef(langAll.root)
  * 3 - 完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
  * 4 - 完成了轮廓确认，计算RGB。
  *     其实并不存在状态4，因为计算RGB是最后一步，没有下一步了。
- * @type { import("vue").Ref<Number> }
  */
 const taskStatusRef = ref(1)
-/** 用户上传的文件数组对象 @type { import("vue").Ref<File[]> } */
+/** 用户上传的文件数组对象 @type { Ref<File[]> } */
 const fileArrRef = ref([])
 /** 
  * 视图层的<canvas>Dom对象
- * @type { import("vue").ShallowRef<HTMLCanvasElement> }
  * canvas加载很慢，需要等，比较好的等待方法是watch监听钩子。
  * 实测nextTick、onMounted都不如watch。
  */
 const canvasRef = useTemplateRef("canvasRef")
 /**
  * 第三步确定轮廓的上下限范围数组对象
- * @type { import("vue").Ref<Number[][]> }
+ * @type { import("vue").Ref<ThresholdNumAoa | []> }
  */
 const thresholdNumAoaRef = ref([])
 /**
  * 第三步确定轮廓的上下限范围数组对象-常量
- * @type { [Boolean, Number][] }
+ * @type { ThresholdNumAoa }
+ * @typedef { [
+ *   [number, number, number, number[], boolean, number],            // 二值化阈值
+ *   [[number, number], number, number, number[], boolean, number],  // 面积位次
+ *   [number, number, number, number[], boolean, number]             // 圆径缩放因子
+ * ] } ThresholdNumAoa
  */
 const thresholdNumAoaConst = [
   // 二值化阈值：当前值、最小值、最大值、marks标记、是否range、步长
@@ -210,31 +213,31 @@ const thresholdNumAoaConst = [
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
   [0.5, 0, 1, [0, 0.25, 0.5, 0.75, 1], false, 0.1]
 ]
-/** 第三步确认轮廓是否是粗调模式 @type { import("vue").Ref<Boolean> } */
+/** 第三步确认轮廓是否是粗调模式 @type { Ref<boolean> } */
 const isContourCoarseRef = ref(true)
 
 /**
- * @typedef { Object } ContactAngle 轮廓-比色法业务的全局对象
- * @property { import("@techstark/opencv-js") } cv OpenCV.js对象
+ * @typedef { object } ContactAngle 轮廓-比色法业务的全局对象
+ * @property { CV } cv OpenCV.js对象
  * @property { Number } canvasStyleWidth canvas元素块的显示宽度
- * @property { String } filename 所上传文件的文件名
+ * @property { string } filename 所上传文件的文件名
  * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
- * @property { Number } canvasScaling canvas元素块的缩放比例：实际/显示
- * @property { import("@techstark/opencv-js").Mat } matGray 灰度图Mat对象
+ * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
+ * @property { CV.Mat } matGray 灰度图Mat对象
  * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
  * @property { ImageBitmap } imageBitmap canvas的图像位图元数据，用于暂存，便于恢复
  * @property { Rect } rect canvas元素块遮罩框的[左|上|右|下]坐标
- * @property { Number[][] } contourAoa 轮廓数据数组。[近圆率, 面积, 圆心X, 圆心Y, 半径, 绘图标记]
- * @property { Number[] } circleAreaArr 面积位次数组
+ * @property { (number | boolean)[][] } contourAoa 轮廓数据数组。[近圆率, 面积, 圆心X, 圆心Y, 半径, 绘图标记]
+ * @property { number[] } circleAreaArr 面积位次数组
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
  */
 /**
- * @typedef { Object } Rect canvas元素块遮罩框的[左|上|右|下]坐标
- * @property { Number } xMin canvas元素块遮罩框的左坐标
- * @property { Number } yMin canvas元素块遮罩框的上坐标
- * @property { Number } xMax canvas元素块遮罩框的右坐标
- * @property { Number } yMax canvas元素块遮罩框的下坐标
+ * @typedef { object } Rect canvas元素块遮罩框的[左|上|右|下]坐标
+ * @property { number } xMin canvas元素块遮罩框的左坐标
+ * @property { number } yMin canvas元素块遮罩框的上坐标
+ * @property { number } xMax canvas元素块遮罩框的右坐标
+ * @property { number } yMax canvas元素块遮罩框的下坐标
  */
 /** 轮廓-比色法业务的全局对象 @type { ContactAngle } */
 const outlineColorimetricObj = {
@@ -421,7 +424,7 @@ function taskToStep1() {
 
 /**
  * 图片上传或改变时触发的回调
- * @param { Array<T> } event 事件对象
+ * @param { TDesign.UploadFile[] } event 事件对象
  * @note 会读取全局对象contactAngleObj的<canvas>宽度对象canvasWidth
  * @note 会写入全局对象contactAngleObj的<canvas>高度对象canvasHeight
  * @note 会写入全局对象contactAngleObj的灰度图Mat对象matGray
@@ -677,7 +680,7 @@ function drawRect() {
 
 /**
  * 点击“裁剪图片”按钮的事件回调钩子
- * @param { Boolean } isDetermine 是否确定裁剪
+ * @param { boolean } isDetermine 是否确定裁剪
  */
 async function onSureRect(isDetermine) { try {
   // 接选框对象
@@ -782,15 +785,21 @@ function thresholdNumRestore() {
   }
   /**
    * 深拷贝AOA数组
-   * @param aoa AOA二维数组
+   * @param { ThresholdNumAoa } aoa AOA二维数组
    */
   function deepCopyAoa(aoa) {
-    // 深拷贝AOA数组
+    /** 深拷贝AOA数组 @type { ThresholdNumAoa | [] } */
     const aoaTemp = []
-    // 遍历每一行
+    // 遍历每一行（一共就3个）
     for (let i = 0; i < aoa.length; i++) {
-      // 推进新数组
-      aoaTemp.push([...aoa[i]])
+      // 深拷贝Arr数组
+      const arrTemp = []
+      // 遍历每一行的子元素
+      for (let j = 0; j < aoa[i].length; j++) {
+        // 深拷贝子元素
+        arrTemp.push([...aoa[i][j]])
+      }
+      aoaTemp.push(arrTemp)
     }
     // 返回新数组
     return aoaTemp

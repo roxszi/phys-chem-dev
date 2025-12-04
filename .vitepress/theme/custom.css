@@ -49,3 +49,9 @@ mjx-container {
 .t-slider__mark-text {
   font: var(--td-font-body-medium) !important;
 }
+
+/* tf-vis的DOM：不能超过边界，超过则滚动 */
+#tfjs-visor-container .visor {
+  max-width: 100% !important;
+  /* overflow-x: scroll !important; */
+}

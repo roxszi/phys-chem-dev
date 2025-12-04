@@ -11,9 +11,9 @@ import { LoadingPlugin, DialogPlugin, MessagePlugin } from "tdesign-vue-next"
  * @全局对象
  * 为防止内存泄漏，全局只有一个Loading实例、Dialog实例
  * 通过import导入时，会全局共享同一个实例
- * @typedef { Object } MyPluginObj
- * @property { import("tdesign-vue-next").LoadingInstance | Null } loadingInstance Loading实例
- * @property { import("tdesign-vue-next").DialogInstance | Null } dialogInstance Dialog实例
+ * @typedef { object } MyPluginObj
+ * @property { TDesign.LoadingInstance } loadingInstance Loading实例
+ * @property { TDesign.DialogInstance } dialogInstance Dialog实例
  */
 const myPluginObj = {
   loadingInstance: null,
@@ -24,7 +24,7 @@ const myPluginObj = {
 
 /**
  * “加载中”
- * @param { String | Boolean } [text = "加载中..."] 文案
+ * @param { string | false } [text = "加载中..."] 文案
  * @note 会读写全局对象myPluginObj.loadingInstance
  */
 export function myLoading(text = "加载中...") {
@@ -62,13 +62,14 @@ export function myLoading(text = "加载中...") {
 
 /**
  * 对话框
- * @param { Object | String } paramObj 参数对象
- * @param { String } [paramObj.theme = "info"] 对话框风格：default/info/warning/danger/success
- * @param { String } [paramObj.header] 标题
- * @param { String } [paramObj.body] 内容
- * @param { String | Null } [paramObj.confirmBtn] 确认按钮文字
- * @param { String | Null } [paramObj.cancelBtn = null] 取消按钮文字
- * @param { Function } [paramObj.onConfirmCallBack = () => { }] 确认回调
+ * @param { MyDialogParam | string } paramObj 参数对象
+ * @typedef { object } MyDialogParam
+ * @property { "default" | "info" | "warning" | "danger" | "success" } [MyDialogParam.theme = "info"] 对话框风格
+ * @property { string } [MyDialogParam.header] 标题
+ * @property { string } [MyDialogParam.body] 内容
+ * @property { string } [MyDialogParam.confirmBtn] 确认按钮文字
+ * @property { string } [MyDialogParam.cancelBtn = null] 取消按钮文字
+ * @property { Function } [MyDialogParam.onConfirmCallBack = () => { }] 确认回调
  * @note 会读写全局对象myPluginObj.loadingInstance
  */
 export function myDialog(paramObj) {
@@ -135,11 +136,12 @@ export function myDialog(paramObj) {
 
 /**
  * 提示框
- * @param { Object | String } paramObj 参数对象
- * @param { String } [paramObj.theme = "info"] 对话框风格：info/success/warning/error/question/loading
- * @param { Boolean } [paramObj.closeBtn = false] 是否显示关闭按钮
- * @param { String } paramObj.content 内容
- * @param { Number } [paramObj.duration = 1500] 显示时长
+ * @param { MyMessageParam | string } paramObj 参数对象
+ * @typedef { object } MyMessageParam
+ * @property { "info" | "success" | "warning" | "error" | "loading" } [MyMessageParam.theme = "info"] 对话框风格
+ * @property { boolean } [MyMessageParam.closeBtn = false] 是否显示关闭按钮
+ * @property { string } MyMessageParam.content 内容
+ * @property { number } [MyMessageParam.duration = 1500] 显示时长
  */
 export function myMessage(paramObj) {
   // 如果传参是字符串，则直接赋值给content
@@ -175,7 +177,7 @@ export function myMessage(paramObj) {
 
 /**
  * 报错处理方法
- * @param { String } [errorText = "程序报错"] 报错文案
+ * @param { string } errorText 报错文案
  * @param { Error } errorObj 报错对象
  * @param { Function } [callBack] 回调函数
  */
@@ -192,7 +194,10 @@ function myError(errorText = "程序报错", errorObj, callBack) {
 }
 
 
-// 声明一个等待方法
+/**
+ * 声明一个等待方法
+ * @param { number } ms 等待时间，单位为毫秒
+ */
 async function wait(ms) {
   // 以Promise对象强行异步等待
   return new Promise((resolve) => {

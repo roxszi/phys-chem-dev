@@ -134,8 +134,7 @@ import { useDeviceMotion, useDeviceOrientation, refThrottled } from "@vueuse/cor
 import my from "@/utils/myFunc.js"
 // 导入语言包
 import { langAll, useData } from "./VerticalCalibration-lang.js"
-
-/** 语言包，默认"root"，即中文 @type { import("vue").ShallowRef<Object> }  */
+// 语言包设定为默认"root"，即中文
 const lang = shallowRef(langAll.root)
 
 // 解构接收运动感应的各类数据

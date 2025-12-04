@@ -11,10 +11,14 @@ import footer from "./footer.js"
 import nav from "./nav.js"
 import sidebar from "./sidebar.js"
 
+/**
+ * JSDoc类型声明
+ * @typedef { import("vitepress").LocaleConfig } VPLocaleConfig
+ */
 
 export default {
 
-  /** 默认语言，即中文 @type { import("vitepress").LocaleConfig } */
+  /** 默认语言，即中文 @type { VPLocaleConfig } */
   root: {
     // 语言标签
     label: "简体中文",
@@ -31,21 +35,21 @@ export default {
     themeConfig: getI18nThemeConfig("root")
   },
 
-  /** 英文 @type { import("vitepress").LocaleConfig } */
+  /** 英文 @type { VPLocaleConfig } */
   en: {
     label: "English",
     lang: "en-US",
     title: "Phys. Chem. Helper",
     description: "Helper in theoretical and experimental teaching of physical chemistry, by teachers and students from China Pharmaceutical University.",
     themeConfig: getI18nThemeConfig("en")
-   },
+  },
 
 }
 
 /**
  * 获取i18n各类主题配置的方法
  * @param { String } key 语言标识
- * @returns { import("vitepress").ThemeConfig }
+ * @returns { import("vitepress").UserConfig }
  */
 function getI18nThemeConfig(key) { try {
   // 先用lang语言包初始化

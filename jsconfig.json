@@ -1,8 +1,19 @@
 {
+  // 编译器设置
   "compilerOptions": {
+    // 强制开启JS类型检查
+    "checkJs": true,
+    // 路径别名
     "paths": {
-      "@/*": ["./*"]
+      // 把“@”指向根目录
+      "@/*": ["./*"],
     }
   },
-  "exclude": ["node_modules/**", "dist-*/**"]
+  // 类型检查排除的文件
+  "exclude": [
+    // node包
+    "node_modules/**",
+    // 编译输出目录
+    "dist-*/**",
+  ],
 }

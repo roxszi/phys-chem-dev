@@ -6,9 +6,14 @@
  * TDsign的翻译不在这里
  */
 
+/**
+ * JSDoc类型声明
+ * @typedef { import("vitepress").DefaultTheme.Config } VPDefaultThemeConfig
+ */
+
 export default {
 
-  /** 默认语言，即中文 @type { import("vitepress").DefaultTheme.Config } */
+  /** 默认语言，即中文 @type { VPDefaultThemeConfig } */
   root: {
 
     // 右上角的浅色/深色模式切换
@@ -91,7 +96,7 @@ export default {
     }}
   },
 
-  /** 英文 @type { import("vitepress").DefaultTheme.Config } */
+  /** 英文 @type { VPDefaultThemeConfig } */
   en: {},
 
 }
