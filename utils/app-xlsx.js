@@ -149,9 +149,9 @@ export function aoaMapToWorkbook(aoaMap) {
  * @param { String } xlsxName 文件名
  */
 export function downloadXlsx(workbook, xlsxName) {
-  // 工作簿转为Buffer
-  const xlsxBuffer = XLSX.write(workbook, { type: "buffer" })
+  /** 工作簿转为ArrayBufferView @type { ArrayBuffer } */
+  const xlsxArrayBuffer = XLSX.write(workbook, { type: "array" })
   // 下载文件
   const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  downloadFile(xlsxBuffer, xlsxName, fileType)
+  downloadFile(xlsxArrayBuffer, xlsxName, fileType)
 }

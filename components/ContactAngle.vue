@@ -101,10 +101,12 @@
     <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
     <t-alert theme="info" :title="lang.ContourAlgorithmTitle">
       <div v-for="(content, index) of lang.ContourAlgorithmContent" :key="index">
-        <div v-if="content.strong">
+        <div v-if="typeof content !== 'string'">
           <strong>{{ content.strong }}</strong>{{ content.normal }}
         </div>
-        <div v-else>{{ content }}</div>
+        <div v-else>
+          {{ content }}
+        </div>
       </div>
     </t-alert>
     <!-- 边缘检测算法切换选框 -->
@@ -117,7 +119,7 @@
     <!-- 警报框：遮罩 -->
     <t-alert theme="info" :title="lang.ContourMaskTitle">
       <div v-for="(content, index) of lang.ContourMaskContent" :key="index">
-        <div v-if="content.strong">
+        <div v-if="typeof content !== 'string'">
           <strong>{{ content.strong }}</strong>{{ content.normal }}
         </div>
         <div v-else>{{ content }}</div>

@@ -8,19 +8,20 @@
 
 /**
  * downloadFile 下载文件
- * @param { Buffer | Response | File } data Buffer格式的数据对象。
+ * @param { ArrayBuffer } dataBuffer Buffer格式的数据对象。
  * @param { String } fileName 文件名(含扩展名)。
  * @param { String } [fileType] 文件类型。
  */
-export function downloadFile(data, fileName, fileType = "application/octet-stream") {
+export function downloadFile(dataBuffer, fileName, fileType = "application/octet-stream") {
   // // 将数据对象转换为ArrayBuffer格式
   // const dataBuffer = dataBuffer instanceof ArrayBuffer
   //   ? data
   //   : await data.arrayBuffer()
   // 将数据对象转换为Blob对象
-  const dataBlob = new Blob([data], { type: fileType })
-  // 在网页上找一个id为“just-for-download”的下载链接元素块
-  let downloadLink = document.getElementById("just-for-download")
+  const dataBlob = new Blob([dataBuffer], { type: fileType })
+  // 在网页上找一个id为“just-for-download”的<a>下载链接元素块
+  let downloadLink = document.getElementsByTagName("a").namedItem("just-for-download")
+  // getElementById("just-for-download")
   // 如果没找到这个元素块
   if (!downloadLink) {
     // 构建这个下载元素块
@@ -41,7 +42,6 @@ export function downloadFile(data, fileName, fileType = "application/octet-strea
   setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
-
 /**
  * downloadJson 将JSON对象下载为js文件
  * @param { JSON } datasetJson 数据集对象。
@@ -50,6 +50,11 @@ export function downloadFile(data, fileName, fileType = "application/octet-strea
  */
 export function downloadJson(datasetJson, datasetName) {
   // 将对象转为文本文件的完整字符串
-  const datasetStr = `export const ${ datasetName } = ${ JSON.stringify(datasetJson) }`
-  downloadFile(datasetStr, "export-dataset.js")
+  const jsonStr = `export const ${ datasetName } = ${ JSON.stringify(datasetJson) }`
+  // 创建编码器实例（默认UTF-8编码）
+  const encoder = new TextEncoder()
+  // 将字符串编码为Uint8Array视图
+  const jsonUint8Array = encoder.encode(jsonStr)
+  // 下载文件
+  downloadFile(jsonUint8Array.buffer, "export-dataset.js", "application/javascript")
 }

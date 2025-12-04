@@ -16,7 +16,7 @@
       <t-switch
         v-model="valueModel"
         @change="onChange"
-        :defaultValue="props.defaultValue"
+        :defaultValue="props.value"
         :disabled="props.disabled"
         :loading="props.loading"
         :size="props.size"
