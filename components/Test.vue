@@ -20,8 +20,8 @@
 import { onMounted } from "vue"
 
 // 生命周期钩子，SSG的SPA化实现，整个WebApp挂载后执行
-onMounted(() => {
-  console.log("import.meta: ", import.meta)
-})
+// onMounted(() => {
+//   console.log("import.meta: ", import.meta)
+// })
 
 </script>

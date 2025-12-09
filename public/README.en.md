@@ -10,4 +10,4 @@ The `Pages` page of the CPU Physical Chemistry Learning Helper, which is used fo
 
 - Project showcase page: [https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
 
-  Project showcase page (specifically for China mainland): [https://cpuer.atomgit.net/phys-chem/](https://cpuer.atomgit.net/phys-chem/)
+  Project showcase page (specifically for China mainland): [https://phys-chem.top/](https://phys-chem.top/)

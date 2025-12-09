@@ -88,9 +88,9 @@ export function arrTrim(arr) {
 
 /**
  * 数组转置
- * @param { Number[][] } aoa 待转置的AOA数组
- * @param { Number } [dataNumber] 需要获取的数据数(列)，默认为AOA的最大列数
- * @returns { Number[][] } 转置后的AOA数组
+ * @param { (number | string)[][] } aoa 待转置的AOA数组
+ * @param { number | string } [dataNumber] 需要获取的数据数(列)，默认为AOA的最大列数
+ * @returns { (number | string)[][] } 转置后的AOA数组
  */
 export function aoaTranspose(aoa, dataNumber) {
   // 获取(最大)行数

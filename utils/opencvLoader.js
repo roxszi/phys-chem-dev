@@ -10,7 +10,7 @@
 // 导入运行时方法，用于动态创建<script>标签的url
 import { withBase } from "vitepress"
 
-// OpenCV加载状态对象，用于确保模块不卸载的话只加载一次就够
+/** OpenCV加载状态对象，用于确保模块不卸载的话只加载一次就够 @type { Promise<CV> } */
 let opencvPromise = null
 
 /**
@@ -32,10 +32,12 @@ export function loadOpenCV() {
     } else {
       // 动态创建<script>标签
       const script = document.createElement("script")
-      // 设置属性：异步加载
-      script.async = true
+      // 设置属性：延迟加载
+      script.defer = true
       // 设置属性：javascript文本文件
       script.type = "text/javascript"
+      // 设置属性：id
+      script.id = "opencv-loader"
       // 设置属性：OpenCV.js的URL
       script.src = withBase("/assets/opencv-251112a.js")
       // 设置属性：OpenCV.js加载完成的回调

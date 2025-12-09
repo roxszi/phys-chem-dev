@@ -28,10 +28,10 @@
 <script setup>
 /**
  * 组件传参
- * @property { String } [align = "center"] 对齐方式。可选项：start/end/center/baseline
- * @property { Boolean } [breakLine = false] 是否自动换行。仅horizontal时有效
- * @property { String } [direction = "vertical"] 排列方向。可选项：horizontal/vertical
- * @property { String } [size = "medium"] 间隔尺寸。可选值：small、medium、large
+ * @property { "start" | "end" | "center" | "baseline" } [align = "center"] 对齐方式
+ * @property { boolean } [breakLine = false] 是否自动换行。仅horizontal时有效
+ * @property { "horizontal" | "vertical" } [direction = "vertical"] 排列方向
+ * @property { "small" | "medium" | "large" } [size = "medium"] 间隔尺寸
  */
 const props = defineProps({
   // 对齐方式

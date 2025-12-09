@@ -1,0 +1,42 @@
+// 把SIF文件转换为ASC
+// 用法：
+//   1. 将想要转换格式的.sif文件统一放进一个文件夹内
+//   2. 将本.pgm脚本文件也放进.sif文件夹内
+//   3. 在Andor SOLIS软件里，"File" - "Run Program By Filename"，选择本.pgm脚本文件运行，即可批量生成.asc文件
+// 一些修改基础知识：
+//   - 语法是Andor Basic语法，这个语法很奇怪，揉了C系、Python的缩进、VB的语法
+//   - 注释标记是“:rem”，即remark的缩写，也可以用“//”
+//   - 数据选择器是对象前加“#”，前提是该数据对象真的有数据内容
+//   - 变量标记是对象后加“$”
+//   - 函数/方法的标记是函数/方法名前加“~”，而且末尾要有return
+//   - 列表的写法是(a; b; c)
+
+// 获取需要处理的文件夹路径
+folderPath$ = GetActivePGMPath()
+// 以“*.sif”实现不指明的sif文件数组
+fileArrPath$ = folderPath$ + "*.sif"
+// 获取“*.sif”中的第一个sif文件，及其路径
+fileName$ = GetFirstFile$(fileArrPath$)
+filePath$ = folderPath$ + fileName$
+// 当文件路径有效时执行
+while (exist(filePath$))
+  // 读取文件（这会打开一个窗口，得记得关闭）
+  dataSet = load(filePath$)
+  // 以文件原路径+“.asc”作为输出路径
+  outputPath$ = filePath$ + ".asc"
+  // 导出为asc文件，参数注释：
+  //   #dataSet - 数据集
+  //   outputPath$ - 输出文件及路径
+  //   2 - delimiter参数，意为tab分隔
+  //   0 - info参数，意为不要在最后追加数据info信息
+  //   0 - separateFiles参数，意为动力学数据也存在一个文件里，不要分开存
+  SaveAsciiXY(#dataSet, outputPath$, 2, 0, 0)
+  // 关闭窗口
+  CloseWindow(#dataSet)
+  // 获取“*.sif”中的下一个sif文件，及其路径
+  fileName$ = GetNextFile$()
+  filePath$ = folderPath$ + fileName$
+wend
+// 结束
+beep()
+print("Job done!")

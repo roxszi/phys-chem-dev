@@ -29,6 +29,9 @@ hero:
     - theme: brand
       text: 动力学
       link: experiment/outline-colorimetric/
+    - theme: brand
+      text: 化学计量学
+      link: chemometrics/
     - theme: alt
       text: 关于
       link: about/
@@ -52,6 +55,11 @@ features:
     icon: 🎨
     details: 轮廓处理比色法功能。
     link: experiment/outline-colorimetric/
+    linkText: 进入应用
+  - title: 拉曼数据处理助手
+    icon: ✨
+    details: Andor拉曼光谱仪的sif文件数据转为excel表格的一键批处理工具。
+    link: chemometrics/andor-raman/
     linkText: 进入应用
 ---
 

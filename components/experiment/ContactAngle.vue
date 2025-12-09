@@ -450,7 +450,6 @@ const isContourCoarseRef = ref(true)
  * @value 2 - 中心遮罩
  */
 const contourFilterAlgorithmRadioRef = ref(0)
-
 /**
  * 第四步寻找基线的截距
  * @type { Ref<InterceptNumAoa | []> }
@@ -487,7 +486,7 @@ const isResultReverseRef = ref(false)
 const resultTableDataRef = ref([])
 /**
  * 接触角业务的全局对象
- * @typedef { Object } ContactAngle
+ * @typedef { object } ContactAngle
  * @property { CV } cv OpenCV.js对象
  * @property { number } canvasStyleWidth canvas元素块的显示宽度
  * @property { string } filename 所上传文件的文件名

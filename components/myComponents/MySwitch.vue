@@ -40,13 +40,13 @@
 
 /**
  * 组件传参
- * @property { Boolean } [value = false] 默认值
- * @property { Boolean } [disabled = false] 是否禁用
- * @property { Boolean } [loading = false] 是否加载中
- * @property { String } [size = "large"] 尺寸。可选值：small、medium、large
- * @property { String } [LeftLabel = undefined] 左标签
- * @property { String } [RightLabel = undefined] 右标签
- * @property { String } [switchLabel = undefined] 开关标签
+ * @property { boolean } [value = false] 默认值
+ * @property { boolean } [disabled = false] 是否禁用
+ * @property { boolean } [loading = false] 是否加载中
+ * @property { "small" | "medium" | "large" } [size = "large"] 尺寸
+ * @property { string } [LeftLabel = undefined] 左标签
+ * @property { string } [RightLabel = undefined] 右标签
+ * @property { string } [switchLabel = undefined] 开关标签
  */
 const props = defineProps({
   // 值：需要实现双向绑定

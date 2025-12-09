@@ -34,10 +34,11 @@
 
 /**
  * 组件传参
- * @property { Boolean } [block = true] 是否块级结构
- * @property { Boolean } [disabled = false] 是否禁用
- * @property { Boolean } [loading = false] 是否加载中
- * @property { String } [theme = "primary"] 主题。可选值：default、primary、danger、warning、success
+ * @property { boolean } [block = true] 是否块级结构
+ * @property { boolean } [disabled = false] 是否禁用
+ * @property { boolean } [loading = false] 是否加载中
+ * @property { "small" | "medium" | "large" } [size = "medium"] 尺寸
+ * @property { "default" | "primary" | "danger" | "warning" | "success" } [theme = "primary"] 主题
  */
 const props = defineProps({
   // 是否块级结构

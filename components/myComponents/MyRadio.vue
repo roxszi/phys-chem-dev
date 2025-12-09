@@ -34,9 +34,9 @@
 <script setup>
 /**
  * 组件传参
- * @property { Number } [value = 0] 默认值
- * @property { String } [size = "large"] 尺寸。可选值：small、medium、large
- * @property { String[] } radioContentArr 选框内容
+ * @property { number } [value = 0] 默认值
+ * @property { "small" | "medium" | "large" } [size = "large"] 尺寸
+ * @property { string[] } radioContentArr 选框内容
  */
 const props = defineProps({
   // 值：需要实现双向绑定
@@ -71,6 +71,10 @@ if (props.value) {
 
 // 额外实现事件：change
 const emit = defineEmits(["change"])
+/**
+ * 选框滑动的事件回调
+ * @param { Event } event 事件
+ */
 function onChange(event) {
   emit("change", event)
 }
