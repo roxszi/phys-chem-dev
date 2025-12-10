@@ -112,7 +112,7 @@
     <!-- 边缘检测算法切换选框 -->
     <MyRadio
       @change="onContourAlgorithmSwitch"
-      v-model="contourAlgorithmRadioRef"
+      v-model:value="contourAlgorithmRadioRef"
       :radioContentArr="lang.ContourAlgorithmArr"
     />
 
@@ -127,7 +127,7 @@
     </t-alert>
     <!-- 遮罩切换选框 -->
     <MyRadio
-      v-model="contourFilterAlgorithmRadioRef"
+      v-model:value="contourFilterAlgorithmRadioRef"
       :radioContentArr="lang.ContourMaskContentArr"
     />
 
@@ -1354,14 +1354,29 @@ function thresholdNumAoaRestore() {
    * @returns { ThresholdNumArr[] } 深拷贝后的AOA二维数组
    */
   function deepCopyAoa(aoa) {
-    /** 深拷贝AOA数组 @type { ThresholdNumArr[] } */
+    // 深拷贝AOA数组
     const aoaTemp = []
     // 遍历每一行
     for (let i = 0; i < aoa.length; i++) {
+      // 深拷贝Arr数组
+      const arrTemp = []
+      // 遍历每一个元素
+      for (let j = 0; j < aoa[i].length; j++) {
+        // 如果元素是数组，则解构推
+        // @ts-ignore
+        if (typeof aoa[i][j] === "array") {
+          // @ts-ignore
+          arrTemp.push(...aoa[i][j])
+        // 如果元素不是数组，则解构直接推
+        } else {
+          arrTemp.push(aoa[i][j])
+        }
+      }
       // 推进新数组
-      aoaTemp.push([...aoa[i]])
+      aoaTemp.push(arrTemp)
     }
     // 返回新数组
+    // @ts-ignore
     return aoaTemp
   }
 }

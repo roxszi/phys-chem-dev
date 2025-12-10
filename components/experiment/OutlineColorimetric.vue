@@ -227,7 +227,7 @@ const isContourCoarseRef = ref(true)
  * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
  * @property { ImageBitmap } imageBitmap canvas的图像位图元数据，用于暂存，便于恢复
  * @property { Rect } rect canvas元素块遮罩框的[左|上|右|下]坐标
- * @property { (number | boolean)[][] } contourAoa 轮廓数据数组。[近圆率, 面积, 圆心X, 圆心Y, 半径, 绘图标记]
+ * @property { [number, number, number, number, boolean?][] } contourAoa 轮廓数据数组。[面积, 圆心X, 圆心Y, 半径, 绘图标记]
  * @property { number[] } circleAreaArr 面积位次数组
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
@@ -774,7 +774,7 @@ function thresholdNumRestore() {
     thresholdNumAoaRef.value = deepCopyAoa(thresholdNumAoaConst)
   // 否则，保留每个参数的取值
   } else {
-    // 先深拷贝一份参数副本
+    /** 先深拷贝一份参数副本 @type { ThresholdNumAoa} */
     const thresholdNumAoaTemp = deepCopyAoa(thresholdNumAoaConst)
     // 用参数副本的第一个值值覆盖
     for (let i = 0; i < thresholdNumAoa.length; i++) {
@@ -786,22 +786,32 @@ function thresholdNumRestore() {
   /**
    * 深拷贝AOA数组
    * @param { ThresholdNumAoa } aoa AOA二维数组
+   * @returns { ThresholdNumAoa } 深拷贝后的AOA二维数组
    */
   function deepCopyAoa(aoa) {
-    /** 深拷贝AOA数组 @type { ThresholdNumAoa | [] } */
+    // 深拷贝AOA数组
     const aoaTemp = []
-    // 遍历每一行（一共就3个）
+    // 遍历每一行
     for (let i = 0; i < aoa.length; i++) {
       // 深拷贝Arr数组
       const arrTemp = []
-      // 遍历每一行的子元素
+      // 遍历每一个元素
       for (let j = 0; j < aoa[i].length; j++) {
-        // 深拷贝子元素
-        arrTemp.push([...aoa[i][j]])
+        // 如果元素是数组，则解构推
+        // @ts-ignore
+        if (typeof aoa[i][j] === "array") {
+          // @ts-ignore
+          arrTemp.push(...aoa[i][j])
+        // 如果元素不是数组，则解构直接推
+        } else {
+          arrTemp.push(aoa[i][j])
+        }
       }
+      // 推进新数组
       aoaTemp.push(arrTemp)
     }
     // 返回新数组
+    // @ts-ignore
     return aoaTemp
   }
 }
@@ -998,7 +1008,7 @@ function onDownloadData() { try {
 /**
  * 把轮廓数组转换成排列好了的矩阵
  * 外维是X，内维是Y
- * @returns { Number[][][] } 矩阵，[x, y, 缩放后的半径][][]
+ * @returns { [number, number, number][][] } 矩阵，[x, y, 缩放后的半径][][]
  */
 function contourToMatrix() {
   // 接轮廓数组
@@ -1112,13 +1122,13 @@ function contourToMatrix() {
 
 /**
  * 把矩阵化的轮廓数据转换成处理好的RGB结果数据数据
- * @param { Number[][][] } contourMatrixAoaoa 矩阵，[x, y, 缩放后的半径][][]
- * @returns { Number[][][] } 结果矩阵，最外层为[R-ave, R-sd, G-ave, G-sd, B-ave, B-sd]的[][]
+ * @param { [number, number, number][][] } contourMatrixAoaoa 矩阵，[x, y, 缩放后的半径][][]
+ * @returns { number[][][] } 结果矩阵，最外层为[R-ave, R-sd, G-ave, G-sd, B-ave, B-sd]的[][]
  */
 function contourMatrixToRGB(contourMatrixAoaoa) {
   // 接imageData数据，用于提取RGB值
   const { width: imageDataWidth, data: imageDataArray } = outlineColorimetricObj.imageData
-  // 构建用于输出的数组
+  /** 构建用于输出的数组 @type {  number[][][] } */
   const dataAoaoa = []
   // 要有6个维度，因为要分别输出R、G、B，以及相应的SD值
   for (let i = 0; i < 6; i++) {
@@ -1133,7 +1143,7 @@ function contourMatrixToRGB(contourMatrixAoaoa) {
     }
     // 遍历当前行的每一列
     forEachCol: for (let col = 0; col < contourMatrixAoaoa[row].length; col++) {
-      // 接轮廓数据
+      /** 接轮廓数据 @type { [number, number, number] } */
       const contourData = contourMatrixAoaoa[row][col]
       // 如果轮廓数据为空，则跳过
       if (!contourData) {
@@ -1178,7 +1188,7 @@ function getContourPoints(contourData) {
   const [xCenter, yCenter, radius] = contourData
   // radius平方
   const radiusSquare = radius * radius
-  // 构造一个数组，用于存储轮廓数据，初始化圆点
+  /** 构造一个数组，用于存储轮廓数据，初始化圆点 @type { [number, number][] } */
   const contourPointAoa = [[Math.round(xCenter), Math.round(yCenter)]]
   forEachX: for (let xDelta = 1; xDelta <= radius; xDelta++) {
     forEachY: for (let yDelta = 1; yDelta <= radius; yDelta++) {
@@ -1209,8 +1219,8 @@ function getContourPoints(contourData) {
 
 /**
  * 计算平均值和标准差
- * @param { Number[] } arr 数组
- * @returns { Number[2] } 平均值和标准差
+ * @param { number[] } arr 数组
+ * @returns { [number, number] } 平均值和标准差
  */
 function aveAndSD(arr) {
   // 加和

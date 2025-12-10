@@ -37,10 +37,17 @@
 // import { useData } from "vitepress"
 // const { lang, localeIndex } =  useData()
 // console.log("localeIndex：", localeIndex.value)
-
+/**
+ * 额外实现的v-model
+ * @property { boolean } [value = false] 默认值
+ */
+const valueModel = defineModel("value", {
+  type: Boolean,
+  required: false,
+  default: false,
+})
 /**
  * 组件传参
- * @property { boolean } [value = false] 默认值
  * @property { boolean } [disabled = false] 是否禁用
  * @property { boolean } [loading = false] 是否加载中
  * @property { "small" | "medium" | "large" } [size = "large"] 尺寸
@@ -94,21 +101,10 @@ const props = defineProps({
   },
 })
 
-// 额外实现v-model
-const valueModel = defineModel({
-  // 先以同数据类型（Boolean类型）的值初始化
-  default: false
-})
-// 把接收到的传参赋值（如有）
-if (props.value) {
-  valueModel.value = props.value
-}
-
 // 额外实现事件：change
 const emit = defineEmits(["change"])
 function onChange(event) {
   emit("change", event)
 }
-
 
 </script>
