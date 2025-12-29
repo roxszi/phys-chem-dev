@@ -1,12 +1,10 @@
 "use strict"
 
-const aoa = [
-  [1, 2, 3],
-  [4, 5, 6],
-  [7, 8, 9]
-]
 
-// const aoaSplice = aoa.slice(-20, 3)
+import path from "node:path"
+import url from "node:url"
 
-console.log("aoaSplice: ", ...aoa[1][1] ?? aoa[1][0]) 
 
+const a = path.join("/phys-chem/", "beian.png")
+
+console.log(a) // /phys-chem/beian.png

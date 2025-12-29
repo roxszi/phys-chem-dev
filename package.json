@@ -5,26 +5,25 @@
   "author": "SI_Cheng-Yun",
   "license": "MulanPSL-2.0",
   "type": "module",
-  "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev": "set VITE_BUILD_KIND=root&& vitepress dev --port 8080",
     "build:root": "set VITE_BUILD_KIND=root&& vitepress build",
     "build:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build",
-    "build": "pnpm run build:root && npm run build:subpage"
+    "build": "npm run build:root && npm run build:subpage"
   },
   "devDependencies": {
-    "@techstark/opencv-js": "^4.11.0-release.1",
+    "@techstark/opencv-js": "^4.12.0-release.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "@tensorflow/tfjs-vis": "^1.5.1",
-    "@vueuse/core": "^14.0.0",
+    "@vueuse/core": "^14.1.0",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-vue-next": "^1.17.2",
-    "unplugin-auto-import": "^20.2.0",
+    "tdesign-vue-next": "^1.17.7",
+    "unplugin-auto-import": "^20.3.0",
     "unplugin-vue-components": "^30.0.0",
-    "vite-plugin-compression2": "^2.3.1",
+    "vite-plugin-compression2": "^2.4.0",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.22",
+    "vue": "^3.5.26",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }
