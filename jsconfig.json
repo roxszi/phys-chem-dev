@@ -1,10 +1,10 @@
 {
   // 编译器设置
   "compilerOptions": {
+    // // 严格的类型检查
+    // "strict": true,
     // 强制开启JS类型检查
     "checkJs": true,
-    // 严格的类型检查
-    // "strict": true,
     // 路径别名
     "paths": {
       // 把“@”指向根目录
