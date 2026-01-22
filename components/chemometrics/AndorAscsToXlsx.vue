@@ -12,7 +12,6 @@
     onChange：图片上传、删除时触发。
    -->
   <MyButton
-    :disabled="isGetFoldRef"
     :loading="isBtnLoadingRef"
     size="large"
     :theme="isGetFoldRef ? 'success' : 'primary'"
