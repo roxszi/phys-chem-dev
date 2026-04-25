@@ -1,6 +1,10 @@
 /**
- * 全局类型声明文件
+ * 全局类型的声明文件
+ * 用于JS编译器类型推断
  */
+
+// Vite特性的全局类名
+/// <reference types="vite/client" />
 
 // VUE的Ref类型，作为全局类名
 type Ref<T = any> = import("vue").Ref<T>

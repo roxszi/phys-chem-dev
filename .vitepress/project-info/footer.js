@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict"
 
 /**
@@ -18,13 +19,12 @@ const baseUrl =
 const publicSecurityWebsiteFilingicon = pathJoin(baseUrl, "gongan.png")
 
 /**
- * JSDoc类型声明
- * @typedef { import("vitepress").DefaultTheme.Footer } VPFooter
+ * 以页脚设置内容作为默认导出
+ * @type { import("vitepress").DefaultTheme.Footer }
  */
-
 export default {
 
-  /** 默认语言，即中文 @type { VPFooter } */
+  /** 默认语言，即中文 */
   root: {
     // 第一行，一般是信息页
     message: `Bug反馈：<a href="sms:008613611580728">13611580728 (司承运)</a>`,
@@ -44,7 +44,7 @@ export default {
       </a>`
   },
 
-  /** 英文 @type { VPFooter } */
+  /** 英文 */
   en: {
     message: `Bug Feedback：<a href="sms:008613611580728">0086-13611580728 (SI_Cheng-Yun)`,
     copyright:

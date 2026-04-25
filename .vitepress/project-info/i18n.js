@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict"
 
 /**
@@ -12,13 +13,11 @@ import nav from "./nav.js"
 import sidebar from "./sidebar.js"
 
 /**
- * JSDoc类型声明
- * @typedef { import("vitepress").LocaleConfig } VPLocaleConfig
+ * 以i18n设置内容作为默认导出
+ * @type { import("vitepress").LocaleConfig }
  */
-
 export default {
 
-  /** 默认语言，即中文 @type { VPLocaleConfig } */
   root: {
     // 语言标签
     label: "简体中文",
@@ -35,7 +34,6 @@ export default {
     themeConfig: getI18nThemeConfig("root")
   },
 
-  /** 英文 @type { VPLocaleConfig } */
   en: {
     label: "English",
     lang: "en-US",

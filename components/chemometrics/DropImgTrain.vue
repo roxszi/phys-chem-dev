@@ -1,5 +1,5 @@
 <!--
-  人工神经网络演示组件 Artificial Neural Network，ANN
+  液滴图像的大模型识别训练组件
  -->
 
 <!--
@@ -13,14 +13,45 @@
   <!-- 内容容器：需要先加载tfjs计算层 -->
   <MySpace v-if="tfjsInitializationStateRef === 1">
 
-    <!-- 挂载预训练模型 -->
+    <!-- 警报框：模型 -->
+    <t-alert theme="info" title="模型">
+      预训练模型直接读取即可。
+      分类头模型需要训练。
+    </t-alert>
+
+    <!-- 读取预训练模型 -->
     <MyButton
       size="large"
       :theme="isPreTrainedModelFetchedRef ? 'success' : 'primary'"
       @click="onFetchPreTrainedModelBtnClicked"
       :disabled="isPreTrainedModelFetchedRef"
     >
-      {{ isPreTrainedModelFetchedRef ? `模型读取成功` : "读取预训练模型" }}
+      {{ isPreTrainedModelFetchedRef ? `预训练模型读取成功` : "读取预训练模型" }}
+    </MyButton>
+
+    <!-- 挂载分类头模型 -->
+    <MyButton
+      size="large"
+      :theme="isHeadModelMountedRef ? 'success' : 'primary'"
+      @click="onMountHeadModelBtnClicked"
+      :disabled="isHeadModelMountedRef"
+    >
+      {{ isHeadModelMountedRef ? `分类头模型挂载成功` : "挂载分类头模型" }}
+    </MyButton>
+
+    <!-- 警报框：训练集数据 -->
+    <t-alert theme="info" title="模型">
+      先挂载excel格式的数据文件。
+      再挂载含图片的照片文件夹。
+    </t-alert>
+
+    <!-- 挂载照片文件夹 -->
+    <MyButton
+      size="large"
+      :theme="isImgFolderFetchedRef ? 'success' : 'primary'"
+      @click="onMountImgFolderBtnClicked"
+    >
+      {{ isImgFolderFetchedRef ? `读取到${ imgFileCountRef }张照片数据` : "挂载照片文件夹" }}
     </MyButton>
 
     <!-- 挂载照片文件夹 -->
@@ -129,6 +160,8 @@ async function onFetchPreTrainedModelBtnClicked() {
   // 关闭加载动画
   my.loading(false)
 }
+
+
 
 
 /**
@@ -405,3 +438,4 @@ function createHeadModel() {
 
 
 </script>
+

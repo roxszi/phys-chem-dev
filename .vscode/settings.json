@@ -1,9 +1,20 @@
+// VSCode配置文件
 {
+  // 标尺
+  "editor.rulers": [110],
+  // 文件嵌套
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "package.json": "package-lock.json, pnpm*, .yarnrc*, yarn*, .eslint*, eslint*, .prettier*, prettier*, .editorconfig, .npm*",
-    ".gitignore": ".git*",
-    "jsconfig.json": "jsconfig*, *.d.ts, vite.config.*,, vitest.config.*, cypress.config.*, playwright.config.*",
-    "README.md": "README*"
-  }
+    // 以“package.json”作为头文件，把其它文件都丢进去
+    "package.json": "package-lock.json, pnpm-lock.yaml, pnpm-workspace.yaml, .git*, LICENSE",
+    // 以“README.md”作为头文件，把各种config文件都丢进去
+    "README.md": "README*, *config.json, *config.ts, *config.js",
+    // 以“global.d.ts”作为头文件，把各种类型注释文件都丢进去
+    "global.d.ts": "*.d.ts"
+  },
+  // Codegeex代码生成器设置
+  "Codegeex.RepoIndex": true,
+  // VSCode自带的AI功能：关闭
+  "chat.disableAIFeatures": true,
+  "Codegeex.Chat.fontSize": 13
 }

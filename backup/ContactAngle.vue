@@ -64,8 +64,8 @@
       删除则清空所有数据，回到初始状态（状态1）。
    -->
   <t-upload
-    :disabled="false" class="center"
-    theme="image" :multiple="false" :draggable="false"
+    class="center" :disabled="false" theme="image"
+    accept="image/*" :multiple="false" :draggable="false"
     :showImageFileName="true" :abridgeName="[3, 8]"
     v-model:files="fileArrRef" :autoUpload="false"
     :sizeLimit="{ size: 10, unit: 'MB' }"

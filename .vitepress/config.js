@@ -1,7 +1,7 @@
 "use strict"
 
 /**
- * @VitePress设置
+ * VitePress设置
  * 项目信息相关的配置项已经移出，仅保留VitePress工程化的各类配置。
  * 基本维持默认配置即可。
  * 具体项目通过修改其它几个js的内容以进行差异化配置。
@@ -23,13 +23,13 @@ import projectInfo from "./project-info/index.js"
 const baseUrl = projectInfo.baseUrl
 
 /**
- * @配置内容
+ * 配置内容
  * 详见：https://vitepress.dev/zh/reference/site-config
  */
 export default defineConfig({
 
   /**
-   * @Vite配置
+   * Vite配置
    */
   vite: {
     // 别名处理
@@ -55,7 +55,7 @@ export default defineConfig({
   },
 
   /**
-   * @构建配置相关
+   * 构建配置相关
    */
   // Pages服务的url根路径
   base: baseUrl,

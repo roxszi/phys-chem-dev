@@ -4,15 +4,32 @@
  * @接触角测量模块的语言包
  */
 
-// 从VitePress导出用户数据方法，便于在运行时实现多语言切换
-export { useData } from "vitepress"
+// 从VitePress导出用户数据方法（内含语言设置），便于在运行时实现多语言切换
+import { useData } from "vitepress"
+// 导入VUE的响应式方法
+import { shallowRef } from "vue"
 
-// 定义并导出语言包
+/**
+ * 调取语言包方法
+ * 只在组件挂载时调用一次，且依赖VitePress运行时，只能在vue项目生命周期中使用
+ */
+export function useLang() {
+  // 获取当前语言索引。注：该方法依赖VitePress运行时
+  const localeIndexValue = useData().localeIndex.value
+  // 根据当前语言索引获取语言包
+  const localeLang = langAll[localeIndexValue] || langAll.root
+  // 返回语言包
+  return localeLang
+}
+
+// 定义语言包
 const root = {}
 const en = {}
-export const langAll = { root, en }
+const langAll = { root, en }
+// 用于导出的Ref响应式语言包对象
+export const lang = shallowRef(langAll.root)
 
-// ----语言包内容----
+// ================================ 语言包内容 ================================
 
 root.FunctionIntroductionTitle = "功能简介"
 en.FunctionIntroductionTitle = "Function Introduction"

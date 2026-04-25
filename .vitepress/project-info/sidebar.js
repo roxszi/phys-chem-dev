@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict"
 
 /**
@@ -5,13 +6,12 @@
  */
 
 /**
- * JSDoc类型声明
- * @typedef { import("vitepress").DefaultTheme.Sidebar } VPDefaultThemeSidebar
+ * 以侧边栏设置内容作为默认导出
+ * @type { import("vitepress").DefaultTheme.Sidebar }
  */
-
 export default {
 
-  /** 默认语言，即中文 @type { VPDefaultThemeSidebar } */
+  /** 默认语言，即中文 */
   root: [
     // {
     //   text: "关于我们",
@@ -22,7 +22,7 @@ export default {
     // },
   ],
 
-  /** 英文 @type { VPDefaultThemeSidebar } */
+  /** 英文 */
   en: [],
 
 }

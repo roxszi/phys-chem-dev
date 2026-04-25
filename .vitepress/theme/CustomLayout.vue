@@ -39,11 +39,19 @@ import tEnConfig from "tdesign-vue-next/es/locale/en_US"
 // 引入TDesign插件
 import { LoadingPlugin } from "tdesign-vue-next"
 
-// TDesign的全局配置对象
+/** TDesign的全局配置对象 */
 const tGlobalConfig = shallowRef(null)
+/**
+ * @typedef { object } GlobalStaticConfig 本项目全局静态配置对象
+ * @property { TDesign.LoadingInstance | null } pageLoadingInstance 页面加载实例
+ */
+/** 本项目全局静态配置对象 @type { GlobalStaticConfig } */
+const globalStaticConfig = {
+  pageLoadingInstance: null,
+}
 
 /**
- * @全局钩子
+ * 全局钩子
  */
 
 // 生命周期钩子，SSG的SPA化实现，整个WebApp挂载后执行
@@ -70,7 +78,7 @@ onMounted(() => {
   // 路由/url地址更改前调用
   myRouter.onBeforeRouteChange = (to) => {
     // 打开页面加载
-    myRouter.pageLoadingInstance = LoadingPlugin({
+    globalStaticConfig.pageLoadingInstance = LoadingPlugin({
       // 延迟
       delay: 0,
       // 是否全屏
@@ -96,7 +104,7 @@ onMounted(() => {
   // 路由/url地址更改后调用
   myRouter.onAfterRouteChange = (to) => {
     // 关闭页面加载
-    myRouter.pageLoadingInstance?.hide()
+    globalStaticConfig.pageLoadingInstance?.hide()
   }
 
 })

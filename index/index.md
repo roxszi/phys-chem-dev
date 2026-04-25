@@ -32,12 +32,18 @@ hero:
     - theme: brand
       text: 化学计量学
       link: chemometrics/
+    # - theme: brand
+    #   text: AI
+    #   link: chemometrics/deep-learning/ann-demo
     - theme: alt
       text: 关于
       link: about/
     # - theme: alt
       # text: 测试
       # link: test
+    # - theme: alt
+      # text: 测试-液滴算法比较
+      # link: experiment/contact-angle/drop-pic-process-multi
 
 # 主页特性部分
 features:

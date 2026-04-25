@@ -7,14 +7,19 @@
 
   <!-- 警报框 -->
   <t-alert
-    v-if="isInitializedModel"
-    theme="info" title="TensorFlow.js 初始化"
+    theme="info"
+    title="TensorFlow.js 初始化"
   >
-    {{
-      isInitializedModel
-        ? `初始化完毕，当前使用${ tfBackendMap[tfBackendRef] }。`
-        : "正在初始化TensorFlow.js计算环境，请稍候..."
-    }}
+    <!-- TFjs计算层内容 -->
+    <div v-if="tfjsInitializationStateModel === 0">
+      正在初始化TensorFlow.js计算环境，请稍候...
+    </div>
+    <div v-else-if="tfjsInitializationStateModel === 1">
+      {{ `初始化完毕，当前使用${ tfBackendMap[tfBackendRef] }。` }}
+    </div>
+    <div v-else>
+      TensorFlow.js计算环境初始化失败，请检查浏览器版本。
+    </div>
   </t-alert>
 
 </template>
@@ -25,11 +30,9 @@
 import * as tf from "@tensorflow/tfjs"
 import "@tensorflow/tfjs-backend-webgpu"
 // 导入vue方法
-import { ref, onMounted } from "vue"
-// 导入自有方法
-import my from "@/utils/myFunc.js"
+import { shallowRef, onMounted } from "vue"
 
-// 硬件加速表
+/** 硬件加速表 */
 const tfBackendMap = {
   "webgpu": " WebGPU 硬件加速计算层",
   "webgl": " WebGL 硬件加速计算层",
@@ -38,15 +41,15 @@ const tfBackendMap = {
 }
 /**
  * 双向绑定的组件传参
- * @property { boolean } [isInitializedModel = false] 是否初始化完毕
+ * @property { 0 | 1 | -1 } [tfjsInitializationStateModel = 0] 是否初始化完毕
  */
-const isInitializedModel = defineModel("isInitialized", {
-  type: Boolean,
+const tfjsInitializationStateModel = defineModel("tfjsInitializationState", {
+  type: Number,
   required: true,
-  default: false,
+  default: 0,
 })
-// tfjs的计算环境(后端)
-const tfBackendRef = ref("")
+/** tfjs的计算环境(后端) */
+const tfBackendRef = shallowRef("")
 
 /**
  * @启动方法
@@ -58,14 +61,13 @@ onMounted(async () => { try {
   // 把后台传给tfBackend
   tfBackendRef.value = tf.getBackend()
   // 更新model状态
-  isInitializedModel.value = true
+  tfjsInitializationStateModel.value = 1
+// 捕获错误
 } catch (error) {
-  console.error("tfjs计算层初始化报错: ", error)
-  my.dialog({
-    theme: "danger",
-    header: "TensorFlow.js计算层初始化报错",
-    body: error
-  })
+  // 更新model状态
+  tfjsInitializationStateModel.value = -1
+  // 抛出错误
+  throw Error(error)
 }})
 
 </script>

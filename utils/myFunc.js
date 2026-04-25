@@ -8,19 +8,20 @@
 import { LoadingPlugin, DialogPlugin, MessagePlugin } from "tdesign-vue-next"
 
 /**
- * @全局对象
+ * @typedef { object } MyPluginObj 全局对象
+ * @property { TDesign.LoadingInstance | null } loadingInstance Loading实例
+ * @property { TDesign.DialogInstance | null } dialogInstance Dialog实例
+ */
+/**
+ * 全局对象
  * 为防止内存泄漏，全局只有一个Loading实例、Dialog实例
  * 通过import导入时，会全局共享同一个实例
- * @typedef { object } MyPluginObj
- * @property { TDesign.LoadingInstance } loadingInstance Loading实例
- * @property { TDesign.DialogInstance } dialogInstance Dialog实例
+ * @type { MyPluginObj } 全局对象
  */
 const myPluginObj = {
   loadingInstance: null,
-  dialogInstance: null,
-  test: 1
+  dialogInstance: null
 }
-
 
 /**
  * “加载中”
@@ -29,9 +30,7 @@ const myPluginObj = {
  */
 export function myLoading(text = "加载中...") {
   // 如果已有Loading实例，则先关闭
-  if (myPluginObj.loadingInstance) {
-    myPluginObj.loadingInstance.hide()
-  }
+  myPluginObj.loadingInstance?.hide()
   // 如果传参不是false，则创建Loading实例
   if (text !== false) {
     // 创建Loading实例，赋值给全局对象
@@ -74,9 +73,7 @@ export function myLoading(text = "加载中...") {
  */
 export function myDialog(paramObj) {
   // 如果已有dialog实例，则先关闭并销毁
-  if (myPluginObj.dialogInstance) {
-    myPluginObj.dialogInstance.destroy()
-  }
+  myPluginObj.dialogInstance?.destroy()
   // 如果传参是字符串，则直接赋值给body
   if (typeof paramObj === "string") {
     paramObj = { body: paramObj }
@@ -126,7 +123,7 @@ export function myDialog(paramObj) {
       // 回调传参
       onConfirmCallBack()
       // 销毁对话框
-      myPluginObj.dialogInstance.destroy()
+      myPluginObj.dialogInstance?.destroy()
     },
     // 点击蒙层
     // onOverlayClick: undefined

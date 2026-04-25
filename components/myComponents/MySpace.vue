@@ -10,14 +10,14 @@
 <template>
   <!-- TDeSign布局 -->
   <t-space
+    class="my-space"
     :align="props.align"
     :direction="props.direction"
     :breakLine="props.breakLine"
     :size="props.size"
-    style="width: 100%;"
   >
     <!-- 插槽 -->
-    <slot></slot>
+    <slot />
   </t-space>
 </template>
 
@@ -60,3 +60,28 @@ const props = defineProps({
   },
 })
 </script>
+
+
+<!--
+  逻辑层
+ -->
+<style>
+/* my-space容器 */
+.my-space {
+  /* 100%宽度 */
+  width: 100%
+}
+
+/* my-space父级容器 */
+.my-space-parent {
+  /* 弹性盒子布局 */
+  display: flex;
+  /* 竖直排列 */
+  flex-direction: column;
+  /* 宽度 */
+  width: 100%;
+  /* 子元素彼此间的间隔 */
+  gap: 20px;
+}
+
+</style>

@@ -49,7 +49,10 @@ export default {
   // 网站logo
   logo: "/favicon.ico",
 
-  // 全局head元数据
+  /**
+   * 全局head元数据
+   * @type { import('vitepress').HeadConfig[] }
+   */
   heads: [
     // 网站图标。public目录默认映射根目录，但是base得有
     ["link", { rel: "icon", href: (baseUrl + "favicon.ico") }],
@@ -70,7 +73,7 @@ export default {
   // 路由重写
   routersRewrite: {
     // i18n的多语言切换：省去“/i18n/”前缀
-    "i18n/(.*)": "(.*)",
+    "index/i18n/(.*)": "(.*)",
     // 省去“/index/”前缀
     "index/(.*)": "(.*)",
     // "关于我们/(.*)": "about/(.*)",
@@ -95,8 +98,11 @@ export default {
   tocLevel: [2, 3],
   // 侧边栏位置："left" | true
   outlineAside: true,
-  // 目录大纲层级
-  outlineLevel: [2, 3, 4],
+  /**
+   * 目录大纲层级
+   * @type { [number, number] }
+   */
+  outlineLevel: [2, 4],
 
   // 社交链接
   socialLinks: socialLinks,

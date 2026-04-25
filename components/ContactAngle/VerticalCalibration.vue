@@ -133,9 +133,7 @@ import { useDeviceMotion, useDeviceOrientation, refThrottled } from "@vueuse/cor
 // 导入自有方法
 import my from "@/utils/myFunc.js"
 // 导入语言包
-import { langAll, useData } from "./VerticalCalibration-lang.js"
-// 语言包设定为默认"root"，即中文
-const lang = shallowRef(langAll.root)
+import { useLang, lang } from "./VerticalCalibration-lang.js"
 
 // 解构接收运动感应的各类数据
 const {
@@ -198,13 +196,8 @@ function errorDialog(error) {
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
 onMounted(() => { try {
-  // 语言刷新。获取当前语言
-  const localeIndexValue = useData().localeIndex.value
-  // 如果当前语言不是默认语言
-  if (localeIndexValue !== "root") {
-    // 则以当前语言刷新语言包
-    lang.value = langAll[localeIndexValue]
-  }
+  // 语言包水合
+  lang.value = useLang()
   // 获取硬件权限后，保持数据表格滚动到视图中间
   watch(permissionGranted, watchPermissionGrantedHandle)
 } catch (error) {

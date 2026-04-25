@@ -24,6 +24,8 @@ import "./custom.css"
 import { h, defineAsyncComponent } from "vue"
 // 导入主题重写组件
 import CustomLayout from "./CustomLayout.vue"
+// 导入自有方法
+import { myDialog, myLoading } from "@/utils/myFunc.js"
 
 // 将默认主题以默认对象导出
 /** @type { import("vitepress").Theme } */
@@ -34,6 +36,9 @@ export default {
   Layout: h(CustomLayout),
   // 主题增强
   enhanceApp({ app, router, siteData }) {
+    /**
+     * 组件库
+     */
     // 手动注册TDesign为全局组件
     // app.use(TDesign)
     // 自动从components目录注册所有.vue文件为全局组件
@@ -49,6 +54,34 @@ export default {
         .replace(".vue", "")
       // 注册组件
       app.component(name, defineAsyncComponent(component))
+    }
+    /**
+     * 全局错误捕获
+     * @param { Error } err 错误对象
+     * @param { import("vue").ComponentPublicInstance } vm Vue组件实例
+     * @param { string } info 错误信息
+     */
+    app.config.errorHandler = (err, vm, info) => {
+      // 打印错误信息
+      console.error(err, info)
+      // 本地事件
+      if (info === "native event handler") {
+        // 弹出错误提示框
+        myDialog({
+          theme: "danger",
+          header: "本地事件报错，请截图联系司承运：",
+          body: "错误信息：" + err.message,
+        })
+      } else {
+        // 弹出错误提示框
+        myDialog({
+          theme: "danger",
+          header: "程序报错，请截图联系司承运：",
+          body: "错误信息：" + err.message,
+        })
+      }
+      // 关闭加载动画
+      myLoading(false)
     }
   }
 }

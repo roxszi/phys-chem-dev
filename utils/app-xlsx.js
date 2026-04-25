@@ -21,7 +21,7 @@
  * @库导入
  */
 // 导入xlsx库，以XLSX为命名空间引用
-import XLSX from "xlsx"
+import * as XLSX from "xlsx"
 // 导入其它库的可复用方法
 import { downloadFile } from "./app-utils.js"
 // 导入数据集
@@ -89,7 +89,7 @@ export function arrTrim(arr) {
 /**
  * 数组转置
  * @param { (number | string)[][] } aoa 待转置的AOA数组
- * @param { number | string } [dataNumber] 需要获取的数据数(列)，默认为AOA的最大列数
+ * @param { number } [dataNumber] 需要获取的数据数(列)，默认为AOA的最大列数
  * @returns { (number | string)[][] } 转置后的AOA数组
  */
 export function aoaTranspose(aoa, dataNumber) {
@@ -100,10 +100,10 @@ export function aoaTranspose(aoa, dataNumber) {
     throw new Error("表格没数据，请检查")
   }
   // 获取(最大)列数
-  const colNumber = dataNumber
-    ? dataNumber
+  const colNumber =
+    dataNumber
     // 如果未指定数据数(列数)，则获取AOA每个成员数组长度，并获得最大值(列数)
-    : Math.max(...aoa.map((arr) => {
+    ?? Math.max(...aoa.map((arr) => {
         return (arr.length || 0)
       }))
   // 使用(最大)行数、(最大)列数开始转置

@@ -10,12 +10,12 @@
 // 导入运行时方法，用于动态创建<script>标签的url
 import { withBase } from "vitepress"
 
-/** OpenCV加载状态对象，用于确保模块不卸载的话只加载一次就够 @type { Promise<CV> } */
+/** OpenCV加载状态对象，用于确保模块不卸载的话只加载一次就够 @type { Promise<CV> | null } */
 let opencvPromise = null
 
 /**
  * 加载OpenCV的Promise方法
- * @returns { Promise<import("@techstark/opencv-js")> }
+ * @returns { Promise<CV> }
  * @note 本质上是将OpenCV.js加载进window.cv，并将window.cv作为返回值
  * @note 而window.cv是个Promise对象，因此返回值需用then()方法异步等待
  */

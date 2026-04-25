@@ -1,29 +1,29 @@
 {
   "name": "phys-chem-helper",
-  "version": "1.7.1",
-  "description": "CPU物化助手",
+  "version": "1.9.0",
+  "description": "物化助手",
   "author": "SI_Cheng-Yun",
   "license": "MulanPSL-2.0",
   "type": "module",
   "scripts": {
-    "dev": "set VITE_BUILD_KIND=root&& vitepress dev --port 8080",
+    "dev": "set VITE_BUILD_KIND=root&& vitepress dev",
     "build:root": "set VITE_BUILD_KIND=root&& vitepress build",
     "build:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build",
-    "build": "npm run build:root && npm run build:subpage"
+    "build": "pnpm run build:root && pnpm run build:subpage"
   },
   "devDependencies": {
     "@techstark/opencv-js": "^4.12.0-release.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "@tensorflow/tfjs-vis": "^1.5.1",
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "^14.2.1",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-vue-next": "^1.17.7",
-    "unplugin-auto-import": "^20.3.0",
-    "unplugin-vue-components": "^30.0.0",
-    "vite-plugin-compression2": "^2.4.0",
+    "tdesign-vue-next": "^1.19.1",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^32.0.0",
+    "vite-plugin-compression2": "^2.5.3",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.27",
+    "vue": "^3.5.32",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

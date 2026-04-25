@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict"
 
 /**
@@ -7,13 +8,12 @@
  */
 
 /**
- * JSDoc类型声明
- * @typedef { import("vitepress").DefaultTheme.Config } VPDefaultThemeConfig
+ * 以多语言词汇表设置内容作为默认导出
+ * @type { import("vitepress").DefaultTheme.Config }
  */
-
 export default {
 
-  /** 默认语言，即中文 @type { VPDefaultThemeConfig } */
+  /** 默认中文 */
   root: {
 
     // 右上角的浅色/深色模式切换
@@ -96,7 +96,7 @@ export default {
     }}
   },
 
-  /** 英文 @type { VPDefaultThemeConfig } */
+  /** 英文 */
   en: {},
 
 }

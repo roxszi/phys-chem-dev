@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use strict"
 
 /**
@@ -5,13 +6,12 @@
  */
 
 /**
- * JSDoc类型声明
- * @typedef { import("vitepress").DefaultTheme.NavItem } VPDefaultThemeNavItem
+ * 以导航栏设置内容作为默认导出
+ * @type { import("vitepress").DefaultTheme.NavItem }
  */
-
 export default {
 
-  /** 默认语言，即中文 @type { VPDefaultThemeNavItem[] } */
+  /** 默认语言，即中文 */
   root: [
     { text: "节点加速", items: [
       { text: "国内访问", link: "https://phys-chem.top/" },
@@ -23,7 +23,7 @@ export default {
     ]}
   ],
 
-  /** 英文 @type { VPDefaultThemeNavItem[] } */
+  /** 英文 */
   en: [
     { text: "Optimize Nodes", items: [
       { text: "China Access", link: "https://phys-chem.top/en/" },

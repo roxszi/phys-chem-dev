@@ -17,7 +17,7 @@
     :theme="props.theme"
   >
     <!-- 插槽 -->
-    <slot></slot>
+    <slot />
   </t-button>
 </template>
 

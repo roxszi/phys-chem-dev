@@ -4,7 +4,7 @@
 
 <!--
   视图层
--->
+ -->
 <template>
 
   <!--
@@ -31,17 +31,17 @@ import my from "@/utils/myFunc.js"
 // 引入各类方法
 import { aoaTranspose, aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
 
-// Ref状态：是否读取到文件夹
+/** Ref状态：是否读取到文件夹 */
 const isGetFoldRef = ref(false)
-// Ref状态：读取到的有效文件数量
+/** Ref状态：读取到的有效文件数量 */
 const fileCountsRef = ref(0)
-// Ref状态：是否显示按钮加载圈
+/** Ref状态：是否显示按钮加载圈 */
 const isBtnLoadingRef = ref(false)
 /**
  * Andor数据文件合并业务的数据对象
  * @typedef { object } AndorAscsToXlsx
- * @property { string[] } projectObj.fileNameArr (有效)文件名数组
- * @property { FileSystemFileHandle[] } projectObj.fileHandleArr 文件句柄数组
+ * @property { string[] } fileNameArr (有效)文件名数组
+ * @property { FileSystemFileHandle[] } fileHandleArr 文件句柄数组
  */
 /** Andor数据文件合并业务的数据对象 @type { AndorAscsToXlsx } */
 const andorAscsToXlsxObj = {

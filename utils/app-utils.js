@@ -6,41 +6,41 @@
  *   downloadJson() 将JSON对象下载为js文件。（可能会废弃）
  */
 
+
 /**
  * downloadFile 下载文件
  * @param { ArrayBuffer } dataBuffer Buffer格式的数据对象。
- * @param { String } fileName 文件名(含扩展名)。
- * @param { String } [fileType] 文件类型。
+ * @param { string } fileName 文件名(含扩展名)。
+ * @param { string } [fileType = "application/octet-stream"] 文件类型。
  */
 export function downloadFile(dataBuffer, fileName, fileType = "application/octet-stream") {
-  // // 将数据对象转换为ArrayBuffer格式
-  // const dataBuffer = dataBuffer instanceof ArrayBuffer
-  //   ? data
-  //   : await data.arrayBuffer()
-  // 将数据对象转换为Blob对象
-  const dataBlob = new Blob([dataBuffer], { type: fileType })
-  // 在网页上找一个id为“just-for-download”的<a>下载链接元素块
-  let downloadLink = document.getElementsByTagName("a").namedItem("just-for-download")
-  // getElementById("just-for-download")
-  // 如果没找到这个元素块
-  if (!downloadLink) {
-    // 构建这个下载元素块
-    downloadLink = document.createElement("a")
-    // 设置该元素块的id为“justForDownload”
-    downloadLink.setAttribute("id", "justForDownload")
-    // 设置该元素块隐藏
-    downloadLink.style.display = "none"
-    // 设置该元素块下载功能赋值的文件名为“train-log.xlsx”
-    downloadLink.download = fileName
-  }
+  // // 将数据对象强转为ArrayBuffer格式
+  // const dataBuffer =
+  //   (dataBuffer instanceof ArrayBuffer)
+  //     ? dataBuffer
+  //     : await dataBuffer.arrayBuffer()
+  // 将数据对象封装为Uint8Array通用格式，然后转换为Blob对象
+  const dataBlob = new Blob([new Uint8Array(dataBuffer)], { type: fileType })
+  // 创建一个新的<a>下载链接元素块
+  const downloadLink = document.createElement("a")
+  // 设置该元素块隐藏
+  downloadLink.style.display = "none"
+  // 设置该元素块下载功能赋值的文件名
+  downloadLink.download = fileName
+  // 把<a>元素块挂载到DOM中
+  document.body.appendChild(downloadLink)
   // 把dataBlob赋值给元素块的下载链接
   const url = URL.createObjectURL(dataBlob)
   downloadLink.href = url
   // 执行下载
   downloadLink.click()
-  // 清理：10秒后释放url对象
-  setTimeout(() => URL.revokeObjectURL(url), 10000)
+  // 清理：3秒后释放<a>元素块及url对象
+  setTimeout(() => {
+    document.body.removeChild(downloadLink)
+    URL.revokeObjectURL(url)
+  }, 3000)
 }
+
 
 /**
  * downloadJson 将JSON对象下载为js文件
