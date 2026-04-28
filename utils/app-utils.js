@@ -11,7 +11,7 @@
  * downloadFile 下载文件
  * @param { ArrayBuffer } dataBuffer Buffer格式的数据对象。
  * @param { string } fileName 文件名(含扩展名)。
- * @param { string } [fileType = "application/octet-stream"] 文件类型。
+ * @param { string } [fileType = "application/octet-stream"] 文件MIME类型。
  */
 export function downloadFile(dataBuffer, fileName, fileType = "application/octet-stream") {
   // // 将数据对象强转为ArrayBuffer格式
@@ -19,26 +19,47 @@ export function downloadFile(dataBuffer, fileName, fileType = "application/octet
   //   (dataBuffer instanceof ArrayBuffer)
   //     ? dataBuffer
   //     : await dataBuffer.arrayBuffer()
-  // 将数据对象封装为Uint8Array通用格式，然后转换为Blob对象
-  const dataBlob = new Blob([new Uint8Array(dataBuffer)], { type: fileType })
+  // 将数据对象转换为Blob对象
+  const dataBlob = new Blob([dataBuffer], { type: fileType })
+  // 以Blob对象创建下载链接
+  const url = URL.createObjectURL(dataBlob)
   // 创建一个新的<a>下载链接元素块
   const downloadLink = document.createElement("a")
   // 设置该元素块隐藏
   downloadLink.style.display = "none"
+  // // 设置该元素块透明
+  // downloadLink.style.opacity = "0"
   // 设置该元素块下载功能赋值的文件名
   downloadLink.download = fileName
+  // 赋值下载链接
+  downloadLink.href = url
   // 把<a>元素块挂载到DOM中
   document.body.appendChild(downloadLink)
-  // 把dataBlob赋值给元素块的下载链接
-  const url = URL.createObjectURL(dataBlob)
-  downloadLink.href = url
-  // 执行下载
-  downloadLink.click()
-  // 清理：3秒后释放<a>元素块及url对象
-  setTimeout(() => {
+  // 内存泄漏防范标记，先标记为未清理
+  let isCleanedUp = false
+  // 等待下一个渲染帧再执行，确保浏览器完成DOM渲染和URL的底层绑定
+  requestAnimationFrame(() => {
+    // 注册一个监听窗口焦点事件的回调：当下载交互完毕，窗口焦点回归时，自动清理下载链接和URL对象
+    window.addEventListener("focus", _cleanup, { once: true })
+    // 执行下载
+    downloadLink.click()
+    // 注册一个60秒后强制执行清理的回调
+    setTimeout(_cleanup, 60000)
+  })
+  /**
+   * 清理函数，移除DOM元素，释放Blob URL
+   * 防止内存泄漏和资源浪费
+   */
+  function _cleanup() {
+    // 如果已清理过，则直接返回
+    if (isCleanedUp) { return }
+    // 从文档中移除下载链接元素
     document.body.removeChild(downloadLink)
+    // 释放创建的对象URL，释放内存
     URL.revokeObjectURL(url)
-  }, 3000)
+    // 标记为已清理
+    isCleanedUp = true
+  }
 }
 
 
