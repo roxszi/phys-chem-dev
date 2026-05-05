@@ -446,7 +446,8 @@ export function getEllipseOld({ cv, contourPointAoa, contourPointToBaselineDista
     forEachPositivePoint: for (let i = 0; i < positivePointAoa.length; i++) {
       // 筛选点。对阳性点集来说，阳性点集当中的阳性 == PT，阳性点集当中的阴性 == PF
       const [pointR, ellipseR] = _pointFilter(
-        positivePointAoa[i], toleranceValue, positiveDistanceArr[i], 1,
+        positivePointAoa[i], toleranceValue,
+        positiveDistanceArr[i], 1,
         PTPointAoa, PFPointAoa, PTDistanceArr, PFDistanceArr,
         ellipseParamArr
       )
