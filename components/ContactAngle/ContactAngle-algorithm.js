@@ -15,6 +15,28 @@
  * 4.  其它工具函数
  */
 
+// ================================ 0. 导入导出方法 ================================
+
+export { getEllipse } from './ContactAngle-algorithm-dtirdt.js'
+
+/**
+ * @typedef { object } Rect canvas元素块选框
+ * @property { number } Rect.xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
+ */
+/**
+ * @typedef { object } ColLine canvas元素块遮罩线
+ * @property { number } ColLine.left canvas元素块遮罩线的左侧线X坐标
+ * @property { number } ColLine.right canvas元素块遮罩线的右侧线X坐标
+ */
+/**
+ * @typedef { object } Baseline canvas元素基线遮罩线
+ * @property { number } Baseline.left canvas元素块基线遮罩线的左侧Y坐标
+ * @property { number } Baseline.right canvas元素块基线遮罩线的右侧Y坐标
+ */
+
 // ================================ 1. 选框/遮罩相关工具方法 ================================
 
 /**
@@ -31,11 +53,7 @@
  * @param { number } param.clickY - 点击位置的实际 Y 坐标（已乘以缩放比）
  * @param { number } param.canvasWidth - canvas 实际宽度
  * @param { number } param.canvasHeight - canvas 实际高度
- * @param { object } param.rect - 当前的选框坐标对象（会被当场修改）
- * @param { number } param.rect.xMax - 选框 X 坐标大值
- * @param { number } param.rect.yMax - 选框 Y 坐标大值
- * @param { number } param.rect.xMin - 选框 X 坐标小值
- * @param { number } param.rect.yMin - 选框 Y 坐标小值
+ * @param { Rect } param.rect - 当前的选框坐标对象（会被当场修改）
  * @param { number } [param.RECT_SCALE = 0.5] - 画框相对短边的比例，默认为 0.5
  * @param { number } [param.RECT_X_TO_Y = 2 / 3] - 画框的Y比X的值，默认为 2/3
  */
@@ -141,9 +159,7 @@ export function computeRect({
  * @param { number } param.clickY - 点击位置的实际 Y 坐标（已乘以缩放比）
  * @param { number } param.canvasWidth - canvas 实际宽度
  * @param { number } param.canvasHeight - canvas 实际高度
- * @param { object } param.baseline - 当前的基线截距对象（会被就地修改）
- * @param { number | null } param.baseline.left - 基线左截距（canvas Y 坐标）
- * @param { number | null } param.baseline.right - 基线右截距（canvas Y 坐标）
+ * @param { Baseline } param.baseline - 当前的基线截距对象（会被就地修改）
  */
 export function computeBaseline({ clickX, clickY, canvasWidth, canvasHeight, baseline }) {
   // 基线左右截距，无值则初始化为 canvas 高度
@@ -194,9 +210,7 @@ export function computeBaseline({ clickX, clickY, canvasWidth, canvasHeight, bas
  * @param { object } param
  * @param { number } param.clickX - 点击位置的实际 X 坐标（已乘以缩放比）
  * @param { number } param.canvasWidth - canvas 实际宽度
- * @param { object } param.colLine - 当前的左右遮罩线坐标对象（会被就地修改）
- * @param { number | null } param.colLine.left - 左侧遮罩线 X 坐标
- * @param { number | null } param.colLine.right - 右侧遮罩线 X 坐标
+ * @param { ColLine } param.colLine - 当前的左右遮罩线坐标对象（会被就地修改）
  */
 export function computeColLine({ clickX, canvasWidth, colLine }) {
   // 接canvas的半宽
@@ -218,6 +232,147 @@ export function computeColLine({ clickX, canvasWidth, colLine }) {
 
 
 /**
+ * getContourPoints 获取轮廓点，并会滤去明显有问题的杂点
+ * 设计思路：
+ *   1. 从OpenCV的Met数据中提取轮廓点数据
+ *   2. 先过滤掉位于canvas边缘1%区域内的点
+ *   3. 最后根据中心遮罩过滤掉位于遮罩框内的点
+ * @param { object } param - 参数对象
+ * @param { CV.MatVector } param.metVectorContours - OpenCV轮廓点的MatVector对象
+ * @param { ColLine } param.colLine - 左右遮罩线坐标
+ * @param { Rect } param.rect - 中心遮罩框坐标
+ * @param { number } param.canvasWidth - canvas实际宽度
+ * @param { number } param.canvasHeight - canvas实际高度
+ * @returns { [number, number][] } contourPointAoa - 过滤后的轮廓点坐标数组 [x, y][]
+ */
+export function getContourPoints({
+  metVectorContours, colLine, rect, canvasWidth, canvasHeight
+}) {
+  /** 过滤线阈值，1% 切边 */
+  const CANVAS_EDGE_PERCENTAGE = 0.01
+  /** 声明一个数组用来接所有轮廓点 @type { [number, number][] } */
+  const contourPointAoa = []
+  // 如果指定了过滤线，宽按两边遮罩过滤线来；否则按canvas宽来
+  const filterWidthMin = colLine.left ?? Math.ceil(canvasWidth * CANVAS_EDGE_PERCENTAGE)
+  const filterWidthMax = colLine.right ?? Math.floor(canvasWidth * (1 - CANVAS_EDGE_PERCENTAGE))
+  // 顶部过滤边界和顶部边界
+  const filterHeightMin = Math.ceil(canvasHeight * CANVAS_EDGE_PERCENTAGE)
+  const filterHeightMax = Math.floor(canvasHeight * (1 - CANVAS_EDGE_PERCENTAGE))
+  // 接遮罩框：遮罩里的点是要剔除的，所以遮罩无值的时候，相当于不遮罩
+  // 无值的时候，就取反过来的“一定能达到”的值即可
+  const maskWidthMin = rect.xMin ?? filterWidthMax
+  const maskHeightMin = rect.yMin ?? filterHeightMax
+  const maskWidthMax = rect.xMax ?? filterWidthMin
+  const maskHeightMax = rect.yMax ?? filterHeightMin
+  // 遍历所有轮廓点
+  forEachContour: for (let i = 0; i < metVectorContours.size(); i++) {
+    // 挨个获取轮廓
+    const metContour = metVectorContours.get(i)
+    // 获取坐标
+    forEachContourPoint: for (let j = 0; j < metContour.rows; j++) {
+      // 接X和Y坐标
+      const pointX = metContour.data32S[j * 2]
+      const pointY = metContour.data32S[j * 2 + 1]
+      // 如果坐标点在边缘1%位置外，或过滤遮罩位置外
+      if (
+        (pointX <= filterWidthMin) || (pointX >= filterWidthMax)
+          || (pointY <= filterHeightMin) || (pointY >= filterHeightMax)
+      ) {
+        // 跳过本次循环，即滤去该点
+        continue forEachContourPoint
+      }
+      // 中心遮罩区域（不在遮罩框内的点才保留）
+      // 同时满足在框内的4个条件，不如满足在框外的任意4个条件中的1个
+      if (
+        (pointX < maskWidthMin) || (pointX > maskWidthMax)
+          || (pointY < maskHeightMin) || (pointY > maskHeightMax)
+      ) {
+        // 装箱轮廓点集合P(0)
+        contourPointAoa.push([pointX, pointY])
+      }
+    }
+    // 释放当前轮廓的WASM内存
+    metContour.delete()
+  }
+  // 最后，返回轮廓点集合
+  return contourPointAoa
+}
+
+
+/**
+ * baselineFilterContourPoints 用基线过滤轮廓点
+ * 设计思路：
+ *   1. 先根据基线遮罩（如有）过滤掉位于基线下方的点（通过斜率比较）
+ *   2. 同时计算每个保留点到基线的距离，供后续椭圆拟合使用
+ * @param { object } param
+ * @param { [number, number][] } param.rawContourPointAoa - 轮廓点坐标数组 [x, y][]
+ * @param { Baseline } param.baseline - 基线截距坐标
+ * @param { number } param.canvasWidth - canvas 实际宽度
+ * @param { number } param.canvasHeight - canvas 实际高度
+ * @returns {{ contourPointAoa: [number, number][], contourPointToBaselineDistanceArr: number[] }}
+ *   - newContourPointAoa - 过滤后的轮廓点坐标数组 [x, y][]
+ *   - contourPointToBaselineDistanceArr - 各轮廓点到基线的距离数组
+ */
+export function baselineFilterContourPoints({
+  rawContourPointAoa, baseline, canvasWidth, canvasHeight
+}) {
+  /** 声明一个数组用来接所有轮廓点，即集合P(0) @type { [number, number][] } */
+  const newContourPointAoa = []
+  /** 声明一个数组用来接轮廓点到基线的距离 @type { number[] } */
+  const contourPointToBaselineDistanceArr = []
+  // 初始化基线左右截距
+  /** 过滤线阈值，1%切边 */
+  const CANVAS_EDGE_PERCENTAGE = 0.01
+  /** 顶部边界，作为基线截距回退值 */
+  const filterHeightMax = Math.floor(canvasHeight * (1 - CANVAS_EDGE_PERCENTAGE))
+  /** 基线左截距 */
+  const filterBaselineLeft = baseline.left ?? filterHeightMax
+  /** 基线右截距 */
+  const filterBaselineRight = baseline.right ?? filterHeightMax
+  /** 基线截距差 */
+  const filterBaselineDifference = filterBaselineRight - filterBaselineLeft
+  /** 基线斜率 */
+  const filterBaselineSlope = filterBaselineDifference / canvasWidth
+  // 轮廓点到底部基线的距离²的计算公式：
+  // |(x2 - x1)(y - y1) - (y2 - y1)(x - x1)|² / ((x2 - x1)² + (y2 - y1)²)
+  // 其中(x1, y1)是基线左截距点，(x2, y2)是基线右截距点，(x, y)是轮廓点
+  // (x2 - x1) = canvasWidth
+  // (y2 - y1) = filterBaselineRight - filterBaselineLeft = filterBaselineDifference
+  /** 轮廓点到底部基线的距离²的计算用分母 */
+  const distanceSquareDenominator = canvasWidth ** 2 + filterBaselineDifference ** 2
+  // 遍历所有轮廓点
+  forEachContourPoint: for (const contourPoint of rawContourPointAoa) {
+    // 接X和Y坐标
+    const pointX = contourPoint[0]
+    const pointY = contourPoint[1]
+    // 基线过滤：
+    // 计算相对于基线的相对斜率（此前把pointX = 0排除掉了）
+    const pointToBaselineSlope = (pointY - filterBaselineLeft) / pointX
+    // 如果斜率大于基线斜率，即点在基线遮罩范围下方（即canvas上方）
+    if (pointToBaselineSlope > filterBaselineSlope) {
+      // 跳过本次循环
+      continue forEachContourPoint
+    }
+    // 过滤完毕，则装箱轮廓点集合P(0)
+    newContourPointAoa.push([pointX, pointY])
+    // 计算点到基线的距离：|Ax + By + C| / sqrt(A² + B²)
+    /** 轮廓点到底部基线的距离²的计算用分子 */
+    const distanceSquareNumerator =
+      (canvasWidth * (pointY - filterBaselineLeft) - filterBaselineDifference * pointX) ** 2
+    /** 点到基线的距离 */
+    const distance = Math.sqrt(distanceSquareNumerator / distanceSquareDenominator)
+    // 装箱点到基线的距离集合
+    contourPointToBaselineDistanceArr.push(distance)
+  }
+  // 最后，返回轮廓点集合和距离集合
+  return {
+    contourPointAoa: newContourPointAoa,
+    contourPointToBaselineDistanceArr: contourPointToBaselineDistanceArr
+  }
+}
+
+
+/**
  * filterContourPoints 过滤轮廓点，滤去明显有问题的杂点
  * 设计思路：
  *   1. 先过滤掉位于 canvas 边缘 1% 区域内的点
@@ -226,22 +381,14 @@ export function computeColLine({ clickX, canvasWidth, colLine }) {
  *   4. 同时计算每个保留点到基线的距离，供后续椭圆拟合使用
  * @param { object } param
  * @param { CV.MatVector } param.metVectorContours - OpenCV轮廓点的MatVector对象
- * @param { object } param.colLine - 左右遮罩线坐标
- * @param { number | null } param.colLine.left - 左侧遮罩线 X 坐标
- * @param { number | null } param.colLine.right - 右侧遮罩线 X 坐标
- * @param { object } param.rect - 中心遮罩框坐标
- * @param { number | null } param.rect.xMin - 中心遮罩框的X坐标小值
- * @param { number | null } param.rect.xMax - 中心遮罩框的X坐标大值
- * @param { number | null } param.rect.yMin - 中心遮罩框的Y坐标小值
- * @param { number | null } param.rect.yMax - 中心遮罩框的Y坐标大值
- * @param { object } param.baseline - 基线截距坐标
- * @param { number | null } param.baseline.left - 基线左截距（左侧Y坐标）
- * @param { number | null } param.baseline.right - 基线右截距（右侧Y坐标）
+ * @param { ColLine } param.colLine - 左右遮罩线坐标
+ * @param { Rect } param.rect - 中心遮罩框坐标
+ * @param { Baseline } param.baseline - 基线截距坐标
  * @param { number } param.canvasWidth - canvas 实际宽度
  * @param { number } param.canvasHeight - canvas 实际高度
  * @returns {{ contourPointAoa: [number, number][], contourPointToBaselineDistanceArr: number[] }}
- *   contourPointAoa - 过滤后的轮廓点坐标数组 [x, y][]
- *   contourPointToBaselineDistanceArr - 各轮廓点到基线的距离数组
+ *   - contourPointAoa - 过滤后的轮廓点坐标数组 [x, y][]
+ *   - contourPointToBaselineDistanceArr - 各轮廓点到基线的距离数组
  * @throws { Error } 轮廓点不足6个时抛出异常
  */
 export function filterContourPoints({
@@ -323,6 +470,8 @@ export function filterContourPoints({
 }
 
 
+
+
 /**
  * 迭代拟合获得椭圆对象（旧版）
  * 设计思路：
@@ -344,9 +493,9 @@ export function filterContourPoints({
  *   R2: number,
  *   baselineReferencePoint: [number, number]
  * }}
- *   ellipse - 椭圆对象
- *   R2 - 拟合优度
- *   baselineReferencePoint - 基线参考点：取阳性点中 Y 值最大的点（即最低点）
+ *   - ellipse - 椭圆对象
+ *   - R2 - 拟合优度
+ *   - baselineReferencePoint - 基线参考点：取阳性点中 Y 值最大的点（即最低点）
  */
 export function getEllipseOld({ cv, contourPointAoa, contourPointToBaselineDistanceArr }) {
   // -------- 超参数设置 --------
@@ -419,7 +568,6 @@ export function getEllipseOld({ cv, contourPointAoa, contourPointToBaselineDista
     // 统计数据（用于 R² 计算）
     const statisticDataArr = []
     let statisticPointRSum = 0
-
     // 椭圆参数，长轴w、短轴h、以及两者平方乘积/4，以简化后面r的计算公式
     const ellipseW = ellipse.size.width
     const ellipseH = ellipse.size.height
@@ -618,7 +766,12 @@ export function getEllipseOld({ cv, contourPointAoa, contourPointToBaselineDista
  *   contactAngleRight: number,
  *   contactAngleDeviation: number,
  *   interceptAngle: number
- * }} 接触角计算结果
+ * }} 接触角计算结果：
+ *   - contactAngleAverage: 平均接触角
+ *   - contactAngleLeft: 左接触角
+ *   - contactAngleRight: 右接触角
+ *   - contactAngleDeviation: 角度偏差
+ *   - interceptAngle: 基线角度
  * @throws { Error } 方程判别式 ≤ 0 时抛出异常
  */
 export function calculateContactAngle({
@@ -707,7 +860,6 @@ export function calculateContactAngle({
   const slope2 = -cot2 * ((h / w) ** 2)
   // 基线斜率
   const baselineSlope = ky / kx
-
   // 转回原始坐标系的切线角和基线角
   // Math.atan()方法返回[-90°, 90°]的弧度值，叠加ellipseAngle后，结果会超过阈值
   // 所以需通过增减180，让结果在[-90°, 90°]之间

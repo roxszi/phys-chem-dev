@@ -400,13 +400,68 @@ import * as Algorithm from "./ContactAngle-algorithm.js"
 // 导入语言包
 import { useLang, lang } from "./ContactAngle-lang.js"
 
+// ======================================== 数据类型声明 ========================================
+
+/**
+ * @typedef { object } SliderParam 调参数组
+ * @property { number } value 当前值
+ * @property { number } min 最小值
+ * @property { number } max 最大值
+ * @property { number[] } marks 标记
+ */
+/**
+ * @typedef { [string, ...number[]] } ResultDatum 单个数据结果
+ */
+/**
+ * @typedef { [number, string, ...number[]] } OrderResultDatum 带序号的单个数据结果
+ */
+/**
+ * 接触角业务的全局对象
+ * @typedef { object } ContactAngle
+ * @property { CV } cv OpenCV.js对象
+ * @property { number } canvasStyleWidth canvas元素块的显示宽度
+ * @property { string } filename 所上传文件的文件名
+ * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
+ * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
+ * @property { CV.Mat } matGray 灰度图Mat对象
+ * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
+ * @property { Rect } rect canvas元素块选框
+ * @property { ColLine } colLine 轮廓选择时用于过滤的两侧基线
+ * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线
+ * @property { [number, number] } baselineReferencePoint 基线参考点
+ * @property { CV.Ellipse } ellipse 拟合得到的椭圆对象
+ * @property { number } ellipseR2 椭圆拟合的决定系数R²
+ * @property { [number, number][] } rawContourPointAoa 初始的未被基线过滤的轮廓点AOA数组
+ * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
+ * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
+ */
+/**
+ * @typedef { object } Rect canvas元素块选框
+ * @property { number } Rect.xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
+ * @property { number } Rect.yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
+ */
+/**
+ * @typedef { object } ColLine canvas元素块遮罩线
+ * @property { number } ColLine.left canvas元素块遮罩线的左侧线X坐标
+ * @property { number } ColLine.right canvas元素块遮罩线的右侧线X坐标
+ */
+/**
+ * @typedef { object } Baseline canvas元素基线遮罩线
+ * @property { number } Baseline.left canvas元素块基线遮罩线的左侧Y坐标
+ * @property { number } Baseline.right canvas元素块基线遮罩线的右侧Y坐标
+ */
+
+// ======================================== 业务内的全局对象 ========================================
+
 /**
  * 任务状态：
- * 1 - 未开始，或删除了图片。正在等待读取图片；
- * 2 - 读取到了图片。正在选框裁剪图片；
- * 3 - 完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
- * 4 - 完成了轮廓寻找，得到了液滴轮廓坐标。正在寻找基线；
- * 5 - 完成了基线寻找，得到了基线坐标。正在计算接触角。
+ * 1.  未开始，或删除了图片。正在等待读取图片；
+ * 2.  读取到了图片。正在选框裁剪图片；
+ * 3.  完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
+ * 4.  完成了轮廓寻找，得到了液滴轮廓坐标。正在寻找基线；
+ * 5.  完成了基线寻找，得到了基线坐标。正在计算接触角。
  *     其实并不存在状态5，因为计算接触角是最后一步，没有下一步了。
  */
 const taskStatusRef = ref(1)
@@ -418,13 +473,6 @@ const fileArrRef = ref([])
  * 实测nextTick、onMounted都不如watch。
  */
 const canvasRef = useTemplateRef("canvasRef")
-/**
- * @typedef { object } SliderParam 调参数组
- * @property { number } value 当前值
- * @property { number } min 最小值
- * @property { number } max 最大值
- * @property { number[] } marks 标记
- */
 /** 第三步寻找轮廓的调参数组Ref对象 @type { Ref<SliderParam[]> } */
 const thresholdNumArrRef = ref([])
 /** 第三步寻找轮廓的调参数组常量对象 @type { SliderParam[] } */
@@ -466,10 +514,6 @@ const contourFilterAlgorithmRadioRef = ref(0)
  */
 const interceptNumArrRef = ref([])
 /**
- * @typedef { [string, ...number[]] } ResultDatum 单个数据结果
- * @typedef { [number, string, ...number[]] } OrderResultDatum 带序号的单个数据结果
- */
-/**
  * 第五步计算接触角的最终结果
  * @type { Ref<[string, ...number[]][]> }
  * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
@@ -492,42 +536,6 @@ const isResultReverseRef = ref(false)
  * 可能因版本差异，数组元素数量不足7个，所以用可选链，并需在软件初始化时做验证
  */
 const resultTableDataRef = ref([])
-/**
- * 接触角业务的全局对象
- * @typedef { object } ContactAngle
- * @property { CV } cv OpenCV.js对象
- * @property { number } canvasStyleWidth canvas元素块的显示宽度
- * @property { string } filename 所上传文件的文件名
- * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
- * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
- * @property { CV.Mat } matGray 灰度图Mat对象
- * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
- * @property { Rect } rect canvas元素块选框
- * @property { ColLine } colLine 轮廓选择时用于过滤的两侧基线
- * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线
- * @property { [number, number] } baselineReferencePoint 基线参考点
- * @property { CV.Ellipse } ellipse 拟合得到的椭圆对象
- * @property { number } ellipseR2 椭圆拟合的决定系数R²
- * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
- * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
- */
-/**
- * @typedef { object } Rect canvas元素块选框
- * @property { number } Rect.xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
- * @property { number } Rect.yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
- * @property { number } Rect.xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
- * @property { number } Rect.yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
- */
-/**
- * @typedef { object } ColLine canvas元素块遮罩线
- * @property { number } ColLine.left canvas元素块遮罩线的左侧线X坐标
- * @property { number } ColLine.right canvas元素块遮罩线的右侧线X坐标
- */
-/**
- * @typedef { object } Baseline canvas元素基线遮罩线
- * @property { number } Baseline.left canvas元素块基线遮罩线的左侧Y坐标
- * @property { number } Baseline.right canvas元素块基线遮罩线的右侧Y坐标
- */
 /** 接触角业务的全局对象 @type { ContactAngle } */
 const contactAngleObj = {
   cv: null,
@@ -554,8 +562,8 @@ const contactAngleObj = {
   baselineReferencePoint: null,
   ellipse: null,
   ellipseR2: null,
+  rawContourPointAoa: null,
 }
-
 // 注册一个<canvas>的响应式鼠标点击监听
 const {
   // 鼠标点在<canvas>内部的X坐标、Y坐标
@@ -568,9 +576,10 @@ const {
   // stop: stopMouseInElement
 } = useMouseInElement(canvasRef)
 
-/**
- * @全局钩子 生命周期钩子、监听钩子
- */
+// ================================================================================
+// 全局钩子
+// 生命周期钩子、监听钩子
+// ================================================================================
 
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
@@ -714,12 +723,12 @@ function initResultData(dataLength = 7) {
 
 /**
  * 刷新数据呈现
- * @param { [
- *   ResultDatum[],  // newResultAoa - 新结果数据
- *   number,              // newResultTablePage - 新页码数据
- *   boolean              // newIsResultReverse - 新是否倒序数据
- * ] } 新结果数据和页码数据
- * 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
+ * @param { [ResultDatum[], number, boolean] } 参数数组
+ * 包含以下内容：
+ * - [0] newResultAoa - 新结果数据
+ * - [1] newResultTablePage - 新页码数据
+ * - [2] newIsResultReverse - 新是否倒序数据
+ * - 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
  */
 function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultReverse]) {
   // 接参数
@@ -1591,35 +1600,46 @@ function onDetermineContour() { try {
   // 加载框
   my.loading(lang.value.ContourFitLoadingContent)
   // 接参数
-  const { colLine, rect, baseline } = contactAngleObj
-  const canvas = canvasRef.value
+  const { cv, colLine, rect, baseline } = contactAngleObj
+  const { width: canvasWidth, height: canvasHeight } = canvasRef.value
   // 获取轮廓
   const [metVectorContours, metHierarchy] = getContour()
   // 轮廓层次结构Mat对象不需要，销毁以释放WASM内存
   metHierarchy.delete()
-  // 调用算法：过滤轮廓点（中转方法，从 contactAngleObj 中提取参数）
-  const { contourPointAoa, contourPointToBaselineDistanceArr } = Algorithm.filterContourPoints({
-    metVectorContours,
-    colLine, rect, baseline,
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height
+  // 提取轮廓点
+  const rawContourPointAoa = Algorithm.getContourPoints({
+    metVectorContours, colLine, rect,
+    canvasWidth, canvasHeight
   })
-  // 报错检查：轮廓点集合P(0)数据量是否足够
-  if (contourPointAoa.length <= 6) {
-    // 是，则报错处理
-    throw Error(lang.value.ContourFitErrorContent)
-  }
   // 轮廓点集合MetVoctor对象用过了，不需要了，销毁以释放WASM内存
   metVectorContours.delete()
-  // 调用算法：迭代拟合椭圆（旧版）
-  const { ellipse, R2, baselineReferencePoint } = Algorithm.getEllipseOld({
-    cv: contactAngleObj.cv,
+  // 轮廓点对象送去全局
+  contactAngleObj.rawContourPointAoa = rawContourPointAoa
+  // 过滤轮廓点，获取轮廓点集合P(0)和轮廓点到基线的距离数组
+  const {
     contourPointAoa,
     contourPointToBaselineDistanceArr
+  } = Algorithm.baselineFilterContourPoints({
+    rawContourPointAoa, baseline,
+    canvasWidth, canvasHeight
   })
+
+  // =================================================
+  // 开始调试
+  // =================================================
+
+  // 获取椭圆数据
+  const {
+    ellipse,
+    baselineReferencePoint,
+    R2Arr,
+    outerIterationCount,
+    // ...restEllipseObj
+  } = Algorithm.getEllipse({ cv, contourPointAoa, contourPointToBaselineDistanceArr })
+
   // 写回全局对象
   contactAngleObj.ellipse = ellipse
-  contactAngleObj.ellipseR2 = R2
+  contactAngleObj.ellipseR2 = R2Arr[outerIterationCount]
   contactAngleObj.baselineReferencePoint = baselineReferencePoint
   // 绘制椭圆
   drawEllipse()
@@ -1886,16 +1906,43 @@ function onDetermineBaseline() { try {
   // 接截距值
   const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
   // 接参数
-  const canvas = canvasRef.value
+  const { width: canvasWidth, height: canvasHeight } = canvasRef.value
   // 接椭圆对象
-  const { ellipse } = contactAngleObj
+  // const { ellipse } = contactAngleObj
+
+  // ===========================================================================
+  //  此处重写摸条件模块
+  // ===========================================================================
+  // 接对象
+  const { cv, rawContourPointAoa } = contactAngleObj
+  const baseline = {
+    left: leftIntercept,
+    right: rightIntercept
+  }
+  // 重新过滤轮廓点
+  const { contourPointAoa, contourPointToBaselineDistanceArr } =
+    Algorithm.baselineFilterContourPoints({
+      rawContourPointAoa,
+      baseline, canvasWidth, canvasHeight
+    })
+
+  // 重新计算ellipse
+  const {
+    ellipse,
+    baselineReferencePoint,
+    ...restEllipseObj
+  } = Algorithm.getEllipse({
+    cv, contourPointAoa, contourPointToBaselineDistanceArr
+  })
+
+  debugger
+
   // 调用算法计算接触角
   const result = Algorithm.calculateContactAngle({
     ellipse,
     leftIntercept,
     rightIntercept,
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height
+    canvasWidth, canvasHeight
   })
   // 将结果写入结果ref对象和本地localStorage
   resultRef.value.push([

@@ -41,9 +41,9 @@ hero:
     # - theme: alt
       # text: 测试
       # link: test
-    # - theme: alt
-      # text: 测试-液滴算法比较
-      # link: experiment/contact-angle/drop-pic-process-multi
+    - theme: alt
+      text: 测试-液滴算法比较
+      link: experiment/contact-angle/drop-pic-process-multi
 
 # 主页特性部分
 features:
