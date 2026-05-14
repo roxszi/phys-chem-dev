@@ -59,7 +59,8 @@
 /**
  * 迭代拟合获得椭圆对象
  * 以双层迭代设计了一个[双阈值动态容差迭代重加权算法]（DTIR-DT），具体思路在于：
- *   0. 初始化：[阳性点集P]、[阴性点集N]。最初的[阳性点集P]为全部数据点集，[阴性点集N]为空集。
+ *   0. 初始化：[阳性点集P]、[阴性点集N]。
+ *      对于最初的全部数据点集，先使用基线距离过滤算法，获得[阳性点集P]与[阴性点集N]。
  *   1. 【大迭代】。用全部[阳性点集P]拟合获取椭圆。
  *   2. 【小迭代】。只迭代数据参数，不重新拟合椭圆：
  *      通过稳健统计学迭代，获取稳健的统计学量（由MAD等效而来的sigma）。
@@ -104,20 +105,16 @@ export function getEllipse({
   cv, contourPointAoa, contourPointToBaselineDistanceArr,
   maxIter = 100, method, options
 }) {
-  // 防bug：如果阳性点集长度小于6，则报错
-  if (contourPointAoa.length < 6) {
-    throw new Error("有效数据点不足，无法拟合椭圆。")
-  }
   /** 起始时间 */
   const startTime = performance.now()
-  /** 阳性点集：拟合良好的点 */
-  const PPointAoa = [...contourPointAoa]
-  /** 阴性点集：偏离较大的点 @type { [number, number][] } */
-  const NPointAoa = []
-  /** 阳性点集到基线的距离 */
-  const PDistanceArr = [...contourPointToBaselineDistanceArr]
-  /** 阴性点集到基线的距离 @type { number[] }  */
-  const NDistanceArr = []
+  // 初始化阳性点集和阴性点集
+  const { PPointAoa, NPointAoa } = filterPointsByBaselineDistance({
+    contourPointAoa, contourPointToBaselineDistanceArr
+  })
+  // 防bug：如果阳性点集长度小于6，则报错
+  if (PPointAoa.length < 6) {
+    throw new Error("有效数据点不足，无法拟合椭圆。")
+  }
   /** 迭代所得的R²值数组 @type { number[] } */
   const R2Arr = []
   /** 迭代所得的小迭代次数数组 @type { number[] } */
@@ -130,16 +127,11 @@ export function getEllipse({
   let ellipse = null
   /** 基线参考点：取阳性点中Y值最大的点（即canvas坐标方向下的最低点） @type { [number, number] } */
   let baselineReferencePoint = null
-  /** 数据点的利用情况数组 @type { number[] } */
-  const pointUtilizationArr = []
+  /** 数据点的利用情况数组 */
+  const pointUtilizationArr = [contourPointAoa.length]
   // -------- 【大迭代】 --------
   // 拟合不收敛 且 迭代次数不超过最大迭代次数时执行
   contourPointIterate: while (!isConverged && (outerIterationCount < maxIter)) {
-    // 防bug：如果阳性点集长度小于6，则直接退出迭代
-    if (PPointAoa.length < 6) {
-      console.warn("有效数据点不足，已强行停止迭代。")
-      break contourPointIterate
-    }
     // 开始迭代，迭代次数+1
     outerIterationCount++
     // 把本次要用的阳性点存入“数据点的利用情况数组”
@@ -147,11 +139,11 @@ export function getEllipse({
     // 用阳性点集拟合得到椭圆
     ellipse = fitPointsToEllipse(cv, PPointAoa, method)
     // 阳性偏差数组及R²值
-    const { ADArr: PADArr, RDArr: PRDArr, R2 } = computeDeviationMetrics(PPointAoa, ellipse)
+    const { RDArr: PRDArr, R2 } = computeDeviationMetrics(PPointAoa, ellipse)
     // 把当前R²值存入数组
     R2Arr.push(R2)
     // 阴性相对偏差数组
-    const { ADArr: NADArr, RDArr: NRDArr } = computeDeviationMetrics(NPointAoa, ellipse)
+    const { RDArr: NRDArr } = computeDeviationMetrics(NPointAoa, ellipse)
     // 获取阳性阈值PT和阴性阈值NT
     const { PT, NT, iterations: innerIterationCount } = determineDualThresholdWithIter(PRDArr, options)
     // 把当前小迭代的次数存入数组
@@ -163,22 +155,26 @@ export function getEllipse({
     } = filterPointsByThreshold({
       PT: PT, NT: NT,
       PPointAoa: PPointAoa, NPointAoa: NPointAoa,
-      PDistanceArr: PDistanceArr, NDistanceArr: NDistanceArr,
-      PRDArr: PRDArr, NRDArr: NRDArr, PADArr: PADArr, NADArr: NADArr
+      PRDArr: PRDArr, NRDArr: NRDArr
     }))
+    // 防bug：如果阳性点集长度小于6，则直接退出迭代
+    if (PPointAoa.length < 6) {
+      console.warn("有效数据点不足，已强行停止迭代。")
+      break contourPointIterate
+    }
   }
   // 迭代完毕，构造一个迭代结果
   /** 迭代结果性质种类 @type { string } */
   let resultType = ""
   // 收敛
   if (isConverged === true) {
-    resultType = "收敛"
+    resultType = "迭代收敛"
   // 不收敛：源于迭代次数达到上限
   } else if (outerIterationCount === maxIter) {
-    resultType = "迭代次数达到上限"
+    resultType = "迭代达上限"
   // 不收敛：源于有效数据点不足
   } else {
-    resultType = "有效数据点不足"
+    resultType = "有效点不足"
   }
   /** 结束时间 */
   const endTime = performance.now()
@@ -193,6 +189,71 @@ export function getEllipse({
   }
 }
 
+/**
+ * filterPointsByBaselineDistance 用基线距离筛选点
+ * 这是根据物理经验而非根据统计做出的预处理操作，专门用于第一次拟合的约束。具体步骤在于：
+ * 1.  升序排序。此时小值应该接近0，很有可能是基线上方的杂点；而最大值段有可能是液滴轮廓上方的杂点。
+ * 2.  排除杂点第一步（位次筛选）。取90%~95%位次的点，以防止大值杂点的影响。
+ *     至于小值杂点，很难在这一步排除。
+ * 3.  排除杂点第二步（线性距离筛选）。取第1个点，计算其到90%~95%位次点的距离，以该距离为基准值。
+ *     计算该距离的0.25倍和0.75倍，即一个液滴的中间50%高度段。作为筛选距离的最小值和最大值。
+ *     以该段筛选全部轮廓点，即筛选出可用于初次迭代的较为稳健的阳性点集和阴性点集。
+ * @param { object } param - 参数对象
+ * @param { [number, number][] } param.contourPointAoa - 轮廓点集
+ * @param { number[] } param.contourPointToBaselineDistanceArr - 轮廓点到基线的距离数组
+ * @param { object } [param.options] - 可选参数
+ * @param { number } [param.options.frontIndex] - 位次过滤的前位次百分比
+ * @param { number } [param.options.backIndex] - 位次过滤的后位次百分比
+ * @param { number } [param.options.frontDistance] - 线性过滤的前段比值
+ * @param { number } [param.options.backDistance] - 线性过滤的后段比值
+ * @returns {{ NPointAoa: [number, number][], PPointAoa: [number, number][] }}
+ */
+// 基线距离过滤算法
+function filterPointsByBaselineDistance({
+  contourPointAoa, contourPointToBaselineDistanceArr, options = {}
+}) {
+  // 接收/初始化可选传参
+  const {
+    frontIndex = 0,
+    backIndex = 95,
+    frontDistance = 0.2,
+    backDistance = 1
+  } = options
+  /** 升序的距离数组 */
+  const sortedDistanceArr = sortArr(contourPointToBaselineDistanceArr)
+  // 取前段和后段一定位次，防止极端值影响
+  /** 前位次值 */
+  const distanceFront = getPercentile(sortedDistanceArr, frontIndex)
+  /** 后位次值 */
+  const distanceBack = getPercentile(sortedDistanceArr, backIndex)
+  /** 前后位次的距离差值 */
+  const distanceDelta = distanceBack - distanceFront
+  // 选取距离差值段的中间某个位置段，作为用于筛选距离的最小阈值和最大阈值
+  /** 距离最小值阈值 */
+  const smallDistanceThreshold = distanceFront + (frontDistance * distanceDelta)
+  /** 距离最大值阈值 */
+  const bigDistanceThreshold = distanceFront + (backDistance * distanceDelta)
+  /** 阳性点集 @type { [number, number][] } */
+  const PPointAoa = []
+  /** 阴性点集 @type { [number, number][] } */
+  const NPointAoa = []
+  // 遍历全部点集，筛选出阳性点集和阴性点集
+  for (let i = 0; i < contourPointAoa.length; i++) {
+    // 如果距离超过阈值范围，则放入阴性点集
+    if (
+      (contourPointToBaselineDistanceArr[i] < smallDistanceThreshold)
+        || (contourPointToBaselineDistanceArr[i] > bigDistanceThreshold)
+    ) {
+      NPointAoa.push(contourPointAoa[i])
+    // 否则放入阳性点集
+    } else {
+      PPointAoa.push(contourPointAoa[i])
+    }
+  }
+  // 遍历结束，返回结果
+  return { PPointAoa: PPointAoa, NPointAoa: NPointAoa }
+}
+
 
 /**
  * filterPointsByThreshold 用阈值筛选点
@@ -202,12 +263,8 @@ export function getEllipse({
  * @param { number } param.NT - 阴性阈值
  * @param { [number, number][] } param.PPointAoa - 阳性点集
  * @param { [number, number][] } param.NPointAoa - 阴性点集
- * @param { number[] } param.PDistanceArr - 阳性点到基线的距离数组
- * @param { number[] } param.NDistanceArr - 阴性点到基线的距离数组
  * @param { number[] } param.PRDArr - 阳性相对偏差数组
  * @param { number[] } param.NRDArr - 阴性相对偏差数组
- * @param { number[] } param.PADArr - 阳性绝对偏差数组
- * @param { number[] } param.NADArr - 阴性绝对偏差数组
  * @return {{ isConverged: boolean, baselineReferencePoint: [number, number] }}
  *   isConverged：是否收敛；baselineReferencePoint：基线参考点[x, y]
  * @note 各点集数组对象、距离数组对象，会被就地修改
@@ -217,8 +274,7 @@ function filterPointsByThreshold(param) {
   const {
     PT, NT,
     PPointAoa, NPointAoa,
-    PDistanceArr, NDistanceArr,
-    PRDArr, NRDArr, PADArr, NADArr
+    PRDArr, NRDArr
   } = param
   // 构建几个过程临时数组对象：阳性-正确、阳性-错误、阴性-正确、阴性-错误
   /** 阳性-正确数组（将继续保持阳性） @type { [number, number][] } */
@@ -229,30 +285,16 @@ function filterPointsByThreshold(param) {
   const NTPointAoa = []
   /** 阴性-错误数组（将复活为阳性） @type { [number, number][] } */
   const NFPointAoa = []
-  /** 阳性-正确点集到基线的距离数组（将继续保持阳性） @type { number[] } */
-  const PTDistanceArr = []
-  /** 阴性-正确点集到基线的距离数组（将继续保持阴性） @type { number[] } */
-  const NTDistanceArr = []
-  /** 阳性-错误点集到基线的距离数组（将降为阴性） @type { number[] } */
-  const PFDistanceArr = []
-  /** 阴性-错误点集到基线的距离数组（将复活为阳性） @type { number[] } */
-  const NFDistanceArr = []
   /** 基线参考点：取阳性点中Y值最大的点（即canvas坐标方向下的最低点） @type { [number, number] } */
   let baselineReferencePoint = [0, 0]
   // 遍历阳性点集，筛选出符合要求的点
   for (let i = 0; i < PPointAoa.length; i++) {
-    if (PDistanceArr[i] < PADArr[i]) {
-      console.log([PDistanceArr[i], PADArr[i]])
-    }
-    
-    // 点到基线的距离比到拟合点的距离还小；或者RD超过阈值，则推进阳性-错误数组
-    if ((PDistanceArr[i] < PADArr[i]) || (PRDArr[i] > PT)) {
+    // RD超过阈值，则推进阳性-错误数组
+    if (PRDArr[i] > PT) {
       PFPointAoa.push(PPointAoa[i])
-      PFDistanceArr.push(PDistanceArr[i])
     // 否则推进阳性-正确数组
     } else {
       PTPointAoa.push(PPointAoa[i])
-      PTDistanceArr.push(PDistanceArr[i])
     }
     // 更新基线参考点：取Y值最大的点（canvas坐标系中Y向下为正，即最低点）
     if (baselineReferencePoint[1] < PPointAoa[i][1]) {
@@ -261,14 +303,12 @@ function filterPointsByThreshold(param) {
   }
   // 遍历阴性点集，筛选出符合要求的点
   for (let i = 0; i < NPointAoa.length; i++) {
-    // 点到基线的距离比到拟合点的距离还小；或者RD超过阈值，则推进阴性-正确数组
-    if ((NDistanceArr[i] < NADArr[i]) || (NRDArr[i] > NT)) {
+    // RD超过阈值，则推进阴性-正确数组
+    if (NRDArr[i] > NT) {
       NTPointAoa.push(NPointAoa[i])
-      NTDistanceArr.push(NDistanceArr[i])
     // 否则推进阴性-错误数组
     } else {
       NFPointAoa.push(NPointAoa[i])
-      NFDistanceArr.push(NDistanceArr[i])
     }
   }
   // 看看是否收敛：阳性-错误数组长度为0，并且阴性-错误数组长度为0
@@ -282,11 +322,6 @@ function filterPointsByThreshold(param) {
     PPointAoa.push(...PTPointAoa, ...NFPointAoa)
     NPointAoa.length = 0
     NPointAoa.push(...PFPointAoa, ...NTPointAoa)
-    // 就地更新距离数组
-    PDistanceArr.length = 0
-    PDistanceArr.push(...PTDistanceArr, ...NFDistanceArr)
-    NDistanceArr.length = 0
-    NDistanceArr.push(...PFDistanceArr, ...NTDistanceArr)
     // 返回不收敛状态
     return { isConverged: false, baselineReferencePoint: baselineReferencePoint }
   }
@@ -343,15 +378,14 @@ function fitPointsToEllipse(cv, pointAoa, method = "ams") {
  * 3. 以上述的半径作为参考，计算点相对椭圆的相对偏差
  * @param { [number, number][] } pointAoa - 点的原始坐标 [x, y][]
  * @param { CV.Ellipse } ellipse - 椭圆对象
- * @returns {{ ADArr: number[], RDArr: number[], R2: number }} 结果对象：
- *   - ADArr: 绝对偏差（Absolute Deviation, AD）数组（原始顺序）
+ * @returns {{ RDArr: number[], R2: number }} 结果对象：
  *   - RDArr：相对偏差（Relative Deviation, RD）数组（原始顺序）
  *   - R2：拟合优度R²
  */
 function computeDeviationMetrics(pointAoa, ellipse) {
   // 如果点集为空，直接返回空数组，多见于第一次的阴性点集
   if (pointAoa.length === 0) {
-    return { ADArr: [], RDArr: [], R2: 0 }
+    return { RDArr: [], R2: 0 }
   }
   // 接椭圆参数，简化后面的计算公式
   /** 椭圆长轴w */
@@ -370,8 +404,6 @@ function computeDeviationMetrics(pointAoa, ellipse) {
   const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
   /** 椭圆旋转角cos值 */
   const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
-  /** 绝对偏差（Absolute Deviation, RD）数组 @type { number[] } */
-  const ADArr = []
   /** 相对偏差（Relative Deviation, RD）数组 @type { number[] } */
   const RDArr = []
   /** 点到椭圆圆心的径向距离数组 @type { number[] } */
@@ -407,8 +439,6 @@ function computeDeviationMetrics(pointAoa, ellipse) {
     const ellipseR = Math.sqrt(ellipseRSquare)
     /** 点与椭圆该方向半径的绝对偏差 */
     const pointToEllipseDistance = Math.abs(pointR - ellipseR)
-    // 把绝对偏差AD丢进数组
-    ADArr.push(pointToEllipseDistance)
     /** 点与椭圆该方向半径的相对偏差RD */
     const pointRD = pointToEllipseDistance / ellipseR
     // 把相对偏差RD丢进数组
@@ -438,7 +468,7 @@ function computeDeviationMetrics(pointAoa, ellipse) {
   /** R² */
   const R2 = 1 - SSE / SST
   // 返回
-  return { ADArr: ADArr, RDArr: RDArr, R2: R2 }
+  return { RDArr: RDArr, R2: R2 }
 }
 
 
@@ -461,7 +491,7 @@ function computeDeviationMetrics(pointAoa, ellipse) {
  *   - 取2时，即类似于2σ，μ + 2σ覆盖的概率约为0.9544。
  *   - 取3时，即类似于3σ，μ + 3σ覆盖的概率约为0.9974。
  * @param { number } [options.maxIter = 20] - 最大迭代次数（安全上限）。
- *   实际通常2 ~ 4次即收敛。以收敛条件为主，maxIter 仅防止无限循环。
+ *   实际通常2 ~ 4次即收敛。以收敛条件为主，maxIter仅防止无限循环。
  * @param { number } [options.convergenceThreshold = 0.01] - 收敛阈值。
  *   当sigma的相对变化小于此值时判定收敛并停止迭代。
  * @param { NTOptions } [options.NTOptions] - 阴性阈值计算的可选参数。

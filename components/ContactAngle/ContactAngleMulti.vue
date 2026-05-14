@@ -328,6 +328,7 @@
             <td>{{ resultArr[5]?.toFixed(2) }}</td>
             <td>{{ resultArr[6]?.toFixed(2) }}</td>
             <td>{{ resultArr[7]?.toFixed(4) }}</td>
+            <td>{{ lang.FitNatureStrMap[resultArr[8]] ?? resultArr[8] }}</td>
             <!-- 删除按钮 -->
             <td><MyButton
               @click="onDeleteUniResult(resultArr[0])"
@@ -410,10 +411,12 @@ import { useLang, lang } from "./ContactAngle-lang.js"
  * @property { number[] } marks 标记
  */
 /**
- * @typedef { [string, ...number[]] } ResultDatum 单个数据结果
+ * @typedef { [string, number, number, number, number, number, number, string] } ResultDatum 单个数据结果
+ *   [文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
  */
 /**
- * @typedef { [number, string, ...number[]] } OrderResultDatum 带序号的单个数据结果
+ * @typedef { [number, string, number, number, number, number, number, number, string] } OrderResultDatum 带序号的单个数据结果
+ *   [序号, 文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
  */
 /**
  * 接触角业务的全局对象
@@ -427,11 +430,13 @@ import { useLang, lang } from "./ContactAngle-lang.js"
  * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
  * @property { Rect } rect canvas元素块选框
  * @property { ColLine } colLine 轮廓选择时用于过滤的两侧基线
- * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线
+ * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线。
+ *    此值应与步骤4滑轨绑定，相对canvas对称（当且仅当步骤4）。
+ *    步骤4的计算应以Ref对象为基准，而不是baseline对象。步骤4的逻辑归集到Ref对象了。
  * @property { [number, number] } baselineReferencePoint 基线参考点
  * @property { CV.Ellipse } ellipse 拟合得到的椭圆对象
  * @property { number } ellipseR2 椭圆拟合的决定系数R²
- * @property { [number, number][] } rawContourPointAoa 初始的未被基线过滤的轮廓点AOA数组
+ * @property { string } resultType 拟合迭代结果的类型
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
  */
@@ -515,8 +520,8 @@ const contourFilterAlgorithmRadioRef = ref(0)
 const interceptNumArrRef = ref([])
 /**
  * 第五步计算接触角的最终结果
- * @type { Ref<[string, ...number[]][]> }
- * 分别是：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
+ * @type { Ref<ResultDatum[]> }
+ * 分别是：[文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
  */
 const resultRef = ref([])
 /** 第五步最终结果表格的页码 @type { Ref<number> } */
@@ -531,7 +536,7 @@ const isResultReverseRef = ref(false)
 /**
  * 第五步最终结果的表格内容
  * @type { Ref<OrderResultDatum[]> }
- * 分别是：序号、文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²、原表序号
+ * 分别是：[序号, 文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
  * @note resultTableDataRef比resultRef多了个序号
  * 可能因版本差异，数组元素数量不足7个，所以用可选链，并需在软件初始化时做验证
  */
@@ -562,7 +567,7 @@ const contactAngleObj = {
   baselineReferencePoint: null,
   ellipse: null,
   ellipseR2: null,
-  rawContourPointAoa: null,
+  resultType: null,
 }
 // 注册一个<canvas>的响应式鼠标点击监听
 const {
@@ -674,10 +679,11 @@ onMounted(() => { try {
 
 /**
  * 数据初始化
- * 图表上呈现的数据，会强行让数据长度为7
- * @param { number } [dataLength] 数据长度，默认为7
+ * 图表上呈现的数据，会强行让数据长度为8
  */
-function initResultData(dataLength = 7) {
+function initResultData() {
+  // 数据长度
+  const DATA_LENGTH = 8
   // 从localStorage中读取
   const resultDataStr = localStorage.getItem("contactAngleResult")
   // 如果没有数据
@@ -698,7 +704,7 @@ function initResultData(dataLength = 7) {
       return
     }
     // 强行初始化数据长度
-    resultDataArr.length = dataLength
+    resultDataArr.length = DATA_LENGTH
   }
   // 检查完毕，赋值给resultRef
   resultRef.value = resultDataAoa
@@ -939,6 +945,8 @@ function onSliderChange() { try {
 /**
  * 调节滑轨操作刚停止的事件回调钩子
  * 步骤3：基线细调。此步骤下，用户只能操作滑轨，因此事件全部来源于滑轨。
+ * 步骤4：基线细调，此步骤下，用户点击canvas会触发绑定值的修改，也会触发该回调。
+ * @note 步骤4的计算应以Ref对象为基准，而不是baseline对象。步骤4的逻辑归集到Ref对象了。
  */
 function onSliderChangeEnd() { try {
   // 接参数
@@ -951,7 +959,7 @@ function onSliderChangeEnd() { try {
   } else if (taskStatus === 4) {
     // 接参数
     const [{ value: userLeftIntercept }, { value: userRightIntercept }] = interceptNumArrRef.value
-    // 执行滑轨数据刷新方法（会被动触发绘制基线）
+    // 执行滑轨数据刷新方法（会被动触发绘制基线），此处从滑轨取值，本身就是用户视角，无需显示再转为用户视角
     refreshBaselineSlider([userLeftIntercept, userRightIntercept], false)
   }
 } catch (error) {
@@ -1201,7 +1209,7 @@ function onSureRect(isDetermine) { try {
  */
 function taskToStep3() {
   // 轮廓查找算法恢复默认设置
-  contourAlgorithmRadioRef.value = 0
+  // contourAlgorithmRadioRef.value = 0
   // 粗调/细调恢复默认设置
   isContourCoarseRef.value = true
   // 中心遮罩/两边遮罩恢复默认设置
@@ -1613,15 +1621,12 @@ function onDetermineContour() { try {
   })
   // 轮廓点集合MetVoctor对象用过了，不需要了，销毁以释放WASM内存
   metVectorContours.delete()
-  // 轮廓点对象送去全局
-  contactAngleObj.rawContourPointAoa = rawContourPointAoa
   // 过滤轮廓点，获取轮廓点集合P(0)和轮廓点到基线的距离数组
   const {
     contourPointAoa,
     contourPointToBaselineDistanceArr
   } = Algorithm.baselineFilterContourPoints({
-    rawContourPointAoa, baseline,
-    canvasWidth, canvasHeight
+    rawContourPointAoa, baseline, canvasWidth, canvasHeight
   })
 
   // =================================================
@@ -1633,13 +1638,13 @@ function onDetermineContour() { try {
     ellipse,
     baselineReferencePoint,
     R2Arr,
-    outerIterationCount,
-    // ...restEllipseObj
+    resultType,
+    ...restEllipseObj
   } = Algorithm.getEllipse({ cv, contourPointAoa, contourPointToBaselineDistanceArr })
-
   // 写回全局对象
   contactAngleObj.ellipse = ellipse
-  contactAngleObj.ellipseR2 = R2Arr[outerIterationCount]
+  contactAngleObj.ellipseR2 = R2Arr[R2Arr.length - 1]
+  contactAngleObj.resultType = resultType
   contactAngleObj.baselineReferencePoint = baselineReferencePoint
   // 绘制椭圆
   drawEllipse()
@@ -1807,6 +1812,8 @@ const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
  * 步骤4里刷新滑块数据的具体方法
  * @param { [number, number] } 左截距和右截距数据
  * @param { boolean } [isConvertToUser = true] 是否需要转换成用户视角
+ * @note baseline对象的值是canvas视角的y值，当使用baseline对象传参时，需要转换成用户视角；
+ *       滑轨组件的值是用户视角的y值，当使用滑轨组件传参时，需显式声明不需转换
  * @note 会触发绘制基线截距
  */
 function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertToUser = true) {
@@ -1908,36 +1915,8 @@ function onDetermineBaseline() { try {
   // 接参数
   const { width: canvasWidth, height: canvasHeight } = canvasRef.value
   // 接椭圆对象
-  // const { ellipse } = contactAngleObj
-
-  // ===========================================================================
-  //  此处重写摸条件模块
-  // ===========================================================================
-  // 接对象
-  const { cv, rawContourPointAoa } = contactAngleObj
-  const baseline = {
-    left: leftIntercept,
-    right: rightIntercept
-  }
-  // 重新过滤轮廓点
-  const { contourPointAoa, contourPointToBaselineDistanceArr } =
-    Algorithm.baselineFilterContourPoints({
-      rawContourPointAoa,
-      baseline, canvasWidth, canvasHeight
-    })
-
-  // 重新计算ellipse
-  const {
-    ellipse,
-    baselineReferencePoint,
-    ...restEllipseObj
-  } = Algorithm.getEllipse({
-    cv, contourPointAoa, contourPointToBaselineDistanceArr
-  })
-
-  debugger
-
-  // 调用算法计算接触角
+  const { ellipse } = contactAngleObj
+  // 计算接触角
   const result = Algorithm.calculateContactAngle({
     ellipse,
     leftIntercept,
@@ -1952,7 +1931,8 @@ function onDetermineBaseline() { try {
     result.contactAngleLeft,
     result.contactAngleRight,
     result.interceptAngle,
-    contactAngleObj.ellipseR2
+    contactAngleObj.ellipseR2,
+    contactAngleObj.resultType
   ])
   localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
   // 发个通知

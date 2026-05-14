@@ -3,20 +3,22 @@
 /**
  * 接触角求解的纯算法模块
  * 接触角业务中的“纯计算”逻辑，模块内部分为以下几个业务区域：
+ * 0.  导入导出方法
+ *     getEllipse() 椭圆拟合算法，即TIR-DT算法的完整模块
  * 1.  选框/遮罩相关工具方法
  *     computeRect() 选框坐标计算
  *     computeBaseline() 基线计算
  *     computeColLine() 选线方法。选择轮廓左右两侧的过滤线
  * 2.  轮廓拟合算法
  *     filterContourPoints() 轮廓点过滤。拟合之前过滤掉遮罩及基线下方的点
- *     getEllipseOld() 椭圆拟合。旧的椭圆拟合算法
+ *     getEllipseOld() 椭圆拟合。旧的椭圆拟合算法，已废弃
  * 3.  接触角角度求解算法
  *     calculateContactAngle() 接触角计算
  * 4.  其它工具函数
  */
 
 // ================================ 0. 导入导出方法 ================================
-
+// 椭圆拟合算法，即TIR-DT算法的完整模块
 export { getEllipse } from './ContactAngle-algorithm-dtirdt.js'
 
 /**
@@ -233,6 +235,8 @@ export function computeColLine({ clickX, canvasWidth, colLine }) {
 
 /**
  * getContourPoints 获取轮廓点，并会滤去明显有问题的杂点
+ * 明显有问题的杂点：位于canvas边缘1%区域内的点，及位于中心遮罩框内、两边遮罩框外的点
+ * 基线遮罩不在这一步过滤，而放到后一步。因为最后一步学生也会调整基线，所以基线遮罩框的边界可能会变
  * 设计思路：
  *   1. 从OpenCV的Met数据中提取轮廓点数据
  *   2. 先过滤掉位于canvas边缘1%区域内的点
@@ -306,15 +310,17 @@ export function getContourPoints({
  *   2. 同时计算每个保留点到基线的距离，供后续椭圆拟合使用
  * @param { object } param
  * @param { [number, number][] } param.rawContourPointAoa - 轮廓点坐标数组 [x, y][]
- * @param { Baseline } param.baseline - 基线截距坐标
+ * @param { Baseline } param.baseline - 基线截距坐标，canvas视角。
  * @param { number } param.canvasWidth - canvas 实际宽度
  * @param { number } param.canvasHeight - canvas 实际高度
+ * @param { boolean } [param.isBaselineConvertToCanvas] - 基线是否已转换到canvas视角
  * @returns {{ contourPointAoa: [number, number][], contourPointToBaselineDistanceArr: number[] }}
  *   - newContourPointAoa - 过滤后的轮廓点坐标数组 [x, y][]
  *   - contourPointToBaselineDistanceArr - 各轮廓点到基线的距离数组
+ * @note 基线截距坐标默认canvas视角，如从滑轨Ref对象取值，则需显式转换。
  */
 export function baselineFilterContourPoints({
-  rawContourPointAoa, baseline, canvasWidth, canvasHeight
+  rawContourPointAoa, baseline, canvasWidth, canvasHeight, isBaselineConvertToCanvas = true
 }) {
   /** 声明一个数组用来接所有轮廓点，即集合P(0) @type { [number, number][] } */
   const newContourPointAoa = []
@@ -394,7 +400,7 @@ export function baselineFilterContourPoints({
 export function filterContourPoints({
   metVectorContours, colLine, rect, baseline, canvasWidth, canvasHeight
 }) {
-  /** 过滤线阈值，1% 切边 */
+  /** 过滤线阈值，1%切边 */
   const CANVAS_EDGE_PERCENTAGE = 0.01
   /** 声明一个数组用来接所有轮廓点，即集合P(0) @type { [number, number][] } */
   const contourPointAoa = []
@@ -470,10 +476,9 @@ export function filterContourPoints({
 }
 
 
-
-
 /**
  * 迭代拟合获得椭圆对象（旧版）
+ * @deprecated 已废弃
  * 设计思路：
  *   算法核心是一个"双层迭代"结构：
  *   - 外层：收紧容差值（toleranceValue × ITERATION_WEIGHT）

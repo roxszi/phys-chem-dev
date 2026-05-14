@@ -203,7 +203,8 @@ root.ResultTableContent = [
   "左接触角 (°)",
   "右接触角 (°)",
   "基线角度 (°)",
-  "椭圆拟合R²"
+  "R²",
+  "拟合"
 ]
 en.ResultTableContent = [
   "No.",
@@ -213,8 +214,20 @@ en.ResultTableContent = [
   "Left Contact Angle (°)",
   "Right Contact Angle (°)",
   "Baseline Angle (°)",
-  "Ellipse Fitting R²"
+  "R²",
+  "Fitting Nature"
 ]
+
+root.FitNatureStrMap = {
+  "迭代收敛": "迭代收敛",
+  "迭代达上限": "迭代达上限",
+  "有效点不足": "有效点不足"
+}
+en.FitNatureStrMap = {
+  "迭代收敛": "Convergence",
+  "迭代达上限": "Iteration Limit",
+  "有效点不足": "Insufficient Valid Points"
+}
 
 root.ResultTableProcessingLabel = "处理"
 en.ResultTableProcessingLabel = "Process"
