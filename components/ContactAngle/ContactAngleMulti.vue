@@ -393,7 +393,7 @@ import { useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
 // 导入自有方法
 import my from "@/utils/myFunc.js"
 // 导入xlsx相关方法
-import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
+import { aoaMapToWorkbook, downloadXlsx, aoaTranspose } from "@/utils/app-xlsx.js"
 // 导入OpenCV.js加载器
 import { loadOpenCV } from "@/utils/opencvLoader.js"
 // 导入纯算法模块（从Vue文件中解耦出来的无UI依赖的计算逻辑）
@@ -569,6 +569,10 @@ const contactAngleObj = {
   ellipseR2: null,
   resultType: null,
 }
+
+/** 用于储存数据的临时对象 */
+const contactAngleTempObj = {}
+
 // 注册一个<canvas>的响应式鼠标点击监听
 const {
   // 鼠标点在<canvas>内部的X坐标、Y坐标
@@ -1632,6 +1636,136 @@ function onDetermineContour() { try {
   // =================================================
   // 开始调试
   // =================================================
+  /** 椭圆拟合参数 @type { ["default", "ams", "direct"] } */
+  const methodArr = ["default", "ams", "direct"]
+  /** 阳性阈值的截断常数 */
+  const CArr = [0.6745, 0.8416, 1.0364, 1.2816, 1.6449, 2]
+  /** 阴性阈值的百分位数，及fix */
+  const NTOptionArr = [{ name: "fix", percent: 0 }]
+  for (const percent of [45, 60, 75, 90]) {
+    // 约束
+    NTOptionArr.push({
+      name: `${ percent }-constraint`,
+      percent: percent,
+    })
+    // 无约束
+    NTOptionArr.push({
+      name: `${ percent }-absolute`,
+      percent: percent,
+      minNI: 0,
+      maxNI: 1
+    })
+  }
+  // 接收数据的数组
+  /** 序号 @type { [string, ...number[]] } */
+  const resultIndexArr = ["序号"]
+  /** 拟合方法 */
+  const resultMethodArr = ["拟合方法"]
+  /** 阳性阈值截断常数 @type { [string, ...number[]] } */
+  const resultCArr = ["阳性阈值截断常数"]
+  /** 阴性阈值 @type { [string, ...number[]] } */
+  const resultNTOptionArr = ["阴性阈值"]
+  /** 全局临时对象的椭圆对象数组 @type { CV.Ellipse[] } */
+  const ellipseArr = []
+  /** 最终R² @type { [string, ...number[]] } */
+  const resultR2Arr = ["最终R²"]
+  /** 拟合结果性质 */
+  const resultTypeArr = ["拟合结果性质"]
+  /** 椭圆长 @type { [string, ...number[]] } */
+  const resultEllipseR1Arr = ["椭圆长"]
+  /** 椭圆宽 @type { [string, ...number[]] } */
+  const resultEllipseR2Arr = ["椭圆宽"]
+  /** 外层迭代次数 @type { [string, ...number[]] } */
+  const resultOuterIterationCountArr = ["外层迭代次数"]
+  /** 耗时 @type { [string, ...number[]] } */
+  const resultTimeElapsedArr = ["耗时"]
+  /** R2值变化的AOA数组，将独立一个sheet */
+  const R2Aoa = []
+  /** 点变化的AOA数组，将独立一个sheet */
+  const pointUtilizationAoa = []
+  /** 内层迭代次数变化的AOA数组，将独立一个sheet */
+  const innerIterationCountAoa = []
+  // 大遍历
+  forEachMethod: for (let i = 0; i < methodArr.length; i++) {
+    const method = methodArr[i]
+    forEachC: for (let j = 0; j < CArr.length; j++) {
+      const C = CArr[j]
+      forEachNI: for (let k = 0; k < NTOptionArr.length; k++) {
+        // 总序号
+        const index = i * CArr.length * NTOptionArr.length + j * NTOptionArr.length + k + 1
+        // 先装箱一波
+        resultIndexArr.push(index)
+        resultMethodArr.push(method)
+        resultCArr.push(C)
+        resultNTOptionArr.push(NTOptionArr[k].name)
+        // 组装参数
+        const options = {
+          C: C,
+          NTOptions: NTOptionArr[k],
+        }
+        // 防bug保护
+        try {
+          // 调用算法拟合
+          const resultObj = Algorithm.getEllipse({
+            cv, contourPointAoa, contourPointToBaselineDistanceArr, method, options
+          })
+          // 椭圆对象存入全局临时对象
+          ellipseArr.push(resultObj.ellipse)
+          // 椭圆宽高
+          const ellipseWidth = resultObj.ellipse.size.width
+          const ellipseHeight = resultObj.ellipse.size.height
+          // 宽高装箱：长短轴赋值，长的在前，短的在后
+          if (ellipseWidth > ellipseHeight) {
+            resultEllipseR1Arr.push(ellipseWidth)
+            resultEllipseR2Arr.push(ellipseHeight)
+          } else {
+            resultEllipseR1Arr.push(ellipseHeight)
+            resultEllipseR2Arr.push(ellipseWidth)
+          }
+          // 装箱：
+          resultR2Arr.push(resultObj.R2Arr[resultObj.R2Arr.length - 1])
+          resultTypeArr.push(resultObj.resultType)
+          resultOuterIterationCountArr.push(resultObj.outerIterationCount)
+          resultTimeElapsedArr.push(resultObj.timeElapsed)
+          R2Aoa.push([index, ...resultObj.R2Arr])
+          innerIterationCountAoa.push([index, ...resultObj.innerIterationCountArr])
+          pointUtilizationAoa.push([index, ...resultObj.pointUtilizationArr])
+        // 报错处理
+        } catch (error) {
+          // 直接装箱
+          ellipseArr.push(null)
+          resultR2Arr.push(null)
+          resultEllipseR1Arr.push(null)
+          resultEllipseR2Arr.push(null)
+          resultTypeArr.push(null)
+          resultOuterIterationCountArr.push(null)
+          resultTimeElapsedArr.push(null)
+          R2Aoa.push([index])
+          innerIterationCountAoa.push([index])
+          pointUtilizationAoa.push([index])
+        }
+      }
+    }
+  }
+  // 遍历结束，把椭圆对象存全局
+  contactAngleTempObj.resultIndexArr = resultIndexArr
+  contactAngleTempObj.resultMethodArr = resultMethodArr
+  contactAngleTempObj.resultCArr = resultCArr
+  contactAngleTempObj.resultNTOptionArr = resultNTOptionArr
+  contactAngleTempObj.ellipseArr = ellipseArr
+  contactAngleTempObj.resultR2Arr = resultR2Arr
+  contactAngleTempObj.resultEllipseR1Arr = resultEllipseR1Arr
+  contactAngleTempObj.resultEllipseR2Arr = resultEllipseR2Arr
+  contactAngleTempObj.resultTypeArr = resultTypeArr
+  contactAngleTempObj.resultOuterIterationCountArr = resultOuterIterationCountArr
+  contactAngleTempObj.resultTimeElapsedArr = resultTimeElapsedArr
+  contactAngleTempObj.R2Aoa = R2Aoa
+  contactAngleTempObj.pointUtilizationAoa = pointUtilizationAoa
+  contactAngleTempObj.innerIterationCountAoa = innerIterationCountAoa
+
+  // =================================================
+  // 结束调试
+  // =================================================
 
   // 获取椭圆数据
   const {
@@ -1914,6 +2048,82 @@ function onDetermineBaseline() { try {
   const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
   // 接参数
   const { width: canvasWidth, height: canvasHeight } = canvasRef.value
+  
+  // =================================================
+  // 开始调试
+  // =================================================
+  // 接收传参
+  const ellipseArr = contactAngleTempObj.ellipseArr
+  // 创建空数组
+  /** 左接触角 @type { [string, ...number[]] } */
+  const contactAngleLeftArr = ["左接触角"]
+  /** 右接触角 @type { [string, ...number[]] } */
+  const contactAngleRightArr = ["右接触角"]
+  // 遍历所有椭圆对象
+  forEachEllipse: for (const ellipse of ellipseArr) {
+    // 报错保险
+    try {
+      if (ellipse === null) {
+        throw new Error("椭圆对象为空")
+      }
+      // 计算接触角
+      const result = Algorithm.calculateContactAngle({
+        ellipse,
+        leftIntercept,
+        rightIntercept,
+        canvasWidth, canvasHeight
+      })
+      // 将结果写入结果数组
+      contactAngleLeftArr.push(result.contactAngleLeft)
+      contactAngleRightArr.push(result.contactAngleRight)
+    // 报错处理
+    } catch (error) {
+      // 推空值进数组
+      contactAngleLeftArr.push(null)
+      contactAngleRightArr.push(null)
+    }
+  }
+  // 遍历结束，处理AOA数组
+  /** 主数据 */
+  const resultMainAoa = aoaTranspose([
+    contactAngleTempObj.resultIndexArr,
+    contactAngleTempObj.resultMethodArr,
+    contactAngleTempObj.resultCArr,
+    contactAngleTempObj.resultNTOptionArr,
+    contactAngleTempObj.resultTypeArr,
+    contactAngleTempObj.resultR2Arr,
+    contactAngleTempObj.resultOuterIterationCountArr,
+    contactAngleTempObj.resultTimeElapsedArr,
+    contactAngleTempObj.resultEllipseR1Arr,
+    contactAngleTempObj.resultEllipseR2Arr,
+    contactAngleLeftArr,
+    contactAngleRightArr
+  ])
+  /** R²数据 */
+  const resultR2Aoa = contactAngleTempObj.R2Aoa
+  /** 点利用率数据 */
+  const resultPointUtilizationAoa = contactAngleTempObj.pointUtilizationAoa
+  /** 内部迭代次数数据 */
+  const resultInnerIterationCountAoa = contactAngleTempObj.innerIterationCountAoa
+  // 制作表
+  // 建立工作表文件的Map对象
+  const resultMap = new Map()
+  // 把数据结果AOA数组加进Map里
+  resultMap.set("main", resultMainAoa)
+  resultMap.set("迭代拟合优度", resultR2Aoa)
+  resultMap.set("点利用率", resultPointUtilizationAoa)
+  resultMap.set("内部迭代次数", resultInnerIterationCountAoa)
+  // AOA数据的Map对象转成xlsx文件
+  const workbook = aoaMapToWorkbook(resultMap)
+  // 文件名
+  const filename = contactAngleObj.filename + ".xlsx"
+  // 下载xlsx文件
+  downloadXlsx(workbook, filename)
+
+  // =================================================
+  // 结束调试
+  // =================================================
+  
   // 接椭圆对象
   const { ellipse } = contactAngleObj
   // 计算接触角

@@ -1628,11 +1628,6 @@ function onDetermineContour() { try {
   } = Algorithm.baselineFilterContourPoints({
     rawContourPointAoa, baseline, canvasWidth, canvasHeight
   })
-
-  // =================================================
-  // 开始调试
-  // =================================================
-
   // 获取椭圆数据
   const {
     ellipse,
