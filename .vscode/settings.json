@@ -14,7 +14,7 @@
   },
   // Codegeex代码生成器设置
   "Codegeex.RepoIndex": true,
+  "Codegeex.Chat.fontSize": 13,
   // VSCode自带的AI功能：关闭
-  "chat.disableAIFeatures": true,
-  "Codegeex.Chat.fontSize": 13
+  "chat.disableAIFeatures": true
 }

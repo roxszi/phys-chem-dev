@@ -52,6 +52,11 @@ export default defineConfig({
       // 开启Gzip压缩。压缩算法只要gzip即可
       compression({ algorithms: ["gzip"] }),
     ],
+    // 开发服务器配置
+    server: {
+      // 端口
+      port: 3000,
+    }
   },
 
   /**

@@ -9,8 +9,6 @@
 //     ③ "direct" - fitEllipseDirect
 // 2.  阳性阈值的截断常数C，即 μ + C * σ 中的 C
 //     μ + 1σ覆盖的概率约为0.6826，μ + 2σ覆盖的概率约为0.9544
-//     C = 0.6745 对应50%
-//     C = 0.8416 对应60%
 //     C = 1.0364 对应70%
 //     C = 1.2816 对应80%
 //     C = 1.6449 对应90%
@@ -70,7 +68,7 @@
  *      [阳性·正确点集PT]、[阳性·错误点集PF]、[阴性·正确点集NT]、[阴性·错误点集NF]。
  *   4. 重复1~3操作。
  *   5. 【收敛条件】：达到最大迭代次数，或[阳性·错误点集PF]、[阴性·错误点集NF]为空集。
- * 算法需要计算RD，即点相对椭圆圆心位置的半径的相对偏差，步骤细节如下：
+ * 算法需要计算RE，即点相对椭圆圆心位置的半径的相对误差，步骤细节如下：
  *   1. 每次拟合得到的椭圆参数用于构建以圆心为的坐标系。
  *   2. 每个点化归到该坐标系（去中心化 + 逆旋转）然后计算距离、方向等。
  * @param { object } param - 参数对象
@@ -138,14 +136,14 @@ export function getEllipse({
     pointUtilizationArr.push(PPointAoa.length)
     // 用阳性点集拟合得到椭圆
     ellipse = fitPointsToEllipse(cv, PPointAoa, method)
-    // 阳性偏差数组及R²值
-    const { RDArr: PRDArr, R2 } = computeDeviationMetrics(PPointAoa, ellipse)
+    // 阳性相对误差数组及R²值
+    const { REArr: PREArr, R2 } = computeDeviationMetrics(PPointAoa, ellipse)
     // 把当前R²值存入数组
     R2Arr.push(R2)
-    // 阴性相对偏差数组
-    const { RDArr: NRDArr } = computeDeviationMetrics(NPointAoa, ellipse)
+    // 阴性相对误差数组
+    const { REArr: NREArr } = computeDeviationMetrics(NPointAoa, ellipse)
     // 获取阳性阈值PT和阴性阈值NT
-    const { PT, NT, iterations: innerIterationCount } = determineDualThresholdWithIter(PRDArr, options)
+    const { PT, NT, iterations: innerIterationCount } = determineDualThresholdWithIter(PREArr, options)
     // 把当前小迭代的次数存入数组
     innerIterationCountArr.push(innerIterationCount);
     // 就地更新阳性点集和阴性点集，并判断是否收敛、更新基线参考点
@@ -155,7 +153,7 @@ export function getEllipse({
     } = filterPointsByThreshold({
       PT: PT, NT: NT,
       PPointAoa: PPointAoa, NPointAoa: NPointAoa,
-      PRDArr: PRDArr, NRDArr: NRDArr
+      PREArr: PREArr, NREArr: NREArr
     }))
     // 防bug：如果阳性点集长度小于6，则直接退出迭代
     if (PPointAoa.length < 6) {
@@ -196,7 +194,7 @@ export function getEllipse({
  * 2.  排除杂点第一步（位次筛选）。取90%~95%位次的点，以防止大值杂点的影响。
  *     至于小值杂点，很难在这一步排除。
  * 3.  排除杂点第二步（线性距离筛选）。取第1个点，计算其到90%~95%位次点的距离，以该距离为基准值。
- *     计算该距离的0.25倍和0.75倍，即一个液滴的中间50%高度段。作为筛选距离的最小值和最大值。
+ *     计算该距离的0.2倍和1.0倍，即一个液滴的中间50%高度段。作为筛选距离的最小值和最大值。
  *     以该段筛选全部轮廓点，即筛选出可用于初次迭代的较为稳健的阳性点集和阴性点集。
  * @param { object } param - 参数对象
  * @param { [number, number][] } param.contourPointAoa - 轮廓点集
@@ -259,12 +257,12 @@ function filterPointsByBaselineDistance({
  * filterPointsByThreshold 用阈值筛选点
  * 会根据双阈值处理阳性和阴性点集，并返回收敛状态
  * @param { object } param - 参数对象
- * @param { number } param.PT - 阳性阈值
- * @param { number } param.NT - 阴性阈值
+ * @param { [number, number] } param.PT - 阳性阈值
+ * @param { [number, number] } param.NT - 阴性阈值
  * @param { [number, number][] } param.PPointAoa - 阳性点集
  * @param { [number, number][] } param.NPointAoa - 阴性点集
- * @param { number[] } param.PRDArr - 阳性相对偏差数组
- * @param { number[] } param.NRDArr - 阴性相对偏差数组
+ * @param { number[] } param.PREArr - 阳性相对误差数组
+ * @param { number[] } param.NREArr - 阴性相对误差数组
  * @return {{ isConverged: boolean, baselineReferencePoint: [number, number] }}
  *   isConverged：是否收敛；baselineReferencePoint：基线参考点[x, y]
  * @note 各点集数组对象、距离数组对象，会被就地修改
@@ -274,7 +272,7 @@ function filterPointsByThreshold(param) {
   const {
     PT, NT,
     PPointAoa, NPointAoa,
-    PRDArr, NRDArr
+    PREArr, NREArr
   } = param
   // 构建几个过程临时数组对象：阳性-正确、阳性-错误、阴性-正确、阴性-错误
   /** 阳性-正确数组（将继续保持阳性） @type { [number, number][] } */
@@ -289,8 +287,8 @@ function filterPointsByThreshold(param) {
   let baselineReferencePoint = [0, 0]
   // 遍历阳性点集，筛选出符合要求的点
   for (let i = 0; i < PPointAoa.length; i++) {
-    // RD超过阈值，则推进阳性-错误数组
-    if (PRDArr[i] > PT) {
+    // RE超过阈值，则推进阳性-错误数组
+    if ((PREArr[i] < PT[0]) || (PREArr[i] > PT[1])) {
       PFPointAoa.push(PPointAoa[i])
     // 否则推进阳性-正确数组
     } else {
@@ -303,8 +301,8 @@ function filterPointsByThreshold(param) {
   }
   // 遍历阴性点集，筛选出符合要求的点
   for (let i = 0; i < NPointAoa.length; i++) {
-    // RD超过阈值，则推进阴性-正确数组
-    if (NRDArr[i] > NT) {
+    // RE超过阈值，则推进阴性-正确数组
+    if ((NREArr[i] < NT[0]) || (NREArr[i] > NT[1])) {
       NTPointAoa.push(NPointAoa[i])
     // 否则推进阴性-错误数组
     } else {
@@ -371,21 +369,21 @@ function fitPointsToEllipse(cv, pointAoa, method = "ams") {
 
 
 /**
- * computeDeviationMetrics 计算点集的相对偏差（Relative Deviation, RD）数组（原始顺序）及拟合优度R²
+ * computeDeviationMetrics 计算点集的相对误差（Relative Error, RE）数组（原始顺序）及拟合优度R²
  * 计算思路：
  * 1. 将点去中心化 + 旋转，迁移到标准椭圆坐标系
  * 2. 计算点相对椭圆圆心方向上的椭圆半径，以及点与椭圆的距离
- * 3. 以上述的半径作为参考，计算点相对椭圆的相对偏差
+ * 3. 以上述的半径作为参考，计算点相对椭圆的相对误差
  * @param { [number, number][] } pointAoa - 点的原始坐标 [x, y][]
  * @param { CV.Ellipse } ellipse - 椭圆对象
- * @returns {{ RDArr: number[], R2: number }} 结果对象：
- *   - RDArr：相对偏差（Relative Deviation, RD）数组（原始顺序）
+ * @returns {{ REArr: number[], R2: number }} 结果对象：
+ *   - REArr：相对误差（Relative Error, RE）数组（原始顺序）
  *   - R2：拟合优度R²
  */
 function computeDeviationMetrics(pointAoa, ellipse) {
   // 如果点集为空，直接返回空数组，多见于第一次的阴性点集
   if (pointAoa.length === 0) {
-    return { RDArr: [], R2: 0 }
+    return { REArr: [], R2: 0 }
   }
   // 接椭圆参数，简化后面的计算公式
   /** 椭圆长轴w */
@@ -404,15 +402,15 @@ function computeDeviationMetrics(pointAoa, ellipse) {
   const ellipseAngleSin = Math.sin(ellipseAngle * Math.PI / 180)
   /** 椭圆旋转角cos值 */
   const ellipseAngleCos = Math.cos(ellipseAngle * Math.PI / 180)
-  /** 相对偏差（Relative Deviation, RD）数组 @type { number[] } */
-  const RDArr = []
+  /** 相对误差（Relative Error, RE）数组 @type { number[] } */
+  const REArr = []
   /** 点到椭圆圆心的径向距离数组 @type { number[] } */
   const pointRArr = []
   /** 椭圆在每个点方向的半径数组 @type { number[] } */
   const ellipseRArr = []
   /** 所有点到椭圆圆心的径向距离之和 */
   let pointRSum = 0
-  // 遍历点集，计算每个点的相对偏差
+  // 遍历点集，计算每个点的相对误差
   for (const positivePoint of pointAoa) {
     // 去中心化
     /** 点去中心化后的X坐标 */
@@ -437,12 +435,10 @@ function computeDeviationMetrics(pointAoa, ellipse) {
       (((ellipseH * Math.cos(pointRad)) ** 2) + ((ellipseW * Math.sin(pointRad)) ** 2))
     /** 椭圆在该点方向的半径：r = r² ** 0.5 */
     const ellipseR = Math.sqrt(ellipseRSquare)
-    /** 点与椭圆该方向半径的绝对偏差 */
-    const pointToEllipseDistance = Math.abs(pointR - ellipseR)
-    /** 点与椭圆该方向半径的相对偏差RD */
-    const pointRD = pointToEllipseDistance / ellipseR
-    // 把相对偏差RD丢进数组
-    RDArr.push(pointRD)
+    /** 点与椭圆该方向半径的相对误差RE */
+    const pointRE = (pointR - ellipseR) / ellipseR
+    // 把相对误差RE丢进数组
+    REArr.push(pointRE)
     // 接下来处理R²相关计算
     // 把r个体值丢进数组
     pointRArr.push(pointR)
@@ -468,7 +464,7 @@ function computeDeviationMetrics(pointAoa, ellipse) {
   /** R² */
   const R2 = 1 - SSE / SST
   // 返回
-  return { RDArr: RDArr, R2: R2 }
+  return { REArr: REArr, R2: R2 }
 }
 
 
@@ -484,9 +480,9 @@ function computeDeviationMetrics(pointAoa, ellipse) {
  *     单尾下，当标准化残差r ≤ C时，保留该点，否则剔除该点。
  * 5.  剔除极端值后，重新计算MAD，直到MAD收敛（实际计算时，用sigma收敛代替，以降低心智负担）。
  * 6.  收敛后，TOL = median + C * sigma，公式形式等同于 μ + nσ
- * @param { number[] } RDArr - 相对偏差（Relative Deviation, RD）数组（原始顺序）
+ * @param { number[] } REArr - 相对误差（Relative Error, RE）数组（原始顺序）
  * @param { object } [options] - 可选参数
- * @param { number } [options.C = 2] - 截断常数。
+ * @param { number } [options.C = 1.5] - 截断常数。
  *   - 取1时，即类似于1σ，μ + 1σ覆盖的概率约为0.6826。
  *   - 取2时，即类似于2σ，μ + 2σ覆盖的概率约为0.9544。
  *   - 取3时，即类似于3σ，μ + 3σ覆盖的概率约为0.9974。
@@ -495,73 +491,71 @@ function computeDeviationMetrics(pointAoa, ellipse) {
  * @param { number } [options.convergenceThreshold = 0.01] - 收敛阈值。
  *   当sigma的相对变化小于此值时判定收敛并停止迭代。
  * @param { NTOptions } [options.NTOptions] - 阴性阈值计算的可选参数。
- * @returns {{ PT: number, NT: number, iterations: number }}
+ * @returns {{ PT: [number, number], NT: [number, number], iterations: number }}
  *   PT: 阳性阈值；NT: 阴性阈值；iterations: 迭代次数
  */
-function determineDualThresholdWithIter(RDArr, options = {}) {
+function determineDualThresholdWithIter(REArr, options = {}) {
   // 初始化参数
   const {
-    C = 2,
+    C = 1.5,
     maxIter = 20,
     convergenceThreshold = 0.01,
     NTOptions = {}
   } = options
   /** 排序后的数组 */
-  const sortedRDArr = sortArr(RDArr)
-  /** 数组长度 */
-  const N = RDArr.length
+  const sortedREArr = sortArr(REArr)
   /** 中位数 @type { number } */
   let median
   /** 中位绝对偏差 @type { number } */
   let MAD
   // 计算初始的中位绝对偏差和中位数，并解构赋值
-  ({ median: median, MAD: MAD } = computeMAD(sortedRDArr))
+  ({ median: median, MAD: MAD } = computeMAD(sortedREArr))
   /** 假设正态分布情况下的等效标准差sigma */
   let sigma = MAD * 1.4826
   // =============== 退化处理，确保sigma不为0 ===============
-  // sigma = MAD = 0，说明超过一半的RD值相同，需要回退到更保守的替代估计方法：
+  // sigma = MAD = 0，说明超过一半的RE值相同，需要回退到更保守的替代估计方法：
   if (sigma === 0) {
     // 正态分布下，μ到Q1等于0.6745 * σ，因此用左侧展幅法：
     /** Q1值，即25%位置的值 */
-    const q1 = getPercentile(sortedRDArr, 25)
+    const q1 = getPercentile(sortedREArr, 25)
     /** 左展幅，中位数 - Q1位数 */
     const spreadLeft = median - q1
-    // 如果左侧展幅为正，即中位数大于Q1位数，则用左侧展幅法计算sigma
+    // 如果左侧展幅为正（不为0），即中位数大于Q1位数，则用左侧展幅法计算sigma
     if (spreadLeft > 0) {
       sigma = spreadLeft * 1.4826
-    // 否则左侧展幅为0，说明Q1也和μ相同，数据极端集中，则再次退化。若中位数为正：
-    } else if (median > 0) {
+    // 否则左侧展幅为0，说明Q1也和μ相同，数据极端集中，则再次退化。若中位数不为0：
+    } else if (median !== 0) {
       // sigma取中位数median的10%：即如果主体RE都相同，"合理偏差范围"大致是RE中心值的10%量级
-      sigma = median * 0.1
+      sigma = Math.abs(median * 0.1)
     // 若中位数也为0，则再次退化
     } else {
       // "合理偏差范围"只能给一个默认值，1%
-      sigma =  0.01
+      sigma = 0.01
     }
   }
   // =============== 迭代优化 ===============
   /** 迭代次数 */
   let actualIter = 0
-  /** 迭代使用的相对偏差数组 */
-  const iterSortedRDArr = []
+  /** 迭代使用的相对误差数组 */
+  const iterSortedREArr = []
   // 开始迭代优化阳性阈值
   whileIter: while (actualIter < maxIter) {
     // 迭代次数加1
     actualIter++
-    // 初始化迭代使用的相对偏差数组
-    iterSortedRDArr.length = 0
-    // 遍历相对偏差数组，判断是否将该点纳入稳健估计
-    for (let i = 0; i < N; i++) {
-      /** 标准化残差 */
-      const r = (sortedRDArr[i] - median) / sigma
+    // 初始化迭代使用的相对误差数组
+    iterSortedREArr.length = 0
+    // 遍历相对误差数组，判断是否将该点纳入稳健估计
+    for (const sortedRE of sortedREArr) {
+      /** 标准化残差绝对值 */
+      const absR = Math.abs(sortedRE - median) / sigma
       // 判断是否保留该点
-      if (r <= C) {
-        // 单尾情况下，小于等于C即可保留
-        iterSortedRDArr.push(sortedRDArr[i])
+      if (absR <= C) {
+        // 小于等于C即可保留
+        iterSortedREArr.push(sortedRE)
       }
     }
     // 更新中位数、中位绝对偏差
-    const { median: newMedian, MAD: newMAD } = computeMAD(iterSortedRDArr)
+    const { median: newMedian, MAD: newMAD } = computeMAD(iterSortedREArr)
     /** 新的等效标准差sigma */
     const newSigma = newMAD * 1.4826
     /** sigma的相对变化率 */
@@ -577,10 +571,10 @@ function determineDualThresholdWithIter(RDArr, options = {}) {
     }
   }
   // 迭代结束
-  /** 阳性阈值 */
-  const PT = median + C * sigma
+  /** 阳性阈值 @type { [number, number] } */
+  const PT = [(median - C * sigma), (median + C * sigma)]
   /** 阴性阈值 */
-  const NT = computeNegativeThreshold(iterSortedRDArr, PT, NTOptions)
+  const NT = computeNegativeThreshold(iterSortedREArr, PT, NTOptions)
   // 返回结果
   return {
     PT: PT,
@@ -599,12 +593,12 @@ function determineDualThresholdWithIter(RDArr, options = {}) {
  *     即门槛提高到75%的阳性点位次，以此为参考，计算得到一个阴性系数NI值。
  *     （可选）得到NI值之后，用预设的NI的上界（maxNI）和下界（minNI）对NI进行约束，防止NI太大造成迭代振荡。
  * 2.  采用一个兜底的经验值：NI = 2/3，以此计算得到NT。
- * @param { number[] } sortedRDArr 已排序的相对偏差数组
- * @param { number } PT 阳性阈值（Positive-Tolerance, PT）
+ * @param { number[] } sortedREArr 已排序的相对误差数组
+ * @param { [number, number] } PT 阳性阈值（Positive-Tolerance, PT）
  * @param { NTOptions } [options] - 可选参数
- * @returns { number } 阴性阈值NT（无量纲）
+ * @returns { [number, number] } 阴性阈值NT（无量纲）
  */
-function computeNegativeThreshold(sortedRDArr, PT, options = {}) {
+function computeNegativeThreshold(sortedREArr, PT, options = {}) {
   // 初始化参数
   const {
     percent = 75,
@@ -618,19 +612,33 @@ function computeNegativeThreshold(sortedRDArr, PT, options = {}) {
   }
   // 如果percent为0，即方法为“fix”
   if (percent === 0) {
-    /** 以固定值计算的NT */
-    const NT = PT * fixedNI
+    /** PT中位数 */
+    const PTMedian = (PT[1] + PT[0]) / 2
+    /** 以固定值计算NT半范围 */
+    const NTRangeHalf = (PT[1] - PT[0]) * fixedNI / 2
+    /** 以固定值计算的NT @type { [number, number] } */
+    const NT = [PTMedian - NTRangeHalf, PTMedian + NTRangeHalf]
     // 返回
     return NT
   }
-  /** 从已排序的数组中获取的分位数 */
-  const percentile = getPercentile(sortedRDArr, percent)
-  /** 分位数计算得到的NI */
-  const percentileNI = percentile / PT
-  /** 上下限约束后的NI */
-  const constrainedNI = Math.min(maxNI, Math.max(minNI, percentileNI))
-  /** 以百分位数计算的NT */
-  const NT = PT * constrainedNI
+  /** 前分位数 */
+  const percentFront = (100 - percent) / 2
+  /** 后分位数 */
+  const percentBack = (100 + percent) / 2
+  /** 从已排序的数组中获取的前分位数值 */
+  const percentileFront = getPercentile(sortedREArr, percentFront)
+  /** 从已排序的数组中获取的后分位数值 */
+  const percentileBack = getPercentile(sortedREArr, percentBack)
+  /** 分位数计算得到的前NI */
+  const percentileNIFront = percentileFront / PT[0]
+  /** 分位数计算得到的后NI */
+  const percentileNIBack = percentileBack / PT[1]
+  /** 上下限约束后的前NI */
+  const constrainedNIFront = Math.min(maxNI, Math.max(minNI, percentileNIFront))
+  /** 上下限约束后的后NI */
+  const constrainedNIBack = Math.min(maxNI, Math.max(minNI, percentileNIBack))
+  /** 以百分位数计算的NT @type { [number, number] }*/
+  const NT = [PT[0] * constrainedNIFront, PT[1] * constrainedNIBack]
   // 返回
   return NT
 }

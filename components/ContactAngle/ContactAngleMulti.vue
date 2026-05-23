@@ -1639,7 +1639,7 @@ function onDetermineContour() { try {
   /** 椭圆拟合参数 @type { ["default", "ams", "direct"] } */
   const methodArr = ["default", "ams", "direct"]
   /** 阳性阈值的截断常数 */
-  const CArr = [0.6745, 0.8416, 1.0364, 1.2816, 1.6449, 2]
+  const CArr = [1.0364, 1.2816, 1.5, 1.6449, 2]
   /** 阴性阈值的百分位数，及fix */
   const NTOptionArr = [{ name: "fix", percent: 0 }]
   for (const percent of [45, 60, 75, 90]) {
