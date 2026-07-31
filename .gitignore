@@ -1,14 +1,45 @@
-# Git同步时不同步的内容
+# 不参与Git同步的内容
 
-# Node包
+# 依赖
 node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+*.tsbuildinfo
+
+# 环境变量
+.env
+.env.local
+.env.*.local
 
 # VitePress缓存
-.vitepress/cache
+*/.vitepress/cache
 
-# 打包发布目录
-dist-*/
+# 数据库文件
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
-# 临时目录
-.temp/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 覆盖率
+coverage/
+
+# 临时文件
+tmp/
 temp/

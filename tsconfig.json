@@ -1,0 +1,13 @@
+// TypeScript项目的编译配置
+//   因为存在前端和后端，因此这个配置文件只做引用管理，即通过“references”引用其他配置文件
+{
+  // 包含的文件。根设置不包含任何文件，是通过“references”引用其他配置文件
+  "files": [],
+  // 包含其他配置文件
+  "references": [
+    // 前端配置
+    { "path": "./tsconfig.frontend.json" },
+    // 后端配置
+    { "path": "./tsconfig.backend.json" }
+  ]
+}

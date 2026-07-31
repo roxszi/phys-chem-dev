@@ -1,0 +1,28 @@
+// 服务端的TS编译配置
+//   服务端使用tsc打包，因此会直接使用本设置内容
+{
+  // 继承tsconfig.base.json的配置
+  "extends": "./tsconfig.base.json",
+  // 编译器配置
+  "compilerOptions": {
+    // 需要编译为JS的根目录
+    "rootDir": "./",
+    // 编译后JS的输出目录
+    "outDir": "./dist/backend",
+    // 指定ECMAScript目标版本为较为稳健的大版本：es2022
+    "target": "es2022",
+    // 解析模块导入/导出遵循的语法标准：后端项目选nodenext
+    "module": "nodenext",
+    // 模块解析策略：nodenext，即模拟最新node的策略
+    "moduleResolution": "nodenext",
+    // 后端项目需要加载的内置全局对象/方法
+    "lib": [],
+    // 后端项目需要加载的外置类型模块
+    //   这将过滤 node_modules/@types/ 目录，留下必须的模块
+    "types": [ "node" ]
+  },
+  // 需要被编译器处理的文件/路径
+  "include": ["backend/**/*", "shared/**/*"],
+  // 编译处理过程中需被直接排除的文件/路径
+  "exclude": ["node_modules"]
+}

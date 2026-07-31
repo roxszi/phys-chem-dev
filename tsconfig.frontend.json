@@ -1,0 +1,38 @@
+// 客户端的TS编译配置
+//   客户端使用vite进行打包，vite会读取tsconfig.json的内容，本文件仅用于TS类型检查
+{
+  // 继承tsconfig.base.json的配置
+  "extends": "./tsconfig.base.json",
+  // 编译器配置
+  "compilerOptions": {
+    // 指定ECMAScript目标版本为较为保守的大版本：es2020
+    "target": "es2020",
+    // 解析模块导入/导出遵循的语法标准：前端项目选esnext
+    "module": "esnext",
+    // 模块解析策略：Bundler，即模拟打包工具（如vite）的策略
+    "moduleResolution": "Bundler",
+    // 只做类型检查，不编译为js文件
+    "noEmit": true,
+    // 配合"noEmit"，允许import语法的“.ts”写法
+    "allowImportingTsExtensions": true,
+    // 前端项目需要加载的内置全局对象/方法
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
+    // 前端项目需要加载的外置类型模块
+    //   这将过滤 node_modules/@types/ 目录，留下必须的模块
+    "types": [],
+  },
+  // 需要被编译器处理的文件/路径
+  "include": [
+    // 前端源码
+    "frontend/**/*",
+    // 对于“.”开头的“.vitepress”目录，需显式添加
+    "frontend/.vitepress/**/*",
+    // 公共文件
+    "shared/**/*"
+  ],
+  // 编译处理过程中需被直接排除的文件/路径
+  "exclude": [
+    "node_modules",
+    "cache"
+  ]
+}

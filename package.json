@@ -1,29 +1,56 @@
 {
-  "name": "phys-chem-helper",
-  "version": "2.1.0",
-  "description": "物化助手",
+  "name": "phys-chem",
+  "version": "0.1.0",
+  "description": "物化助手，助力物理化学理论与实验教学。",
+  "keywords": [],
   "author": "SI_Cheng-Yun",
   "license": "MulanPSL-2.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "set VITE_BUILD_KIND=root&& vitepress dev",
-    "build:root": "set VITE_BUILD_KIND=root&& vitepress build",
-    "build:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build",
-    "build": "pnpm run build:root && pnpm run build:subpage"
+    "dev": "pnpm dev:frontend",
+    "dev-back": "pnpm dev:frontend && pnpm dev:backend",
+    "dev:frontend": "vitepress dev frontend",
+    "build:frontend": "vitepress build frontend",
+    "preview:frontend": "vitepress preview frontend",
+    "dev:backend": "tsx watch src/index.ts",
+    "build:backend": "tsc",
+    "start:backend": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.9.0",
+      "onFail": "download"
+    }
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.10",
+    "dotenv": "^17.4.2",
+    "hono": "^4.12.30"
   },
   "devDependencies": {
-    "@techstark/opencv-js": "^4.12.0-release.1",
-    "@tensorflow/tfjs": "^4.22.0",
+    "@tdesign-vue-next/auto-import-resolver": "^0.1.7",
+    "@techstark/opencv-js": "5.0.0-release.1",
+    "@tensorflow/tfjs-backend-cpu": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
-    "@tensorflow/tfjs-vis": "^1.5.1",
-    "@vueuse/core": "^14.2.1",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "@types/node": "^26.0.1",
+    "echarts": "^6.1.0",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-vue-next": "^1.19.1",
+    "tdesign-mobile-vue": "^1.15.1",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
     "unplugin-auto-import": "^21.0.0",
-    "unplugin-vue-components": "^32.0.0",
-    "vite-plugin-compression2": "^2.5.3",
-    "vitepress": "^1.6.4",
-    "vue": "^3.5.32",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "unplugin-vue-components": "^32.1.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitepress": "2.0.0-alpha.18",
+    "vue": "^3.5.40",
+    "vue-echarts": "^8.0.1"
   }
 }

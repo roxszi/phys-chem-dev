@@ -1,0 +1,70 @@
+// TypeScript项目的基础编译配置
+//   子配置共用的内容，将统一写在这里
+{
+  // 编译器配置
+  "compilerOptions": {
+    // 路径别名
+    "paths": {
+      // 把“@”指向源码根目录
+      "@/*": ["./*"],
+      // 打包目录
+      "@dist/*": ["./dist/*"],
+      // 把“@shared”指向“shared”目录
+      "@shared/*": ["./shared/*"],
+      // 前端根目录
+      "@frontend/*": ["./frontend/*"],
+      // 前端组件
+      "@components/*": ["./frontend/components/*"],
+      // 前端组合式函数composables
+      "@composables/*": ["./frontend/composables/*"],
+      // 前端布局框架
+      "@layouts/*": ["./frontend/layouts/*"],
+      // 前端工具
+      "@utils/*": ["./frontend/utils/*"],
+    },
+    // 严格模式。开启严格模式将同步开启设置：
+    //   alwaysStrict - 强制以严格模式解析和输出，并显式输出"use strict"
+    //   strictNullChecks - 严格空值检查
+    //   strictBindCallApply - bind/call/apply严格类型
+    //   strictBuiltinIteratorReturn - 内置迭代器被实例化为“TReturn”类型的undefined而非“any”。
+    //   strictFunctionTypes - 函数类型双向协变检查
+    //   strictPropertyInitialization - class类属性必须初始化
+    //   noImplicitThis - this隐式any报错
+    //   noImplicitAny - 禁止隐式any类型
+    //   useUnknownInCatchVariables - catch子句变量是unknown
+    "strict": true,
+    // 开启ESM和CJS互操作支持。这将同步开启：
+    //   allowSyntheticDefaultImports - 允许从没有默认导出的模块中默认导入
+    "esModuleInterop": true,
+    // 单文件必须自成一个模块
+    "isolatedModules": true,
+    // switch穿透报错
+    "noFallthroughCasesInSwitch": true,
+    // 类方法重写时，必须显式地写上override关键字
+    "noImplicitOverride": true,
+    // 检查函数返回值
+    "noImplicitReturns": true,
+    // 动态属性必须用方括号“[key: string]: any”的形式访问
+    "noPropertyAccessFromIndexSignature": true,
+    // 索引类型的内容自动加上undefined的可能性
+    "noUncheckedIndexedAccess": true,
+    // 未使用的局部变量报错
+    "noUnusedLocals": true,
+    // 未使用的函数参数报错
+    "noUnusedParameters": true,
+    // 导出JS时移除注释
+    "removeComments": true,
+    // 开启JSON模块的类型推断支持
+    "resolveJsonModule": true,
+    // 跳过库的类型检查
+    "skipLibCheck": true,
+    // 编译JS时，用ESM模块语法剔出类型导入
+    "verbatimModuleSyntax": true,
+  },
+  // 编译器需要包含的文件
+  //   这里用"files"可避免子项目编译设置用"include"时造成的覆盖
+  "files": [
+    // 全局类型声明
+    "globals.d.ts",
+  ],
+}

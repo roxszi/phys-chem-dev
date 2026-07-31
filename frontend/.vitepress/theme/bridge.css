@@ -1,0 +1,542 @@
+/* ============================================================================
+ * bridge.css ─ VitePress 与 TDesign Mobile Vue 底层令牌融合层
+ * ============================================================================
+ *
+ * 【定位】
+ *   本文件不是任何一方的"原生样式"，而是把 TDesign Mobile Vue 的底层
+ *   设计令牌 (tdesign-theme.css) 改写为：
+ *     1) 能引用 VitePress vars.css 的地方 → 直接 `var(--vp-xxx)`
+ *     2) VP 没有但语义可派生的地方     → 用 color-mix() 派生
+ *     3) VP 没有且语义不对应的地方     → 维持 TD 原值 + 注释标记
+ *
+ * 【使用前提】
+ *   - 必须先 import VP vars.css (含 .dark 块)；
+ *   - 必须先 import 本文件，再 import tdesign 组件 CSS；
+ *   - 在 :root 上加 .dark 类即可同时切换两套主题。
+ *
+ * 【派生策略】
+ *   Q1（圆角）：新增一组 --vp-radius-* token 供 TD 引用
+ *   Q2（粒度）：统一 color-mix 公式，不为每档单独写表达式
+ *   Q3（派生方式）：color-mix(in srgb, ...)，目标浏览器均支持
+ *
+ * 【标记清单】（#数字 在代码中用 #MARK- 注释搜索）
+ *   #1   focus / light 视觉重复，靠业务层区分
+ *   #2   VP 独有的色族 (purple / sponsor) 不暴露给 TD
+ *   #3   TD 多 4 层背景色 (secondarycontainer-active / component-disabled /
+ *        secondarycomponent-active / specialcomponent)
+ *   #4   TD 多 1 个文字色 (--td-text-color-anti 反白)
+ *   #5   TD 多 1 个边框色 (--td-component-stroke)
+ *   #6   圆角：新增 --vp-radius-* 项目扩展 token（标记 #11）
+ *   #7   字号：新增 --vp-font-size-* 项目扩展 token（标记 #11）
+ *   #8   阴影：TD 多 4 方向 inset 阴影，VP 无 inset 概念
+ *   #9   表格 / 滚动条：TD 独有，VP 无对应
+ *   #10  蒙层 disabled：TD 独有，VP 无对应
+ *   #11  新增 token 集（--vp-font-size-* + --vp-radius-*）：项目独有扩展
+ *
+ * ============================================================================ */
+
+
+/* ============================================================================
+ * 0. 项目扩展 token 集 ──── 必须先于 light/dark 块声明
+ *    VitePress 原生 vars.css 不提供字号与圆角 token，
+ *    为了让 TD 这两个维度也能"借道"VP 命名空间，新增以下 token：
+ * ============================================================================ */
+
+:root {
+  /* ---------- 字号（桌面优先，base = 16px）---------- */
+  --vp-font-size-base:        16px;
+  --vp-font-size-s:           14px;   /* 0.875 × base */
+  --vp-font-size-xs:          12px;   /* 0.75  × base */
+  --vp-font-size-m:           18px;   /* 1.125 × base */
+  --vp-font-size-l:           20px;   /* 1.25  × base */
+  --vp-font-size-xl:          24px;   /* 1.5   × base */
+  --vp-font-size-xxl:         36px;   /* 2.25  × base */
+  --vp-font-size-display:     48px;
+  --vp-font-size-display-lg:  64px;
+
+  /* ---------- 圆角（与 custom-block 8px 习惯对齐）---------- */
+  --vp-radius-small:    3px;
+  --vp-radius-default:  6px;
+  --vp-radius-large:    8px;
+  --vp-radius-circle:   999px;
+}
+
+
+/* ============================================================================
+ * 1. LIGHT MODE
+ * ============================================================================ */
+
+:root,
+:root[theme-mode="light"] {
+
+  /* ===== 1.1 调色板：4 阶 → 10 阶 ============================
+   * 派生公式：
+   *   7  = VP -1        (主色，直接)
+   *   8  = VP -2        (次深，直接)
+   *   6  = VP -3        (更亮 solid bg，直接)
+   *   1  = VP -soft     (最浅 rgba，直接)
+   *   5  = mix(brand-1 18%, brand-soft)   ── 渐变向浅
+   *   4  = mix(brand-1 30%, brand-soft)
+   *   3  = mix(brand-1 50%, brand-soft)
+   *   2  = mix(brand-1 75%, brand-soft)
+   *   9  = mix(brand-1 75%, #000)         ── 渐变向深
+   *   10 = mix(brand-1 90%, #000)
+   * ============================================================ */
+
+  /* ----- Brand (indigo) ----- */
+  --td-brand-color:    var(--vp-c-brand-1);
+  --td-brand-color-1:  var(--vp-c-brand-soft);
+  --td-brand-color-6:  var(--vp-c-brand-3);
+  --td-brand-color-7:  var(--vp-c-brand-1);
+  --td-brand-color-8:  var(--vp-c-brand-2);
+  --td-brand-color-5:  color-mix(in srgb, var(--vp-c-brand-1) 18%, var(--vp-c-brand-soft));
+  --td-brand-color-4:  color-mix(in srgb, var(--vp-c-brand-1) 30%, var(--vp-c-brand-soft));
+  --td-brand-color-3:  color-mix(in srgb, var(--vp-c-brand-1) 50%, var(--vp-c-brand-soft));
+  --td-brand-color-2:  color-mix(in srgb, var(--vp-c-brand-1) 75%, var(--vp-c-brand-soft));
+  --td-brand-color-9:  color-mix(in srgb, var(--vp-c-brand-1) 75%, #000);
+  --td-brand-color-10: color-mix(in srgb, var(--vp-c-brand-1) 90%, #000);
+
+  /* ----- Warning (orange/yellow) ----- */
+  --td-warning-color:    var(--vp-c-warning-1);
+  --td-warning-color-1:  var(--vp-c-warning-soft);
+  --td-warning-color-6:  var(--vp-c-warning-3);
+  --td-warning-color-7:  var(--vp-c-warning-1);
+  --td-warning-color-8:  var(--vp-c-warning-2);
+  --td-warning-color-5:  color-mix(in srgb, var(--vp-c-warning-1) 18%, var(--vp-c-warning-soft));
+  --td-warning-color-4:  color-mix(in srgb, var(--vp-c-warning-1) 30%, var(--vp-c-warning-soft));
+  --td-warning-color-3:  color-mix(in srgb, var(--vp-c-warning-1) 50%, var(--vp-c-warning-soft));
+  --td-warning-color-2:  color-mix(in srgb, var(--vp-c-warning-1) 75%, var(--vp-c-warning-soft));
+  --td-warning-color-9:  color-mix(in srgb, var(--vp-c-warning-1) 75%, #000);
+  --td-warning-color-10: color-mix(in srgb, var(--vp-c-warning-1) 90%, #000);
+
+  /* ----- Error (red/danger) ----- */
+  --td-error-color:    var(--vp-c-danger-1);
+  --td-error-color-1:  var(--vp-c-danger-soft);
+  --td-error-color-6:  var(--vp-c-danger-3);
+  --td-error-color-7:  var(--vp-c-danger-1);
+  --td-error-color-8:  var(--vp-c-danger-2);
+  --td-error-color-5:  color-mix(in srgb, var(--vp-c-danger-1) 18%, var(--vp-c-danger-soft));
+  --td-error-color-4:  color-mix(in srgb, var(--vp-c-danger-1) 30%, var(--vp-c-danger-soft));
+  --td-error-color-3:  color-mix(in srgb, var(--vp-c-danger-1) 50%, var(--vp-c-danger-soft));
+  --td-error-color-2:  color-mix(in srgb, var(--vp-c-danger-1) 75%, var(--vp-c-danger-soft));
+  --td-error-color-9:  color-mix(in srgb, var(--vp-c-danger-1) 75%, #000);
+  --td-error-color-10: color-mix(in srgb, var(--vp-c-danger-1) 90%, #000);
+
+  /* ----- Success (green) ----- */
+  --td-success-color:    var(--vp-c-success-1);
+  --td-success-color-1:  var(--vp-c-success-soft);
+  --td-success-color-6:  var(--vp-c-success-3);
+  --td-success-color-7:  var(--vp-c-success-1);
+  --td-success-color-8:  var(--vp-c-success-2);
+  --td-success-color-5:  color-mix(in srgb, var(--vp-c-success-1) 18%, var(--vp-c-success-soft));
+  --td-success-color-4:  color-mix(in srgb, var(--vp-c-success-1) 30%, var(--vp-c-success-soft));
+  --td-success-color-3:  color-mix(in srgb, var(--vp-c-success-1) 50%, var(--vp-c-success-soft));
+  --td-success-color-2:  color-mix(in srgb, var(--vp-c-success-1) 75%, var(--vp-c-success-soft));
+  --td-success-color-9:  color-mix(in srgb, var(--vp-c-success-1) 75%, #000);
+  --td-success-color-10: color-mix(in srgb, var(--vp-c-success-1) 90%, #000);
+
+  /* ----- Gray (14 阶) -----
+   * 派生公式：
+   *   1   = VP gray-soft
+   *   2   = mix(gray-1 60%, gray-soft)        ── 渐变向浅
+   *   3   = VP gray-1
+   *   4   = mix(gray-1 80%, gray-2)
+   *   5   = VP gray-2
+   *   6   = mix(gray-2 60%, gray-3)
+   *   7   = VP gray-3
+   *   8~14= mix(gray-3 X%, #000) X=80/65/50/35/25/15/5
+   */
+  --td-gray-color-1:  var(--vp-c-gray-soft);
+  --td-gray-color-2:  color-mix(in srgb, var(--vp-c-gray-1) 60%, var(--vp-c-gray-soft));
+  --td-gray-color-3:  var(--vp-c-gray-1);
+  --td-gray-color-4:  color-mix(in srgb, var(--vp-c-gray-1) 80%, var(--vp-c-gray-2));
+  --td-gray-color-5:  var(--vp-c-gray-2);
+  --td-gray-color-6:  color-mix(in srgb, var(--vp-c-gray-2) 60%, var(--vp-c-gray-3));
+  --td-gray-color-7:  var(--vp-c-gray-3);
+  --td-gray-color-8:  color-mix(in srgb, var(--vp-c-gray-3) 80%, #000);
+  --td-gray-color-9:  color-mix(in srgb, var(--vp-c-gray-3) 65%, #000);
+  --td-gray-color-10: color-mix(in srgb, var(--vp-c-gray-3) 50%, #000);
+  --td-gray-color-11: color-mix(in srgb, var(--vp-c-gray-3) 35%, #000);
+  --td-gray-color-12: color-mix(in srgb, var(--vp-c-gray-3) 25%, #000);
+  --td-gray-color-13: color-mix(in srgb, var(--vp-c-gray-3) 15%, #000);
+  --td-gray-color-14: color-mix(in srgb, var(--vp-c-gray-3) 5%,  #000);
+
+
+  /* ===== 1.2 状态色：VP 4 态 → TD 5 态 ============================
+   * focus        = soft (浅色 hover 背景)
+   * active       = 1 (主色按下)
+   * disabled     = mix(1 30%, transparent)
+   * light        = soft (最浅常态底)
+   * light-active = mix(1 18%, soft) (light + 微叠色)
+   * 注：focus 与 light 都引用 -soft (#MARK-1)
+   * ================================================================ */
+
+  /* Brand */
+  --td-brand-color-focus:        var(--vp-c-brand-soft);
+  --td-brand-color-active:       var(--vp-c-brand-1);
+  --td-brand-color-disabled:     color-mix(in srgb, var(--vp-c-brand-1) 30%, transparent);
+  --td-brand-color-light:        var(--vp-c-brand-soft);
+  --td-brand-color-light-active: color-mix(in srgb, var(--vp-c-brand-1) 18%, var(--vp-c-brand-soft));
+
+  /* Warning */
+  --td-warning-color-focus:        var(--vp-c-warning-soft);
+  --td-warning-color-active:       var(--vp-c-warning-1);
+  --td-warning-color-disabled:     color-mix(in srgb, var(--vp-c-warning-1) 30%, transparent);
+  --td-warning-color-light:        var(--vp-c-warning-soft);
+  --td-warning-color-light-active: color-mix(in srgb, var(--vp-c-warning-1) 18%, var(--vp-c-warning-soft));
+
+  /* Error */
+  --td-error-color-focus:        var(--vp-c-danger-soft);
+  --td-error-color-active:       var(--vp-c-danger-1);
+  --td-error-color-disabled:     color-mix(in srgb, var(--vp-c-danger-1) 30%, transparent);
+  --td-error-color-light:        var(--vp-c-danger-soft);
+  --td-error-color-light-active: color-mix(in srgb, var(--vp-c-danger-1) 18%, var(--vp-c-danger-soft));
+
+  /* Success */
+  --td-success-color-focus:        var(--vp-c-success-soft);
+  --td-success-color-active:       var(--vp-c-success-1);
+  --td-success-color-disabled:     color-mix(in srgb, var(--vp-c-success-1) 30%, transparent);
+  --td-success-color-light:        var(--vp-c-success-soft);
+  --td-success-color-light-active: color-mix(in srgb, var(--vp-c-success-1) 18%, var(--vp-c-success-soft));
+
+
+  /* ===== 1.3 字体白灰：TD 独有，VP 无对应 (#MARK-FONT-WHITE/GRAY) ===== */
+  --td-font-white-1: rgba(255, 255, 255, 1);
+  --td-font-white-2: rgba(255, 255, 255, .55);
+  --td-font-white-3: rgba(255, 255, 255, .35);
+  --td-font-white-4: rgba(255, 255, 255, .22);
+  --td-font-gray-1:  rgba(0, 0, 0, .9);
+  --td-font-gray-2:  rgba(0, 0, 0, .6);
+  --td-font-gray-3:  rgba(0, 0, 0, .4);
+  --td-font-gray-4:  rgba(0, 0, 0, .26);
+
+
+  /* ===== 1.4 蒙层 ===== */
+  --td-mask-active:   var(--vp-backdrop-bg-color);      /* rgba(0,0,0,0.6) */
+  --td-mask-disabled: rgba(255, 255, 255, .6);          /* #MARK-MASK-DISABLED (#10) */
+
+
+  /* ===== 1.5 背景色：4 层 → 11 层 ============================
+   * - page / container / component：直接对齐 VP bg 系列
+   * - container-active / secondarycontainer：派生或对齐
+   * - 其余 4 层（#MARK-BG）：维持 TD 原值
+   * ============================================================ */
+  --td-bg-color-page:                       var(--vp-c-bg);
+  --td-bg-color-container:                  var(--vp-c-bg-alt);
+  --td-bg-color-container-active:           var(--vp-c-bg-soft);
+  --td-bg-color-secondarycontainer:         var(--vp-c-bg-soft);
+  --td-bg-color-secondarycontainer-active:  var(--td-gray-color-3);   /* #MARK-BG-1 (#3) */
+  --td-bg-color-component:                  var(--vp-c-bg-elv);
+  --td-bg-color-component-active:           color-mix(in srgb, var(--vp-c-bg-elv) 80%, var(--vp-c-bg-soft));
+  --td-bg-color-component-disabled:         var(--td-gray-color-2);   /* #MARK-BG-2 (#3) */
+  --td-bg-color-secondarycomponent:         color-mix(in srgb, var(--vp-c-bg-alt) 80%, var(--vp-c-bg-soft));
+  --td-bg-color-secondarycomponent-active:  var(--td-gray-color-6);   /* #MARK-BG-3 (#3) */
+  --td-bg-color-specialcomponent:           #fff;                    /* #MARK-BG-4 (#3) */
+
+
+  /* ===== 1.6 文字色：3 档 → 7 档 ===== */
+  --td-text-color-primary:      var(--vp-c-text-1);
+  --td-text-color-secondary:    var(--vp-c-text-2);
+  --td-text-color-placeholder:  var(--vp-c-text-3);
+  --td-text-color-disabled:     color-mix(in srgb, var(--vp-c-text-1) 40%, transparent);
+  --td-text-color-anti:         var(--td-font-white-1);              /* #MARK-TEXT-ANTI (#4) */
+  --td-text-color-brand:        var(--vp-c-brand-1);
+  --td-text-color-link:         var(--vp-c-brand-1);
+
+
+  /* ===== 1.7 边框色：3 档 → 4 档 ===== */
+  --td-border-level-1-color:  var(--vp-c-divider);
+  --td-component-stroke:      var(--td-gray-color-3);              /* #MARK-BORDER-STROKE (#5) */
+  --td-border-level-2-color:  var(--vp-c-border);
+  --td-component-border:      var(--vp-c-border);
+
+
+  /* ===== 1.8 阴影：VP 5 档 → TD 4 档 ===== */
+  --td-shadow-1: var(--vp-shadow-1);
+  --td-shadow-2: var(--vp-shadow-2);
+  --td-shadow-3: var(--vp-shadow-3);
+  --td-shadow-4: var(--vp-shadow-4);
+  /* #MARK-SHADOW-5: VP 多 1 档，TD 不使用 */
+
+  /* ===== 1.9 阴影 inset：4 方向 (#MARK-SHADOW-INSET, #8) ===== */
+  --td-shadow-inset-top:    inset 0 .5px 0 #dcdcdc;
+  --td-shadow-inset-right:  inset .5px 0 0 #dcdcdc;
+  --td-shadow-inset-bottom: inset 0 -.5px 0 #dcdcdc;
+  --td-shadow-inset-left:   inset -.5px 0 0 #dcdcdc;
+
+
+  /* ===== 1.10 表格 / 滚动条 (#MARK-TABLE-SCROLLBAR, #9) ===== */
+  --td-table-shadow-color:     rgba(0, 0, 0, .08);
+  --td-scrollbar-color:        rgba(0, 0, 0, .1);
+  --td-scrollbar-hover-color:  rgba(0, 0, 0, .3);
+  --td-scroll-track-color:     #fff;
+
+
+  /* ===== 1.11 字体 / 字号 / 圆角 ===== */
+
+  /* 字体 ──── 直接引用 VP */
+  --td-font-family:        var(--vp-font-family-base);
+  --td-font-family-medium: var(--vp-font-family-base);
+
+  /* 字号 ──── 13 个 → 映射到新增 --vp-font-size-* (#MARK-FONT-SIZE, #7) */
+  /* 链接 */
+  --td-font-size-link-small:  var(--vp-font-size-xs);
+  --td-font-size-link-medium: var(--vp-font-size-s);
+  --td-font-size-link-large:  var(--vp-font-size-base);
+
+  /* 标记 ──── extraSmall (10px) 在 --vp-font-size 派生档之下，硬编码 */
+  --td-font-size-mark-extraSmall: 10px;
+  --td-font-size-mark-small:      var(--vp-font-size-xs);
+  --td-font-size-mark-medium:     var(--vp-font-size-s);
+  --td-font-size-mark-large:      var(--vp-font-size-base);
+
+  /* 正文 ──── extraSmall (10px) 同上硬编码 */
+  --td-font-size-body-extraSmall: 10px;
+  --td-font-size-body-small:      var(--vp-font-size-xs);
+  --td-font-size-body-medium:     var(--vp-font-size-s);
+  --td-font-size-body-large:      var(--vp-font-size-base);
+
+  /* 标题 */
+  --td-font-size-title-small:      var(--vp-font-size-s);
+  --td-font-size-title-medium:     var(--vp-font-size-base);
+  --td-font-size-title-large:      var(--vp-font-size-m);
+  --td-font-size-title-extraLarge: var(--vp-font-size-l);
+
+  /* 头条 ──── medium (28px) 不在派生档中，硬编码 */
+  --td-font-size-headline-small:   var(--vp-font-size-xl);
+  --td-font-size-headline-medium:  28px;
+  --td-font-size-headline-large:   var(--vp-font-size-xxl);
+
+  /* 大字 */
+  --td-font-size-display-medium:   var(--vp-font-size-display);
+  --td-font-size-display-large:    var(--vp-font-size-display-lg);
+
+  /* 基础单位与别名映射（保留 TD 原映射关系）*/
+  --td-font-size:    10px;
+  --td-font-size-xs: var(--td-font-size-body-extraSmall);
+  --td-font-size-s:  var(--td-font-size-body-small);
+  --td-font-size-base: var(--td-font-size-title-small);
+  --td-font-size-m:  var(--td-font-size-title-medium);
+  --td-font-size-l:  var(--td-font-size-title-large);
+  --td-font-size-xl: var(--td-font-size-title-extraLarge);
+  --td-font-size-xxl: var(--td-font-size-headline-large);
+
+  /* 圆角 ──── 6 档 → 映射到新增 --vp-radius-* (#MARK-RADIUS, #6) */
+  --td-radius-small:      var(--vp-radius-small);
+  --td-radius-default:    var(--vp-radius-default);
+  --td-radius-large:      var(--vp-radius-large);
+  /* extraLarge 在派生档之外，用 calc 推导 */
+  --td-radius-extraLarge: calc(var(--vp-radius-large) + 4px);
+  --td-radius-round:      var(--vp-radius-circle);
+  --td-radius-circle:     var(--vp-radius-circle);
+}
+
+
+/* ============================================================================
+ * 2. DARK MODE
+ *    派生公式与 light 一致；VP .dark 块已自动重新声明 gray-1/2/3、
+ *    indigo-1/2/3 等所有 palette 变量，color-mix() 会自动跟随主题切换。
+ *    仅在 dark 下数值硬编码的 TD 独有 token 需重新声明。
+ * ============================================================================ */
+
+.dark,
+:root[theme-mode="dark"] {
+
+  /* ===== 2.1 调色板（与 light 公式相同，自动跟随 VP dark） ===== */
+  --td-brand-color:    var(--vp-c-brand-1);
+  --td-brand-color-1:  var(--vp-c-brand-soft);
+  --td-brand-color-6:  var(--vp-c-brand-3);
+  --td-brand-color-7:  var(--vp-c-brand-1);
+  --td-brand-color-8:  var(--vp-c-brand-2);
+  --td-brand-color-5:  color-mix(in srgb, var(--vp-c-brand-1) 18%, var(--vp-c-brand-soft));
+  --td-brand-color-4:  color-mix(in srgb, var(--vp-c-brand-1) 30%, var(--vp-c-brand-soft));
+  --td-brand-color-3:  color-mix(in srgb, var(--vp-c-brand-1) 50%, var(--vp-c-brand-soft));
+  --td-brand-color-2:  color-mix(in srgb, var(--vp-c-brand-1) 75%, var(--vp-c-brand-soft));
+  --td-brand-color-9:  color-mix(in srgb, var(--vp-c-brand-1) 75%, #000);
+  --td-brand-color-10: color-mix(in srgb, var(--vp-c-brand-1) 90%, #000);
+
+  --td-warning-color:    var(--vp-c-warning-1);
+  --td-warning-color-1:  var(--vp-c-warning-soft);
+  --td-warning-color-6:  var(--vp-c-warning-3);
+  --td-warning-color-7:  var(--vp-c-warning-1);
+  --td-warning-color-8:  var(--vp-c-warning-2);
+  --td-warning-color-5:  color-mix(in srgb, var(--vp-c-warning-1) 18%, var(--vp-c-warning-soft));
+  --td-warning-color-4:  color-mix(in srgb, var(--vp-c-warning-1) 30%, var(--vp-c-warning-soft));
+  --td-warning-color-3:  color-mix(in srgb, var(--vp-c-warning-1) 50%, var(--vp-c-warning-soft));
+  --td-warning-color-2:  color-mix(in srgb, var(--vp-c-warning-1) 75%, var(--vp-c-warning-soft));
+  --td-warning-color-9:  color-mix(in srgb, var(--vp-c-warning-1) 75%, #000);
+  --td-warning-color-10: color-mix(in srgb, var(--vp-c-warning-1) 90%, #000);
+
+  --td-error-color:    var(--vp-c-danger-1);
+  --td-error-color-1:  var(--vp-c-danger-soft);
+  --td-error-color-6:  var(--vp-c-danger-3);
+  --td-error-color-7:  var(--vp-c-danger-1);
+  --td-error-color-8:  var(--vp-c-danger-2);
+  --td-error-color-5:  color-mix(in srgb, var(--vp-c-danger-1) 18%, var(--vp-c-danger-soft));
+  --td-error-color-4:  color-mix(in srgb, var(--vp-c-danger-1) 30%, var(--vp-c-danger-soft));
+  --td-error-color-3:  color-mix(in srgb, var(--vp-c-danger-1) 50%, var(--vp-c-danger-soft));
+  --td-error-color-2:  color-mix(in srgb, var(--vp-c-danger-1) 75%, var(--vp-c-danger-soft));
+  --td-error-color-9:  color-mix(in srgb, var(--vp-c-danger-1) 75%, #000);
+  --td-error-color-10: color-mix(in srgb, var(--vp-c-danger-1) 90%, #000);
+
+  --td-success-color:    var(--vp-c-success-1);
+  --td-success-color-1:  var(--vp-c-success-soft);
+  --td-success-color-6:  var(--vp-c-success-3);
+  --td-success-color-7:  var(--vp-c-success-1);
+  --td-success-color-8:  var(--vp-c-success-2);
+  --td-success-color-5:  color-mix(in srgb, var(--vp-c-success-1) 18%, var(--vp-c-success-soft));
+  --td-success-color-4:  color-mix(in srgb, var(--vp-c-success-1) 30%, var(--vp-c-success-soft));
+  --td-success-color-3:  color-mix(in srgb, var(--vp-c-success-1) 50%, var(--vp-c-success-soft));
+  --td-success-color-2:  color-mix(in srgb, var(--vp-c-success-1) 75%, var(--vp-c-success-soft));
+  --td-success-color-9:  color-mix(in srgb, var(--vp-c-success-1) 75%, #000);
+  --td-success-color-10: color-mix(in srgb, var(--vp-c-success-1) 90%, #000);
+
+  --td-gray-color-1:  var(--vp-c-gray-soft);
+  --td-gray-color-2:  color-mix(in srgb, var(--vp-c-gray-1) 60%, var(--vp-c-gray-soft));
+  --td-gray-color-3:  var(--vp-c-gray-1);
+  --td-gray-color-4:  color-mix(in srgb, var(--vp-c-gray-1) 80%, var(--vp-c-gray-2));
+  --td-gray-color-5:  var(--vp-c-gray-2);
+  --td-gray-color-6:  color-mix(in srgb, var(--vp-c-gray-2) 60%, var(--vp-c-gray-3));
+  --td-gray-color-7:  var(--vp-c-gray-3);
+  --td-gray-color-8:  color-mix(in srgb, var(--vp-c-gray-3) 80%, #000);
+  --td-gray-color-9:  color-mix(in srgb, var(--vp-c-gray-3) 65%, #000);
+  --td-gray-color-10: color-mix(in srgb, var(--vp-c-gray-3) 50%, #000);
+  --td-gray-color-11: color-mix(in srgb, var(--vp-c-gray-3) 35%, #000);
+  --td-gray-color-12: color-mix(in srgb, var(--vp-c-gray-3) 25%, #000);
+  --td-gray-color-13: color-mix(in srgb, var(--vp-c-gray-3) 15%, #000);
+  --td-gray-color-14: color-mix(in srgb, var(--vp-c-gray-3) 5%,  #000);
+
+
+  /* ===== 2.2 状态色（与 light 同公式，自动跟随 VP dark） ===== */
+  --td-brand-color-focus:        var(--vp-c-brand-soft);
+  --td-brand-color-active:       var(--vp-c-brand-1);
+  --td-brand-color-disabled:     color-mix(in srgb, var(--vp-c-brand-1) 30%, transparent);
+  --td-brand-color-light:        var(--vp-c-brand-soft);
+  --td-brand-color-light-active: color-mix(in srgb, var(--vp-c-brand-1) 18%, var(--vp-c-brand-soft));
+
+  --td-warning-color-focus:        var(--vp-c-warning-soft);
+  --td-warning-color-active:       var(--vp-c-warning-1);
+  --td-warning-color-disabled:     color-mix(in srgb, var(--vp-c-warning-1) 30%, transparent);
+  --td-warning-color-light:        var(--vp-c-warning-soft);
+  --td-warning-color-light-active: color-mix(in srgb, var(--vp-c-warning-1) 18%, var(--vp-c-warning-soft));
+
+  --td-error-color-focus:        var(--vp-c-danger-soft);
+  --td-error-color-active:       var(--vp-c-danger-1);
+  --td-error-color-disabled:     color-mix(in srgb, var(--vp-c-danger-1) 30%, transparent);
+  --td-error-color-light:        var(--vp-c-danger-soft);
+  --td-error-color-light-active: color-mix(in srgb, var(--vp-c-danger-1) 18%, var(--vp-c-danger-soft));
+
+  --td-success-color-focus:        var(--vp-c-success-soft);
+  --td-success-color-active:       var(--vp-c-success-1);
+  --td-success-color-disabled:     color-mix(in srgb, var(--vp-c-success-1) 30%, transparent);
+  --td-success-color-light:        var(--vp-c-success-soft);
+  --td-success-color-light-active: color-mix(in srgb, var(--vp-c-success-1) 18%, var(--vp-c-success-soft));
+
+
+  /* ===== 2.3 字体白灰（TD 原本为 dark 调整过数值，保留）===== */
+  --td-font-white-1: rgba(255, 255, 255, .9);
+  --td-font-white-2: rgba(255, 255, 255, .55);
+  --td-font-white-3: rgba(255, 255, 255, .35);
+  --td-font-white-4: rgba(255, 255, 255, .22);
+  --td-font-gray-1:  rgba(0, 0, 0, .9);
+  --td-font-gray-2:  rgba(0, 0, 0, .6);
+  --td-font-gray-3:  rgba(0, 0, 0, .4);
+  --td-font-gray-4:  rgba(0, 0, 0, .26);
+
+
+  /* ===== 2.4 蒙层（dark 下 alpha 由 0.6 调为 0.4，与 TD 原版一致）===== */
+  --td-mask-active:   rgba(0, 0, 0, .4);
+  --td-mask-disabled: rgba(0, 0, 0, .6);
+
+
+  /* ===== 2.5 背景色 ===== */
+  --td-bg-color-page:                       var(--vp-c-bg);
+  --td-bg-color-container:                  var(--vp-c-bg-alt);
+  --td-bg-color-container-active:           var(--vp-c-bg-soft);
+  --td-bg-color-secondarycontainer:         var(--vp-c-bg-soft);
+  --td-bg-color-secondarycontainer-active:  var(--td-gray-color-11);
+  --td-bg-color-component:                  var(--vp-c-bg-elv);
+  --td-bg-color-component-active:           color-mix(in srgb, var(--vp-c-bg-elv) 80%, var(--vp-c-bg-soft));
+  --td-bg-color-component-disabled:         var(--td-gray-color-12);
+  --td-bg-color-secondarycomponent:         color-mix(in srgb, var(--vp-c-bg-alt) 80%, var(--vp-c-bg-soft));
+  --td-bg-color-secondarycomponent-active:  var(--td-gray-color-10);
+  --td-bg-color-specialcomponent:           transparent;
+
+
+  /* ===== 2.6 文字色 ===== */
+  --td-text-color-primary:      var(--vp-c-text-1);
+  --td-text-color-secondary:    var(--vp-c-text-2);
+  --td-text-color-placeholder:  var(--vp-c-text-3);
+  --td-text-color-disabled:     color-mix(in srgb, var(--vp-c-text-1) 40%, transparent);
+  --td-text-color-anti:         var(--td-font-white-1);
+  --td-text-color-brand:        var(--vp-c-brand-1);
+  --td-text-color-link:         var(--vp-c-brand-1);
+
+
+  /* ===== 2.7 边框色 ===== */
+  --td-border-level-1-color:  var(--vp-c-divider);
+  --td-component-stroke:      var(--td-gray-color-11);
+  --td-border-level-2-color:  var(--vp-c-border);
+  --td-component-border:      var(--vp-c-border);
+
+
+  /* ===== 2.8 阴影 ===== */
+  --td-shadow-1: var(--vp-shadow-1);
+  --td-shadow-2: var(--vp-shadow-2);
+  --td-shadow-3: var(--vp-shadow-3);
+  --td-shadow-4: var(--vp-shadow-4);
+
+  /* ===== 2.9 阴影 inset（dark 下用 5e5e5e）===== */
+  --td-shadow-inset-top:    inset 0 .5px 0 #5e5e5e;
+  --td-shadow-inset-right:  inset .5px 0 0 #5e5e5e;
+  --td-shadow-inset-bottom: inset 0 -.5px 0 #5e5e5e;
+  --td-shadow-inset-left:   inset -.5px 0 0 #5e5e5e;
+
+
+  /* ===== 2.10 表格 / 滚动条（dark 下调整）===== */
+  --td-table-shadow-color:     rgba(0, 0, 0, .55);
+  --td-scrollbar-color:        rgba(255, 255, 255, .1);
+  --td-scrollbar-hover-color:  rgba(255, 255, 255, .3);
+  --td-scroll-track-color:     #333;
+
+
+  /* ===== 2.11 字体 / 字号 / 圆角（dark 与 light 同值）===== */
+  --td-font-family:        var(--vp-font-family-base);
+  --td-font-family-medium: var(--vp-font-family-base);
+
+  --td-font-size-link-small:  var(--vp-font-size-xs);
+  --td-font-size-link-medium: var(--vp-font-size-s);
+  --td-font-size-link-large:  var(--vp-font-size-base);
+  --td-font-size-mark-extraSmall: 10px;
+  --td-font-size-mark-small:      var(--vp-font-size-xs);
+  --td-font-size-mark-medium:     var(--vp-font-size-s);
+  --td-font-size-mark-large:      var(--vp-font-size-base);
+  --td-font-size-body-extraSmall: 10px;
+  --td-font-size-body-small:      var(--vp-font-size-xs);
+  --td-font-size-body-medium:     var(--vp-font-size-s);
+  --td-font-size-body-large:      var(--vp-font-size-base);
+  --td-font-size-title-small:      var(--vp-font-size-s);
+  --td-font-size-title-medium:     var(--vp-font-size-base);
+  --td-font-size-title-large:      var(--vp-font-size-m);
+  --td-font-size-title-extraLarge: var(--vp-font-size-l);
+  --td-font-size-headline-small:   var(--vp-font-size-xl);
+  --td-font-size-headline-medium:  28px;
+  --td-font-size-headline-large:   var(--vp-font-size-xxl);
+  --td-font-size-display-medium:   var(--vp-font-size-display);
+  --td-font-size-display-large:    var(--vp-font-size-display-lg);
+  --td-font-size:    10px;
+  --td-font-size-xs: var(--td-font-size-body-extraSmall);
+  --td-font-size-s:  var(--td-font-size-body-small);
+  --td-font-size-base: var(--td-font-size-title-small);
+  --td-font-size-m:  var(--td-font-size-title-medium);
+  --td-font-size-l:  var(--td-font-size-title-large);
+  --td-font-size-xl: var(--td-font-size-title-extraLarge);
+  --td-font-size-xxl: var(--td-font-size-headline-large);
+
+  --td-radius-small:      var(--vp-radius-small);
+  --td-radius-default:    var(--vp-radius-default);
+  --td-radius-large:      var(--vp-radius-large);
+  --td-radius-extraLarge: calc(var(--vp-radius-large) + 4px);
+  --td-radius-round:      var(--vp-radius-circle);
+  --td-radius-circle:     var(--vp-radius-circle);
+}

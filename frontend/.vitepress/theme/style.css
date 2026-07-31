@@ -1,0 +1,102 @@
+/*
+ * 全局样式
+ */
+
+/* 自定义全局样式变量 */
+:root {
+  /* 主页的文字标题 */
+  /* 文字标题 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background:
+    linear-gradient(120deg, #bd34fe, #41d1ff);
+  /* 图片 */
+  --vp-home-hero-image-background-image: 
+    linear-gradient(-55deg, #bd34fe 50%, #47caff 50%);
+  --vp-home-hero-image-filter: brightness(1.75) blur(5rem);
+
+  /* TDesign抽屉侧边栏的宽度 */
+  --td-drawer-width: 70vw;
+  /* TDesign抽屉侧边栏的高度 */
+  --td-drawer-sidebar-height: 100vh;
+  /* 其它全局样式变量 */
+  --my-gap: 16px;
+
+
+}
+
+/* 覆盖 vp-doc table 样式 */
+.vp-doc table {
+  /* vp默认样式：块级 */
+  /* display: block; */
+  /* vp默认样式：过长自动滚动 */
+  /* overflow-x: auto; */
+  /* 覆盖vp样式：行间距调整 */
+  margin: var(--my-gap) auto;
+  /* 新增样式：宽度自动 */
+  width: fit-content;
+  /* 新增样式：最大不超过父容器（过宽时被父容器限制） */
+  max-width: 100%;
+}
+
+/* 覆盖 vp-doc th, td 样式 */
+.vp-doc th, td {
+  /* 覆盖样式：内容居中 */
+  text-align: center;
+}
+
+
+/*
+ * 自定义全局样式类
+ */
+
+/* 宽度100% */
+.my-w100 {
+  width: 100%;
+}
+
+/* 外边距 */
+.my-margin {
+  /* 上下外边距 */
+  margin: var(--my-gap) auto;
+}
+
+/* 间距 */
+.my-gap {
+  /* 子元素间距 */
+  gap: var(--my-gap);
+}
+
+/* 列排布 */
+.my-column {
+  /* flex弹性盒子布局 */
+  display: flex;
+  /* 排列方向：纵向 */
+  flex-direction: column;
+  /* 换行（只有横向排列会受到影响） */
+  flex-wrap: wrap;
+  /* （垂直方向）内容：两边间距适度 */
+  justify-content: space-around;
+  /* （沿线方向）内容对齐方式：两边间距适度 */
+  align-content: space-around;
+  /* （沿线方向）内容两边对齐方式：拉伸对齐stretch | 居中center */
+  align-items: center;
+}
+
+/* 行排布 */
+.my-row {
+  /* 宽度100%父元素 */
+  /* width: 100%; */
+  /* flex弹性盒子布局 */
+  display: flex;
+  /* 排列方向：纵向 */
+  flex-direction: row;
+  /* 换行（只有横向排列会受到影响） */
+  flex-wrap: wrap;
+  /* （垂直方向）内容：两边间距适度 */
+  justify-content: space-around;
+  /* （沿线方向）内容对齐方式：两边间距适度 */
+  align-content: space-around;
+  /* （沿线方向）内容两边对齐方式：拉伸对齐stretch | 居中center */
+  align-items: center;
+}
+
