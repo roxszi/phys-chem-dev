@@ -131,12 +131,12 @@ export function supportsWasmPthreads(): boolean {
  * 用 `@vite-ignore` 注释让浏览器直接按 URL 导入预构建 Emscripten ESM，
  * 避免 Vite 再次打包 14 MB 的生成文件。
  * 
- * @param profile  选中的构建
- * @param variant  运行时种类
+ * @param profile 选中的构建，默认为 "min"
+ * @param variant 运行时种类
  * @returns Emscripten 工厂函数（opencv.js 的默认导出）
  * @note 该步骤返回工厂函数，避免重复拉取
  */
-async function importFactory(profile: OpenCVProfile, variant: OpenCVVariant): Promise<OpenCVFactory> {
+async function importFactory(profile: OpenCVProfile = "min", variant: OpenCVVariant): Promise<OpenCVFactory> {
   try {
     /** 以“构建”-“变体”作为key */
     const key = `${ profile }-${ variant }`
@@ -145,6 +145,11 @@ async function importFactory(profile: OpenCVProfile, variant: OpenCVVariant): Pr
     //     如果先 `const module = ...` 再 `return module.default`，会导致多 module 对象名冲突
     //     因此直接 return 即可
     switch (key) {
+      case "min-simd.pthreads":
+        return (
+          (await import("@utils/opencv/min-simd.pthreads/opencv.js"))
+            .default
+        )
       case "min-simd":
         return (
           (await import("@utils/opencv/min-simd/opencv.js"))
@@ -155,9 +160,19 @@ async function importFactory(profile: OpenCVProfile, variant: OpenCVVariant): Pr
           (await import("@utils/opencv/min-fallback/opencv.js"))
             .default
         )
+      case "all-simd.pthreads":
+        return (
+          (await import("@utils/opencv/all-simd.pthreads/opencv.js"))
+            .default
+        )
       case "all-simd":
         return (
           (await import("@utils/opencv/all-simd/opencv.js"))
+            .default
+        )
+      case "all-fallback":
+        return (
+          (await import("@utils/opencv/all-fallback/opencv.js"))
             .default
         )
       default:
@@ -222,10 +237,10 @@ function assertOpenCV(cv: OpenCV): void {
  * - 单个优化版本失败时记录原因并降级到下一个候选
  * - 所有候选均失败时用 AggregateError 保留完整错误链
  * - 避免调试时只能看到最后一次失败（"哎我明明 SIMD 优先，为什么还在跑 fallback？"）
- * @param profile 构建类型（min | all）
+ * @param profile 构建类型（min | all），默认 "min"
  * @returns 成功加载的 OpenCV.js 运行时
  */
-async function loadOpenCV(profile: OpenCVProfile) {
+async function loadOpenCV(profile: OpenCVProfile = "min") {
   // 状态机：开始加载
   _status.value = "loading"
   /** 支持的变体列表 */
@@ -235,15 +250,8 @@ async function loadOpenCV(profile: OpenCVProfile) {
     try {
       // 阶段 1：动态 import opencv.js 拿到工厂函数
       const factory = await importFactory(profile, variant)
-      // 阶段 2：调用工厂函数（内部会 fetch opencv_js.wasm + 实例化 wasm）
+      // 阶段 2：调用工厂函数（内部会从 opencv.js 同目录 fetch opencv_js.wasm 并实例化 wasm 模块）
       const module = await factory()
-      // const module = await factory({
-      //   // 以 locateFile 回调，显式指定 wasm 文件位置
-      //   locateFile(fileName) {
-      //     const realFile = withBase(`${ BASE_URL }/${ profile }-${ variant }/${ fileName }`)
-      //     return realFile
-      //   },
-      // })
       // 阶段 3：校验必需 API（防止 whitelist 漏配）
       assertOpenCV(module)
       // 成功！记录实际加载的变体
@@ -272,7 +280,7 @@ async function loadOpenCV(profile: OpenCVProfile) {
  * - 同一配置的并发调用复用同一个 Promise
  * - 不同配置不能在运行中切换，以免旧 Mat 与新 Runtime 混用；
  *   需要切换 profile 时应刷新页面或独立放入 Worker
- * @param profile OpenCV.js 构建种类（min | all）
+ * @param profile OpenCV.js 构建种类（min | all），默认 "min"
  * @example
  * ```ts
  * const { OpenCVStatus, OpenCV, OpenCVVariant, ensureOpenCVReady } = useOpenCV()

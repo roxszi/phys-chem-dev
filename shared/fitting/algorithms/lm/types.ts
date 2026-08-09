@@ -1,6 +1,9 @@
+/**
+ * LM 算法配置与结果类型
+ */
 import type { FitResult } from '../../types.js'
 import type { JacobianProvider } from '../../jacobian/types.js'
-import type { LinearSolver } from '../../../base/linalg/solver/types.js'
+import type { LinearSolver } from '../../../matrix/solve.js'
 import type { DampingStrategy, DampingOptions } from '../../damping/types.js'
 import type { ConvergenceOptions } from '../../convergence/types.js'
 
@@ -11,47 +14,38 @@ import type { ConvergenceOptions } from '../../convergence/types.js'
  * 高级用户可以注入自定义的雅可比计算器、线性求解器、阻尼策略等。
  */
 export interface LevenbergMarquardtOptions {
-  /**
-   * 最大外层迭代次数（默认 100）
-   *
-   * 每次外层迭代都重新计算雅可比矩阵。
-   * 大多数简单问题 10~30 次就收敛，复杂模型可能需要 100+。
-   */
+  /** 最大外层迭代次数（默认 100） */
   maxIterations?: number
+  /** 内层 λ 试探最大次数（默认 20） */
+  maxInnerIterations?: number
 
   /**
-   * 内层 λ 试探最大次数（默认 20）
+   * y 的标准差数组（与 weights 二选一）
    *
-   * 每次外层迭代内，最多尝试调整 λ 多少次来寻找下降步。
-   * 一般 5~10 次就够，20 是保守上限。
+   * 内部转换为 weights = 1/σ²，用于加权正规方程。
+   * 与 weights 同时给出时，weights 优先。
    */
-  maxInnerIterations?: number
+  sigmaY?: number[]
+
+  /**
+   * 直接指定权重数组（与 sigmaY 二选一，优先级高于 sigmaY）
+   *
+   * 正比于 1/σ²。若你的权重已经是 1/σ² 形式，用此字段；
+   * 若是 σ 形式，用 sigmaY 字段（内部会转换）。
+   */
+  weights?: number[]
 
   // ── 可替换模块（依赖注入） ──
 
-  /**
-   * 雅可比计算器
-   *
-   * 默认：数值中心差分（自适应步长，relativeStep = 1e-6）
-   * 可以替换为：解析雅可比 / tfjs 自动微分实现 / ...
-   */
+  /** 雅可比计算器（默认：数值中心差分） */
   jacobian?: JacobianProvider
 
-  /**
-   * 线性方程组求解器
-   *
-   * 默认：高斯消元（带主元）
-   * 可以替换为：Cholesky / LU / QR / SVD / tfjs GPU 实现 / ...
-   */
+  /** 线性方程组求解器（默认：高斯消元） */
   solver?: LinearSolver
 
   /**
-   * 阻尼策略
+   * 阻尼策略（默认：Marquardt 1963）
    *
-   * 默认：Marquardt 1963 固定倍数策略
-   * 可以替换为：Nielsen 2003 自适应策略 / 自定义 / ...
-   *
-   * 注意：不提供此参数时使用 dampingOptions 构造默认策略。
    * 同时提供 damping 和 dampingOptions 时，damping 优先。
    */
   damping?: DampingStrategy
@@ -67,9 +61,6 @@ export interface LevenbergMarquardtOptions {
 
 /**
  * LM 拟合结果（在通用 FitResult 基础上增加 LM 特有诊断字段）
- *
- * finalLambda 是 LM 独有的（GN / TRF / BFGS 等没有阻尼因子），
- * 所以不污染通用 FitResult 接口，而是通过扩展类型携带。
  */
 export interface LevenbergMarquardtResult extends FitResult {
   /** 最终阻尼因子 λ（LM 独有诊断） */

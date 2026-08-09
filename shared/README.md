@@ -1,4 +1,4 @@
-# 拟合模块
+# 跨端共用工具
 
 > 曲线拟合工具集。设计原则：**base 基础层 + fitting 共享层 + 算法层**三级结构，让每个模块小到可以单独读懂，让每个算法可以独立扩展。
 
@@ -51,7 +51,7 @@ shared/
 │           ├── index.ts
 │           ├── types.ts               线性专属配置（过原点等）
 │           └── linear-least-squares.ts 闭式解实现
-└── kinetics/                           ← 动力学专用（未来可删）
+└── kinetics/                           ← 动力学专用
 ```
 
 **已弃用但保留作对照**（未来可删）：
@@ -215,7 +215,7 @@ function levenbergMarquardt(..., options) {
 ### 5.1 非线性拟合（LM）
 
 ```typescript
-import { levenbergMarquardt } from '@/fitting'
+import { levenbergMarquardt } from '@shared/fitting'
 
 // 定义模型
 const fn = (p) => xData.map(x => p.A * Math.exp(-p.k * x) + p.C)

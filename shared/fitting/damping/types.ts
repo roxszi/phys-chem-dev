@@ -1,37 +1,32 @@
 /**
- * 阻尼策略接口（LM 类算法专用）
+ * LM 阻尼策略接口
  *
- * 控制阻尼因子 λ 的演化：接受步长时降 λ（变激进），
- * 拒绝步长时升 λ（变保守）。
+ * 阻尼因子 λ 控制 LM 在"最速下降"和"Gauss-Newton"之间的过渡：
+ *   - λ 大：保守（接近最速下降），步长小但稳定
+ *   - λ 小：激进（接近 GN），步长大但可能发散
  *
- * 实现可以是：
- *   - Marquardt 1963：固定倍数上调 / 下调
- *   - Nielsen 2003：基于 gain ratio ρ 的自适应调整
- *   - 自定义策略
- *
- * 注意：纯 Gauss-Newton（无阻尼）不需要此模块。
+ * 策略：
+ *   - MarquardtDamping（默认）：固定倍数升降（λ_up / λ_down）
+ *   - NielsenDamping：基于增益比 ρ = (实际下降) / (预测下降) 的自适应策略
  */
 export interface DampingStrategy {
-  /** 当前 λ 值 */
+  /** 当前阻尼因子 */
   current(): number
-
-  /** 接受步长后调用，返回新 λ */
-  onAccept(): number
-
-  /** 拒绝步长后调用，返回新 λ */
-  onReject(): number
+  /** 步长被接受（SSE 下降）→ 降 λ */
+  onAccept(): void
+  /** 步长被拒绝（SSE 上升）→ 升 λ */
+  onReject(): void
 }
 
-/** 阻尼策略配置 */
 export interface DampingOptions {
   /** 初始 λ（默认 1e-3） */
   lambdaInit?: number
-  /** 拒绝时 λ 上调倍数（默认 10） */
-  lambdaUp?: number
-  /** 接受时 λ 下调倍数（默认 0.1） */
+  /** 接受时乘的因子（默认 0.3） */
   lambdaDown?: number
-  /** λ 下限（默认 1e-12） */
-  lambdaMin?: number
-  /** λ 上限（默认 1e12） */
+  /** 拒绝时乘的因子（默认 5） */
+  lambdaUp?: number
+  /** λ 上限（防止溢出，默认 1e12） */
   lambdaMax?: number
+  /** λ 下限（防止退化，默认 1e-12） */
+  lambdaMin?: number
 }

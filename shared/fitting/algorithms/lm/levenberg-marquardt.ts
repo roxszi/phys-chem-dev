@@ -1,31 +1,39 @@
+/**
+ * Levenberg-Marquardt 非线性最小二乘拟合
+ *
+ * 适用于：x 误差可忽略（或不存在），只优化 y 残差的场景。
+ * 对物化实验中的 (t, c)、(1/T, ln k) 等时间-浓度 / 温度-速率数据，
+ * x 误差通常 << y 误差，LM 是最简单可靠的选择。
+ *
+ * 算法核心：
+ *   每次迭代解 (JᵀJ + λ·diag(JᵀJ)) · Δp = Jᵀr
+ *   λ 大 → 接近最速下降（保守）
+ *   λ 小 → 接近 Gauss-Newton（激进）
+ *   通过 trust-region（试探 + 升降 λ）在两者间自适应切换
+ *
+ * 详见同目录 README.md。
+ */
 import type {
   PredictFn,
   DataArray,
   IterationState,
 } from '../../types.js'
 import { validateInputs } from '../../validate.js'
-import { computeResiduals, computeSSE } from '../../residual.js'
-import { buildNormalEquation, applyDamping } from '../../normal-equation.js'
+import { residuals, sse } from '../../../numeric/residual.js'
+import {
+  buildWeightedNormalEquation,
+  applyDamping,
+} from '../../normal-equation.js'
 import { createNumericalJacobian } from '../../jacobian/numerical.js'
-import { createGaussianEliminationSolver } from '../../../base/linalg/solver/gaussian-elimination.js'
+import { createGaussianEliminationSolver } from '../../../matrix/solve.js'
 import { createMarquardtDamping } from '../../damping/marquardt.js'
 import { createDefaultConvergence } from '../../convergence/default.js'
 import { computeStatistics } from '../../statistics.js'
-import type { LevenbergMarquardtOptions, LevenbergMarquardtResult } from './types.js'
+import type {
+  LevenbergMarquardtOptions,
+  LevenbergMarquardtResult,
+} from './types.js'
 
-/**
- * Levenberg-Marquardt 非线性最小二乘拟合
- *
- * 算法详解见同目录 README.md。
- *
- * @param fn 预测函数 (params) => predicted[]
- * @param initialParams 初始参数猜测值
- * @param paramNames 参数名列表（顺序固定）
- * @param xData 自变量数组
- * @param yData 因变量数组
- * @param options 配置选项（全部可选）
- * @returns 拟合结果（参数、误差、R²、协方差、收敛信息等）
- */
 export function levenbergMarquardt(
   fn: PredictFn,
   initialParams: Record<string, number>,
@@ -34,10 +42,12 @@ export function levenbergMarquardt(
   yData: DataArray,
   options: LevenbergMarquardtOptions = {},
 ): LevenbergMarquardtResult {
-  // ── 1. 解析配置 + 构造默认模块 ─────────────────────
+  // 1. 解析配置 + 构造默认模块
   const {
     maxIterations = 100,
     maxInnerIterations = 20,
+    sigmaY,
+    weights,
     jacobian = createNumericalJacobian(),
     solver = createGaussianEliminationSolver(),
     damping = createMarquardtDamping(options.dampingOptions),
@@ -45,57 +55,91 @@ export function levenbergMarquardt(
   } = options
 
   const convergenceCheck = createDefaultConvergence(convOptions)
+  // 防御性 reset：当前每次新建实例不需要，但未来允许外部传入时不会踩坑
+  convergenceCheck.reset?.()
 
-  // ── 2. 输入校验 ─────────────────────────────────
+  // 2. 输入校验
   const n = validateInputs(xData, yData, paramNames, initialParams, fn)
   const p = paramNames.length
 
-  // ── 3. 状态初始化 ───────────────────────────────
+  // 2.1 权重预处理：weights 优先；sigmaY → weights = 1/σ²；都不传则等权（=1）
+  let weightArr: number[]
+  if (weights) {
+    if (weights.length !== n) {
+      throw new Error(`weights 长度 ${weights.length} ≠ n ${n}`)
+    }
+    weightArr = weights
+  } else if (sigmaY) {
+    if (sigmaY.length !== n) {
+      throw new Error(`sigmaY 长度 ${sigmaY.length} ≠ n ${n}`)
+    }
+    weightArr = sigmaY.map((s) => {
+      if (s <= 0 || !Number.isFinite(s)) {
+        throw new Error(`sigmaY 含非正或非有限值：${s}`)
+      }
+      return 1 / (s * s)
+    })
+  } else {
+    weightArr = new Array<number>(n).fill(1)
+  }
+
+  // 3. 状态初始化
   let currentParams: Record<string, number> = { ...initialParams }
-  let currentResiduals = computeResiduals(fn, yData, currentParams)
-  let currentSSE = computeSSE(currentResiduals)
+  let currentResiduals = residuals(yData, fn(currentParams))
+  let currentSSE = sse(currentResiduals, weightArr)
 
   let converged = false
   let iterationsUsed = 0
 
-  // ── 4. 主迭代循环 ───────────────────────────────
+  // 4. 主迭代循环
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     iterationsUsed++
 
     // 4.1 计算雅可比矩阵
     const J = jacobian.compute(fn, currentParams, paramNames, n)
 
-    // 4.2 构建正规方程 (JᵀJ, Jᵀr)
-    const { jtj, jtr } = buildNormalEquation(J, currentResiduals)
+    // 4.2 构建加权正规方程 (JᵀWJ, JᵀWr)
+    const { jtj, jtr } = buildWeightedNormalEquation(J, currentResiduals, weightArr)
+
+    // 4.2.1 一阶最优性预检查（Nocedal & Wright 标准做法）
+    //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
+    //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
+    let preCheckGradNorm = 0
+    for (let j = 0; j < p; j++) {
+      const absG = Math.abs(jtr[j]!)
+      if (absG > preCheckGradNorm) preCheckGradNorm = absG
+    }
+    if (preCheckGradNorm < (convOptions?.gradientTolerance ?? 1e-8)) {
+      converged = true
+      break
+    }
 
     // 4.3 内层循环：λ 试探
     let accepted = false
     for (let inner = 0; inner < maxInnerIterations; inner++) {
-      // 4.3.1 应用阻尼：A = JᵀJ + λ·diag(JᵀJ)
+      // 4.3.1 应用阻尼
       const A = applyDamping(jtj, damping.current())
 
-      // 4.3.2 解正规方程 (JᵀJ + λD) Δp = Jᵀr
+      // 4.3.2 解正规方程
       const deltaP = solver.solve(A, jtr)
       if (!deltaP) {
-        // 矩阵奇异，升 λ 重试
         damping.onReject()
         continue
       }
 
-      // 4.3.3 试探新参数：trial = current + Δp
+      // 4.3.3 试探新参数
       const trialParams: Record<string, number> = { ...currentParams }
       for (let j = 0; j < p; j++) {
         const name = paramNames[j]!
         trialParams[name] = currentParams[name]! + deltaP[j]!
       }
 
-      // 4.3.4 评估试探结果
-      const trialResiduals = computeResiduals(fn, yData, trialParams)
-      const trialSSE = computeSSE(trialResiduals)
+      // 4.3.4 评估试探结果（加权 SSE）
+      const trialResiduals = residuals(yData, fn(trialParams))
+      const trialSSE = sse(trialResiduals, weightArr)
 
       // 4.3.5 接受 / 拒绝
       if (trialSSE < currentSSE) {
-        // 接受：更新状态 + 降 λ + 检查收敛
         currentParams = trialParams
         currentResiduals = trialResiduals
         currentSSE = trialSSE
@@ -117,7 +161,6 @@ export function levenbergMarquardt(
         }
         break
       } else {
-        // 拒绝：升 λ 继续试探
         damping.onReject()
       }
     }
@@ -126,19 +169,17 @@ export function levenbergMarquardt(
     if (converged || !accepted) break
   }
 
-  // ── 5. 计算最终统计量 ───────────────────────────
-  // 在最终参数处重新算一次雅可比，用于协方差和梯度诊断。
-  // （主循环里最后一次的雅可比对应"接受前"的参数，与最终参数不一致。）
+  // 5. 计算最终统计量
   const finalJacobian = jacobian.compute(fn, currentParams, paramNames, n)
   const stats = computeStatistics({
     fn,
     params: currentParams,
     paramNames,
-    xData,
     yData,
     residuals: currentResiduals,
     sse: currentSSE,
     jacobian: finalJacobian,
+    weights: weightArr,
   })
 
   return {

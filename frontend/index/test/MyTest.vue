@@ -8,9 +8,6 @@
 -->
 <template>
 
-看看：
-{{ OpenCVStatus }}
-
 <!-- ========= 实验条件输入区 ========= -->
 
 <h3>实验条件</h3>
@@ -146,18 +143,17 @@
 
 // import myData from "./data.ts"
 
-// import { levenbergMarquardt } from "@shared/fitting/index.ts"
+import { levenbergMarquardt } from "@/shared/fitting-back"
 
 // console.log("myData: ", myData)
 
-import { useOpenCV } from "@composables/useOpenCV.ts"
-
-const { OpenCVStatus, OpenCV, OpenCVVariant, ensureOpenCVReady } = useOpenCV()
-
-onMounted(() => ensureOpenCVReady())
+console.log("levenbergMarquardt: ", levenbergMarquardt)
 
 
+function fn(p) {
+  xData.map(x => p.A * Math.exp(-p.k * x) + p.C)
 
+}
 
 
 
@@ -234,9 +230,6 @@ function onDataFitting() {
 
   // 拟合数据
 
-  console.log("OpenCVStatus: ", OpenCVStatus.value)
-  console.log("OpenCV: ", OpenCV.value)
-  console.log("OpenCVVariant: ", OpenCVVariant.value)
 
 
 
