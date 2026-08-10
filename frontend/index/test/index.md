@@ -1,15 +1,10 @@
 <!-- 测试用 -->
 
-# 蔗糖水解皂化反应常数的测定
+# 测试页面
 
 <!-- <ClientOnly>
 
 </ClientOnly> -->
-
-<script setup>
-import SucroseHydrolysis from "./SucroseHydrolysis.vue"
-</script>
-<SucroseHydrolysis />
 
 ## 备注格式备忘
 

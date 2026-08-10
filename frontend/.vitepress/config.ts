@@ -71,7 +71,7 @@ export default defineConfig({
         // 组件存放目录的相对路径
         dirs: [
           "components",
-          // "index"
+          "index"
         ],
         // 读取子目录
         deep: true,

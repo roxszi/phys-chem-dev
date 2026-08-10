@@ -10,7 +10,7 @@
 
 <!-- ========= 实验条件输入区 ========= -->
 
-<h3>实验条件</h3>
+<h3>⚙️ 实验条件</h3>
 
 <t-input
   v-model:value="inputDataRef.temperatureStr"
@@ -34,7 +34,7 @@
 
 <!-- 条件渲染：有数据才渲染 -->
 
-<h3>数据表格</h3>
+<h3>📋 数据表格</h3>
 
 <!-- 表格体 -->
 <MyTable
@@ -79,7 +79,7 @@
 
 <!-- ========= 数据填写区 ========= -->
 
-<h3>数据输入</h3>
+<h3>📝 数据输入</h3>
 <!-- t -->
 <t-input
   v-model:value="inputDataRef.tStr"
@@ -129,7 +129,7 @@
 <!-- ========= 数据拟合区（侧边栏） ========= -->
 
 <MyDrawer
-  title="数据拟合结果"
+  title="📈 拟合结果"
   v-model:visible="isDrawerVisiableRef"
 >
 
@@ -345,11 +345,16 @@ function onDataFitting() {
   nonlinearChartDataAoaRef.value = chartDataAoa as [number, number, number][]
   linearChartDataAoaRef.value = linearChartDataAoa
   // ================ 拟合结果形成表格 ================
+  /** k */
+  const resultK = params["k"]
+  /** 半衰期 t(1/2) */
+  const resultTHalf = Math.log(2) / resultK!
   chartTableDataAoaRef.value = [
     ["R²", rSquared.toFixed(4)],
     ["α_0 (°)", params["alphaInitial"]!.toFixed(4)],
     [`α_∞ (°)`, params["alphaEquilibrium"]!.toFixed(4)],
-    ["k", params["k"]!.toFixed(4)],
+    ["k (min⁻¹)", params["k"]!.toFixed(4)],
+    ["t(1/2) (min)", resultTHalf.toFixed(4)],
   ]
   // 打开抽屉
   isDrawerVisiableRef.value = true
