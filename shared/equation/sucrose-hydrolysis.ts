@@ -27,7 +27,7 @@ import { mean } from "@/shared/math/index.js"
 /** 公式参数 */
 const parameters = [
   {
-    id:"alphaInitial", symbol: "α_0", name: "初始旋光度", unit:"",
+    id: "alphaInitial", symbol: "α_0", name: "初始旋光度", unit:"",
     typicalRange: [0, 1] as [number, number], description: "初始旋光度"
   },
   {

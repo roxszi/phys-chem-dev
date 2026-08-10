@@ -38,7 +38,7 @@
 
 <!-- 表格体 -->
 <MyTable
-  :titleArr="tableTitleArrRef"
+  :titleArr="tableTitleArr"
   :dataAoa="tableDataAoaRef"
 >
   <!-- 插槽：删除行数据 -->
@@ -128,40 +128,36 @@
 
 <!-- ========= 数据拟合区（侧边栏） ========= -->
 
-<t-drawer
-  v-model:visible="drawerRef"
+<MyDrawer
+  title="数据拟合结果"
+  v-model:visible="isDrawerVisiableRef"
 >
 
-  <template #title>
-    📈 拟合数据
-  </template>
-
-  <!-- <h3 class="t-drawer__title">📈 拟合数据</h3> -->
-
-  <Chart
-    v-if="drawerRef"
-    title="蔗糖水解动力学"
+  <!-- 非线性点线图 -->
+  <MySymbolLineChart
+    title="蔗糖水解动力学-原公式拟合"
     xAxisName="Δt (min)"
     yAxisName="Δα (°)"
-    :dataAoa="chartDataAoaRef"
-    :dataProfileArr="dataProfileArr"
+    :dataAoa="nonlinearChartDataAoaRef"
+    :dataProfileArr="chartDataProfileArr"
   />
 
-  <template #footer>
-    <MyButton
-      :block="false"
-      variant="outline"
-      size="small"
-      @click="drawerRef = false"
-    >
-      关闭抽屉
-    </MyButton>
-  </template>
+  <!-- 拟合结果表格 -->
+  <MyTTable
+    :titleArr="chartTableTitleArr"
+    :dataAoa="chartTableDataAoaRef"
+  />
 
-</t-drawer>
+  <!-- 线性点线图 -->
+  <MySymbolLineChart
+    title="蔗糖水解动力学-线性拟合"
+    xAxisName="Δt (min)"
+    yAxisName="ln(αt-α∞)"
+    :dataAoa="linearChartDataAoaRef"
+    :dataProfileArr="chartDataProfileArr"
+  />
 
-
-
+</MyDrawer>
 </template>
 
 
@@ -173,8 +169,6 @@
 import { exampleDataAoa } from "./data.ts"
 // 导入公式 + 一键拟合入口
 import { sucroseHydrolysis, fitEquation } from "@shared/equation/index.ts"
-// 导入图表组件
-import Chart from "./Chart.vue"
 
 /** 输入数据的Ref对象 */
 const inputDataRef = ref({
@@ -187,29 +181,30 @@ const inputDataRef = ref({
   /** 旋光率α，在<input>里为string */
   alphaStr: "",
 })
-
 /** 可以提交数据的验证Ref对象 */
 const isInputedRef = computed(() => {
   return ((inputDataRef.value.tStr !== "") && (inputDataRef.value.alphaStr !== ""))
 })
-
-/** 表格标题的Ref对象 */
-const tableTitleArrRef = ref(["t", "α"])
-
+/** 表格标题 */
+const tableTitleArr = ["t", "α"]
 /** 表格内容的Ref对象 - [t, α][] */
 const tableDataAoaRef = ref<[number, number][]>([])
-
-/** 图内容的Ref对象 */
-const chartDataAoaRef = ref<[number, number, number][]>([])
-
-/** 数据图表类型 */
-const dataProfileArr = [
+/** 非线性图内容的Ref对象 */
+const nonlinearChartDataAoaRef = shallowRef<[number, number, number][]>([])
+/** 非线性数据图表类型（线性/非线性共用） */
+const chartDataProfileArr = [
   { name: "实验值",  chartType: "symbol" as const, },
   { name: "拟合值",  chartType: "line" as const, },
 ]
-
+/** 图下方的拟合结果表格数据标题 */
+const chartTableTitleArr = ["拟合参数", "值"]
+/** 图下方的拟合结果表格数据 */
+const chartTableDataAoaRef = shallowRef<[string, string][]>([])
+/** 线性图内容的Ref对象 */
+const linearChartDataAoaRef = shallowRef<[number, number, number][]>([])
 /** 抽屉是否开启的Ref对象 */
-const drawerRef = ref(false)
+const isDrawerVisiableRef = shallowRef(false)
+
 
 /**
  * 读取示例数据的回调
@@ -255,9 +250,13 @@ function onDeleteData(rowIndex?: number) {
   // 如果没传参，则执行清空表格功能
   if (rowIndex === undefined) {
     // 提醒一下
-
-    // 清空表格
-    tableDataAoaRef.value = []
+    myDialog({
+      content: "确定清空表格？",
+      onConfirmCallBack: () => {
+        // 清空表格
+        tableDataAoaRef.value = []
+      }
+    })
   // 否则，删除指定行
   } else {
     // 直接从dataAoaRef中删除一行数据
@@ -311,10 +310,10 @@ function onDataFitting() {
     // 拟合值
     predicted,
   } = fitResultRaw
-
   // ================ 作图 ================
   /** 作图数据集 */
   const chartDataAoa: [number, number, number?][] = []
+  // 深拷贝数据
   for (const dataArr of tableDataAoaRef.value) {
     chartDataAoa.push([...dataArr])
   }
@@ -332,10 +331,28 @@ function onDataFitting() {
   for (let i = 0; i < n; i++) {
     chartDataAoa[i]!.push(predicted[i]!)
   }
+  /** 线性化作图数据集 */
+  const linearChartDataAoa: [number, number, number][] = []
+  // 转换数据
+  for (const dataArr of chartDataAoa) {
+    linearChartDataAoa.push([
+      dataArr[0],
+      Math.log(dataArr[1] - params["alphaEquilibrium"]!),
+      Math.log(dataArr[2]! - params["alphaEquilibrium"]!),
+    ])
+  }
   // 赋值
-  chartDataAoaRef.value = chartDataAoa as [number, number, number][]
+  nonlinearChartDataAoaRef.value = chartDataAoa as [number, number, number][]
+  linearChartDataAoaRef.value = linearChartDataAoa
+  // ================ 拟合结果形成表格 ================
+  chartTableDataAoaRef.value = [
+    ["R²", rSquared.toFixed(4)],
+    ["α_0 (°)", params["alphaInitial"]!.toFixed(4)],
+    [`α_∞ (°)`, params["alphaEquilibrium"]!.toFixed(4)],
+    ["k", params["k"]!.toFixed(4)],
+  ]
   // 打开抽屉
-  drawerRef.value = true
+  isDrawerVisiableRef.value = true
 }
 
 

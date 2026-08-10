@@ -17,10 +17,10 @@
   /* TDesign抽屉侧边栏的宽度 */
   --td-drawer-width: 70vw;
   /* TDesign抽屉侧边栏的高度 */
-  --td-drawer-sidebar-height: 100vh;
+  --td-drawer-sidebar-height: 0;
+
   /* 其它全局样式变量 */
   --my-gap: 16px;
-
 
 }
 
@@ -58,6 +58,12 @@
 .my-margin {
   /* 上下外边距 */
   margin: var(--my-gap) auto;
+}
+
+/* 内边距 */
+.my-padding {
+  /* 上下内边距 */
+  padding: var(--my-gap) auto;
 }
 
 /* 间距 */
@@ -100,3 +106,22 @@
   align-items: center;
 }
 
+/* 抽屉按列方向实现滚动 */
+.my-drawer {
+  /* 占满父级100%高度 */
+  height: 100%;
+  /* 纵向滚动：auto */
+  overflow-y: auto;
+  /* 横向滚动：不显示 */
+  overflow-x: hidden;
+  /* 上下内边距 */
+  padding: var(--my-gap) auto;
+  /* 计算外边距时算上边框 */
+  box-sizing: border-box;
+}
+
+/* 图表 */
+.my-chart {
+  /* 最大高度 */
+  max-height: 70vh
+}

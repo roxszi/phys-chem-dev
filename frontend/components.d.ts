@@ -13,14 +13,19 @@ declare module 'vue' {
   export interface GlobalComponents {
     MyButton: typeof import('./components/MyButton.vue')['default']
     MyChart: typeof import('./components/MyChart.vue')['default']
+    MyDrawer: typeof import('./components/MyDrawer.vue')['default']
     MyRadio: typeof import('./components/MyRadio.vue')['default']
+    MySymbolLineChart: typeof import('./components/MySymbolLineChart.vue')['default']
     MyTable: typeof import('./components/MyTable.vue')['default']
     MyTest: typeof import('./index/test/MyTest.vue')['default']
+    MyTTable: typeof import('./components/MyTTable.vue')['default']
     SucroseHydrolysis: typeof import('./index/test/SucroseHydrolysis.vue')['default']
     SucroseHydrolysisChart: typeof import('./index/test/SucroseHydrolysisChart.vue')['default']
     TButton: typeof import('tdesign-mobile-vue')['Button']
     TConfigProvider: typeof import('tdesign-mobile-vue')['ConfigProvider']
     TDrawer: typeof import('tdesign-mobile-vue')['Drawer']
     TInput: typeof import('tdesign-mobile-vue')['Input']
+    TSideBar: typeof import('tdesign-mobile-vue')['SideBar']
+    TTable: typeof import('tdesign-mobile-vue')['Table']
   }
 }

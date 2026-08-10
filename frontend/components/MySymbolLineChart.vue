@@ -5,14 +5,6 @@
 
 
 <!--
-  视图层
--->
-<template>
-  <VChart :option="option" :autoresize="true" class="my-chart" />
-</template>
-
-
-<!--
   逻辑层
 -->
 <script setup lang="ts">
@@ -53,20 +45,20 @@ import type { EChartsOption } from "echarts"
  * - line：线
  * - symbol-line：点线
  */
-type ChartType = "symbol" | "line" | "symbol-line"
+type SymbolLineChartType = "symbol" | "line" | "symbol-line"
 
 /** 数据信息 */
-type DataProfile = {
+type SymbolLineChartDataProfile = {
   /** 数据名称 */
   name: string
   /** 图表类型 */
-  chartType: ChartType
+  chartType: SymbolLineChartType
   /** 是否支持交互式图例，默认支持 */
   isSupportLegend?: boolean
 }
 
 /** 本组件的传参数据类型 */
-interface ChartProps {
+interface SymbolLineChartProps {
   /** 标题 */
   title?: string
   /** X轴数据名称 */
@@ -76,11 +68,11 @@ interface ChartProps {
   /** 数据 */
   dataAoa: number[][]
   /** 数据图表类型 */
-  dataProfileArr: DataProfile[]
+  dataProfileArr: SymbolLineChartDataProfile[]
 }
 
 /** 组件传参 */
-const props = defineProps<ChartProps>()
+const props = defineProps<SymbolLineChartProps>()
 
 // 按需注册：2个独立扩展功能模块 + 5个组件 + 1种图表 + 渲染核心
 use([
@@ -180,6 +172,8 @@ function buildOption(): EChartsOption {
       trigger: "axis",
       // 坐标轴指示器：十字准星
       axisPointer: { type: "cross" },
+      // 格式化显示：小数点后3位
+      valueFormatter: (value) => Number(value).toFixed(3)
     },
     // 交互式图例
     legend: { data: legendDataArr },
@@ -209,18 +203,16 @@ function buildOption(): EChartsOption {
   // 返回ECharts option对象
   return option
 }
-
 </script>
 
 
 <!--
   视图层
 -->
-<style scoped>
-/* 主样式 */
-.my-chart {
-  /* 最大高度 */
-  max-height: 70vh
-}
-
-</style>
+<template>
+  <VChart
+    :option="option"
+    :autoresize="true"
+    class="my-chart"
+  />
+</template>
