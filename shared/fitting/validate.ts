@@ -2,12 +2,19 @@
  * 拟合输入校验（统一入口）
  *
  * 在拟合开始前校验所有输入，提前抛错避免迭代中数值异常。
+ *
+ * 校验项（一次性合并检查，避免薄函数与重复遍历）：
+ *   1. n > 0
+ *   2. n > p（否则无自由度）
+ *   3. paramNames 不重复
+ *   4. initialParams 齐全且有限
+ *   5. fn(initialParams) 长度正确
+ *
+ * 元素级有限性校验（xData / yData / pred）由下游算法在自己的循环里
+ * 顺便做——避免单独的"批量校验"遍历。
  */
 import type { PredictFn, DataArray, ParamNames } from './types.js'
-import {
-  validateSameLength,
-  validateFiniteArray,
-} from '../base/array-validation.js'
+
 
 /**
  * 校验拟合输入，返回数据点数 n
@@ -26,28 +33,26 @@ export function validateInputs(
   initialParams: Record<string, number>,
   fn: PredictFn,
 ): number {
-  // 1. x, y 长度一致
-  validateSameLength(xData, yData, 'xData', 'yData')
-
   const n = xData.length
 
-  // 2. 至少 1 个数据点
+  // 1. 至少 1 个数据点
   if (n === 0) {
     throw new Error('xData / yData 为空')
   }
 
-  // 3. 数据点数 > 参数个数（否则不能拟合）
+  // 2. 数据点数 > 参数个数
   if (n <= paramNames.length) {
     throw new Error(
       `数据点数 ${n} 必须 > 参数个数 ${paramNames.length}（否则无自由度）`,
     )
   }
 
-  // 4. 数据有限
-  validateFiniteArray(xData, 'xData')
-  validateFiniteArray(yData, 'yData')
+  // 3. xData / yData 长度一致（单行检查——不写函数）
+  if (yData.length !== n) {
+    throw new Error(`xData 与 yData 长度不匹配：${n} vs ${yData.length}`)
+  }
 
-  // 5. 参数名不重复
+  // 4. 参数名不重复
   const seen = new Set<string>()
   for (const name of paramNames) {
     if (!name) throw new Error('paramNames 包含空字符串')
@@ -55,7 +60,7 @@ export function validateInputs(
     seen.add(name)
   }
 
-  // 6. 初始参数齐全
+  // 5. 初始参数齐全且有限
   for (const name of paramNames) {
     const v = initialParams[name]
     if (v === undefined) {
@@ -66,14 +71,13 @@ export function validateInputs(
     }
   }
 
-  // 7. fn 返回长度正确
+  // 6. fn 返回长度正确（元素级有限性由下游循环顺便校验）
   const pred = fn(initialParams)
   if (pred.length !== n) {
     throw new Error(
       `fn(initialParams) 返回长度 ${pred.length} ≠ 数据点数 ${n}`,
     )
   }
-  validateFiniteArray(pred, 'fn(initialParams)')
 
   return n
 }

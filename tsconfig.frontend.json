@@ -33,6 +33,8 @@
   // 编译处理过程中需被直接排除的文件/路径
   "exclude": [
     "node_modules",
-    "cache"
+    "cache",
+    // shared/equation/backup/ 内的演示文件，业务迭代用，不参与类型检查
+    "shared/equation/backup/**"
   ]
 }

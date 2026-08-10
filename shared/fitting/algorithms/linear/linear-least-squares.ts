@@ -16,7 +16,7 @@
  */
 import { invertMatrix } from '../../../matrix/inverse.js'
 import { matVec } from '../../../matrix/basic.js'
-import { validateSameLength, validateFiniteArray } from '../../../base/array-validation.js'
+import { isFinitePositive } from '../../../math/validate.js'
 
 export interface LinearLeastSquaresOptions {
   /**
@@ -75,27 +75,27 @@ export function linearLeastSquares(
   yData: number[],
   options: LinearLeastSquaresOptions = {},
 ): LinearLeastSquaresResult {
-  validateSameLength(xData, yData, 'xData', 'yData')
-  validateFiniteArray(xData, 'xData')
-  validateFiniteArray(yData, 'yData')
+  // x、y 长度匹配（单行检查——不写函数）
+  if (yData.length !== xData.length) {
+    throw new Error(`xData 与 yData 长度不匹配：${xData.length} vs ${yData.length}`)
+  }
 
   const n = xData.length
   if (n < 2) throw new Error(`线性拟合至少需要 2 个点（两点确定一条直线），当前 ${n}`)
 
-  // sigmaY → weights = 1/σ² 的内部转换
+  // sigmaY → weights = 1/σ²（单次循环同时校验 + 转换）
   const sigmaYArr = options.sigmaY
   let weights: number[] | undefined
   if (sigmaYArr) {
     if (sigmaYArr.length !== n) {
       throw new Error(`sigmaY 长度 ${sigmaYArr.length} ≠ 数据点数 ${n}`)
     }
-    validateFiniteArray(sigmaYArr, 'sigmaY')
-    weights = sigmaYArr.map((s) => {
-      if (s <= 0 || !Number.isFinite(s)) {
-        throw new Error(`sigmaY 含非正或非有限值：${s}（必须 > 0）`)
-      }
-      return 1 / (s * s)
-    })
+    weights = new Array<number>(n)
+    for (let i = 0; i < n; i++) {
+      const s = sigmaYArr[i]!
+      isFinitePositive(s, `sigmaY[${i}]`)
+      weights[i] = 1 / (s * s)
+    }
   }
 
   // 构造正规方程 (Xᵀ W X) · β = Xᵀ W y

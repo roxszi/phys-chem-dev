@@ -69,7 +69,10 @@ export default defineConfig({
         // 生成d.ts文件
         dts: true,
         // 组件存放目录的相对路径
-        dirs: ["components", "index"],
+        dirs: [
+          "components",
+          // "index"
+        ],
         // 读取子目录
         deep: true,
         // 以子目录作为命名空间前缀

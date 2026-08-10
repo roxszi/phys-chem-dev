@@ -1,22 +1,29 @@
 /**
- * 拟合统计层——拼装 numeric/ 原语 + 拟合专属字段
- *
+ * 拟合统计层
+ * 
+ * 拼装 math/ + matrix/ 原语 + 拟合专属字段
+ * 
  * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
- *
+ * 
  * 这里的逻辑是"业务拼装"：
- *   - R² / RMSE 调 numeric/regression.ts
- *   - 协方差调 numeric/covarianceFromM
+ *   - R² / RMSE 调 numeric/regression.ts（标量）
+ *   - 协方差调 matrix/covariance.ts（涉及矩阵类型——不再由 numeric 提供）
  *   - 参数标准误 dict、Final Lambda 等"拟合专属字段"在此组装
+ *
+ * 依赖方向：
+ *   - numeric/：标量聚合（不反向依赖 matrix）
+ *   - matrix/：矩阵运算（含基于矩阵的高阶函数，如 covarianceFromM）
+ *   - fitting/：拼装层
  */
-import type { PredictFn, ParamNames } from './types.js'
-import { buildWeightedNormalEquation } from './normal-equation.js'
+import type { PredictFn, ParamNames } from "./types.ts"
+import { buildWeightedNormalEquation } from "./normal-equation.ts"
 import {
   rSquared,
   rmse,
   sigma2,
-  covarianceFromM,
   gradientNorm,
-} from '../numeric/regression.js'
+} from "@shared/math/index.ts"
+import { covarianceFromM } from "@shared/matrix/index.ts"
 
 export interface StatisticsInput {
   /** 预测函数 */

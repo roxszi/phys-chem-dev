@@ -1,19 +1,16 @@
 /**
  * 拟合模块的核心类型定义
- *
- * 这些类型是拟合业务专属的，与 base 层（线性代数等）解耦。
- * 与 phys-chem 项目保持一致风格，便于未来回流。
  */
 
 /**
  * 预测函数（用户的模型）
- *
+ * 
  * 接受参数字典，返回每个数据点的预测值。
  * x 数据通过闭包绑定（见 equation/bindModel.ts），所以不在签名中。
  *
  * @example
- *   // 模型 y = A·exp(-k·t) + C
- *   const fn: PredictFn = (p) => tData.map(t => p.A * Math.exp(-p.k * t) + p.C)
+ * // 模型 y = A·exp(-k·t) + C
+ * const fn: PredictFn = (p) => tData.map(t => p.A * Math.exp(-p.k * t) + p.C)
  */
 export type PredictFn = (params: Record<string, number>) => number[]
 

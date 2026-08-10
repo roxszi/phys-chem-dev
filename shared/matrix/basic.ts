@@ -1,13 +1,12 @@
 /**
  * 矩阵基础运算
- *
- * 矩阵数乘、转置、矩阵×向量、矩阵×矩阵。
- * 纯函数 + 不可变（每个函数返回新矩阵，不修改输入）。
- *
+ * 
+ * 每个函数返回新矩阵，不修改输入。
  * 性能权衡：对物化实验教学场景（n < 1000, p < 10），CPU 实现足够。
- * 高维 / 大数据场景可由调用方换 typed array 实现。
+ * 高维 / 大数据场景可得换 typed array 实现。
  */
-import type { Matrix, Vector } from './types.js'
+import type { Matrix, Vector } from "./types.js"
+
 
 /**
  * 矩阵数乘（返回新矩阵）
@@ -15,8 +14,11 @@ import type { Matrix, Vector } from './types.js'
  * @param factor 标量因子
  */
 export function scaleMatrix(matrix: Matrix, factor: number): Matrix {
-  return matrix.map((row) => row.map((v) => v * factor))
+  return matrix.map((row) => (
+    row.map((v) => v * factor)
+  ))
 }
+
 
 /**
  * 矩阵转置
@@ -35,6 +37,7 @@ export function transposeMatrix(matrix: Matrix): Matrix {
   }
   return result
 }
+
 
 /**
  * 矩阵 × 向量
@@ -58,6 +61,7 @@ export function matVec(matrix: Matrix, vec: Vector): Vector {
   }
   return result
 }
+
 
 /**
  * 矩阵 × 矩阵

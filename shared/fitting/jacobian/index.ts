@@ -10,9 +10,9 @@
  *
  * 扩展点：未来可以加 AnalyticalJacobian（用户手写解析偏导）、TfjsJacobian（自动微分）。
  */
-export type { JacobianProvider } from './types.js'
+export type { JacobianProvider } from './types.ts'
 export {
   NumericalJacobian,
   createNumericalJacobian,
-} from './numerical.js'
-export type { NumericalJacobianOptions } from './numerical.js'
+} from './numerical.ts'
+export type { NumericalJacobianOptions } from './numerical.ts'

@@ -7,7 +7,7 @@
  * - 拒绝步长 → λ *= lambdaUp（默认 5）
  * - λ 受 [lambdaMin, lambdaMax] 约束，防止数值溢出
  */
-import type { DampingStrategy, DampingOptions } from './types.js'
+import type { DampingStrategy, DampingOptions } from './types.ts'
 
 export class MarquardtDamping implements DampingStrategy {
   private lambda: number

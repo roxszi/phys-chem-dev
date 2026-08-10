@@ -25,7 +25,7 @@
  */
 import type { PredictFnODR } from '../../types.js'
 import type { ODRJacobianProvider } from './types.js'
-import { centralDiff } from '../../../numeric/finite-difference.js'
+import { centralDiff } from '../../../math/finite-difference.js'
 
 export interface NumericalODRJacobianOptions {
   /**

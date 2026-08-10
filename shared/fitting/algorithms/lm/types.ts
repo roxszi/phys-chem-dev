@@ -1,11 +1,13 @@
 /**
  * LM 算法配置与结果类型
  */
-import type { FitResult } from '../../types.js'
-import type { JacobianProvider } from '../../jacobian/types.js'
-import type { LinearSolver } from '../../../matrix/solve.js'
-import type { DampingStrategy, DampingOptions } from '../../damping/types.js'
-import type { ConvergenceOptions } from '../../convergence/types.js'
+import type { LinearSolver } from "@shared/matrix/index.ts"
+import type {
+  FitResult,
+  JacobianProvider,
+  DampingStrategy, DampingOptions,
+  ConvergenceOptions
+} from "@shared/fitting/index.ts"
 
 /**
  * Levenberg-Marquardt 算法配置
@@ -21,7 +23,7 @@ export interface LevenbergMarquardtOptions {
 
   /**
    * y 的标准差数组（与 weights 二选一）
-   *
+   * 
    * 内部转换为 weights = 1/σ²，用于加权正规方程。
    * 与 weights 同时给出时，weights 优先。
    */

@@ -1,14 +1,15 @@
 /**
  * bindModel：把 EquationModel 与具体 x 数据绑定成 PredictFn
  *
- * 用途：LM 算法的 PredictFn 签名是 `(params) => number[]`（x 通过闭包绑定）。
+ * 用途：L-M 算法的 PredictFn 签名是 `(params) => number[]`（x 通过闭包绑定）。
  * EquationModel 的 model 签名是 `(x, params) => number[]`（x 显式传递）。
  * bindModel 把两者桥接起来。
  *
  * ODR 算法不需要 bind（直接用 model 即可，因为 ODR 的 x 在迭代中变化）。
  */
-import type { EquationModel } from './types.js'
-import type { PredictFn } from '../fitting/types.js'
+
+import type { EquationModel } from "./types.js"
+import type { PredictFn } from "@shared/fitting/index.ts"
 
 /**
  * 给定 EquationModel + x 数据，烘焙出 PredictFn（LM 用）

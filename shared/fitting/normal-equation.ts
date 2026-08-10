@@ -3,19 +3,25 @@
  *
  * 这是 Gauss-Newton / Levenberg-Marquardt 类算法的核心数学结构：
  *
- *   (JᵀJ) · Δp = Jᵀr
+ *   (JᵀWJ) · Δp = JᵀWr
  *
  * 其中：
- *   JᵀJ：p × p 矩阵，Hessian 的 Gauss-Newton 近似
- *   Jᵀr：p 维向量，负梯度的一半（∇S = -2·Jᵀr）
+ *   JᵀWJ：p × p 矩阵，Hessian 的 Gauss-Newton 近似
+ *   JᵀWr：p 维向量，负梯度的一半（∇S = -2·JᵀWr）
  *
- * LM 在 JᵀJ 上加阻尼项：
- *   (JᵀJ + λ·diag(JᵀJ)) · Δp = Jᵀr    （Marquardt 改进形式）
+ * LM 在 JᵀWJ 上加阻尼项：
+ *   (JᵀWJ + λ·diag(JᵀWJ)) · Δp = JᵀWr    （Marquardt 改进形式）
  *
  * ODR 的正规方程不同（见 algorithms/odr/orthogonal-distance-regression.ts 内部），
  * 因为参数空间包含 (β, δ) 两部分。
+ *
+ * 设计原则：
+ *   - 只保留 `buildWeightedNormalEquation` 单次遍历版本（最常用）
+ *   - 无权重场景：调用方传 `new Array(n).fill(1)` 即可，无需额外"无权重版"
+ *   - JᵀJ 和 Jᵀr 的单独版本（buildJtj / buildJtr 等）已删除——单次遍历版本
+ *     把它们打包返回，分开调用反而要走两遍
  */
-import type { Matrix } from '../matrix/types.js'
+import type { Matrix } from "@shared/matrix/types.js"
 
 /** 正规方程的两个组成部分 */
 export interface NormalEquation {
@@ -26,111 +32,17 @@ export interface NormalEquation {
 }
 
 /**
- * 从雅可比矩阵构建 JᵀJ（无权重）
- * @param jacobian n×p 雅可比矩阵
- */
-export function buildJtj(jacobian: number[][]): Matrix {
-  const n = jacobian.length
-  const p = jacobian[0]?.length ?? 0
-  const jtj: Matrix = Array.from({ length: p }, () =>
-    new Array<number>(p).fill(0),
-  )
-  for (let i = 0; i < n; i++) {
-    const J_i = jacobian[i]!
-    for (let j = 0; j < p; j++) {
-      const J_ij = J_i[j]!
-      for (let k = 0; k <= j; k++) {
-        jtj[j]![k]! += J_ij * J_i[k]!
-      }
-    }
-  }
-  for (let j = 0; j < p; j++) {
-    for (let k = j + 1; k < p; k++) {
-      jtj[j]![k] = jtj[k]![j]!
-    }
-  }
-  return jtj
-}
-
-/**
- * 从雅可比矩阵和残差构建 Jᵀr（无权重）
+ * 单次遍历同时构建加权 JᵀJ 和 Jᵀr
+ *
+ * 数学公式：
+ *   (JᵀWJ)[j][k] = Σᵢ wᵢ · J[i][j] · J[i][k]
+ *   (JᵀWr)[j]   = Σᵢ wᵢ · J[i][j] · rᵢ
+ *
+ * 利用对称性只算下三角（k <= j），然后镜像填充上三角。
+ *
  * @param jacobian n×p 雅可比矩阵
  * @param residuals 残差向量
- */
-export function buildJtr(jacobian: number[][], residuals: number[]): number[] {
-  const n = jacobian.length
-  const p = jacobian[0]?.length ?? 0
-  const jtr = new Array<number>(p).fill(0)
-  for (let i = 0; i < n; i++) {
-    const J_i = jacobian[i]!
-    const r_i = residuals[i]!
-    for (let j = 0; j < p; j++) {
-      jtr[j]! += J_i[j]! * r_i
-    }
-  }
-  return jtr
-}
-
-/**
- * 从雅可比矩阵和权重构建加权 JᵀJ
- * @param jacobian n×p 雅可比矩阵
- * @param weights 权重（与 n 等长）
- */
-export function buildWeightedJtj(jacobian: number[][], weights: number[]): Matrix {
-  const n = jacobian.length
-  const p = jacobian[0]?.length ?? 0
-  const jtj: Matrix = Array.from({ length: p }, () =>
-    new Array<number>(p).fill(0),
-  )
-  for (let i = 0; i < n; i++) {
-    const J_i = jacobian[i]!
-    const w = weights[i]!
-    for (let j = 0; j < p; j++) {
-      const J_ij = J_i[j]!
-      for (let k = 0; k <= j; k++) {
-        jtj[j]![k]! += w * J_ij * J_i[k]!
-      }
-    }
-  }
-  for (let j = 0; j < p; j++) {
-    for (let k = j + 1; k < p; k++) {
-      jtj[j]![k] = jtj[k]![j]!
-    }
-  }
-  return jtj
-}
-
-/**
- * 从雅可比矩阵、残差和权重构建加权 Jᵀr
- * @param jacobian n×p 雅可比矩阵
- * @param residuals 残差向量
- * @param weights 权重（与 n 等长）
- */
-export function buildWeightedJtr(
-  jacobian: number[][],
-  residuals: number[],
-  weights: number[],
-): number[] {
-  const n = jacobian.length
-  const p = jacobian[0]?.length ?? 0
-  const jtr = new Array<number>(p).fill(0)
-  for (let i = 0; i < n; i++) {
-    const J_i = jacobian[i]!
-    const r_i = residuals[i]!
-    const w = weights[i]!
-    const wr = w * r_i
-    for (let j = 0; j < p; j++) {
-      jtr[j]! += J_i[j]! * wr
-    }
-  }
-  return jtr
-}
-
-/**
- * 同时构建加权 JᵀJ 和 Jᵀr（合并成一次遍历）
- * @param jacobian n×p 雅可比矩阵
- * @param residuals 残差向量
- * @param weights 权重（与 n 等长）
+ * @param weights 权重数组（与 n 等长；无权重场景传 `new Array(n).fill(1)`）
  */
 export function buildWeightedNormalEquation(
   jacobian: number[][],
@@ -153,40 +65,6 @@ export function buildWeightedNormalEquation(
       jtr[j]! += J_ij * wr
       for (let k = 0; k <= j; k++) {
         jtj[j]![k]! += w * J_ij * J_i[k]!
-      }
-    }
-  }
-  for (let j = 0; j < p; j++) {
-    for (let k = j + 1; k < p; k++) {
-      jtj[j]![k] = jtj[k]![j]!
-    }
-  }
-  return { jtj, jtr }
-}
-
-/**
- * 构建无权重版本的正规方程（兼容旧 API）
- * @param jacobian n×p 雅可比矩阵
- * @param residuals 残差向量
- */
-export function buildNormalEquation(
-  jacobian: number[][],
-  residuals: number[],
-): NormalEquation {
-  const n = jacobian.length
-  const p = jacobian[0]?.length ?? 0
-  const jtj: Matrix = Array.from({ length: p }, () =>
-    new Array<number>(p).fill(0),
-  )
-  const jtr = new Array<number>(p).fill(0)
-  for (let i = 0; i < n; i++) {
-    const J_i = jacobian[i]!
-    const r_i = residuals[i]!
-    for (let j = 0; j < p; j++) {
-      const J_ij = J_i[j]!
-      jtr[j]! += J_ij * r_i
-      for (let k = 0; k <= j; k++) {
-        jtj[j]![k]! += J_ij * J_i[k]!
       }
     }
   }

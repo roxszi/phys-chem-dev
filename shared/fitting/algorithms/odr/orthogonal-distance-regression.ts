@@ -39,7 +39,7 @@ import { createGaussianEliminationSolver } from '../../../matrix/solve.js'
 import { createMarquardtDamping } from '../../damping/marquardt.js'
 import { createDefaultConvergence } from '../../convergence/default.js'
 import { invertMatrix } from '../../../matrix/inverse.js'
-import { validateSameLength, validateFiniteArray } from '../../../base/array-validation.js'
+import { isFinitePositive, isFiniteNonNegative } from '../../../math/validate.js'
 import type {
   ODROptions,
   ODRResult,
@@ -80,27 +80,29 @@ export function orthogonalDistanceRegression(
   convergenceCheck.reset?.()
 
   // ── 2. 输入校验 ─────────────────────────────────
-  validateSameLength(xData, yData, 'xData', 'yData')
+  // x、y 长度匹配（单行检查）
+  if (yData.length !== xData.length) {
+    throw new Error(`xData 与 yData 长度不匹配：${xData.length} vs ${yData.length}`)
+  }
   const n = xData.length
   if (n <= paramNames.length) {
     throw new Error(
       `数据点数 ${n} 必须 > 参数个数 ${paramNames.length}（否则无自由度）`,
     )
   }
-  validateFiniteArray(xData, 'xData')
-  validateFiniteArray(yData, 'yData')
 
-  // σ 校验
-  const sigmaXY = sigmaX ?? new Array<number>(n).fill(0)
-  const sigmaYY = sigmaY ?? new Array<number>(n).fill(1)
-  if (sigmaXY.length !== n) {
-    throw new Error(`sigmaX 长度 ${sigmaXY.length} ≠ n ${n}`)
+  // σ 校验（单次循环同时检查长度 + 元素级条件）
+  const sigmaXY = new Array<number>(n)
+  const sigmaYY = new Array<number>(n)
+  for (let i = 0; i < n; i++) {
+    // σ_x：默认 0（表示 x 精确）；非负有限数
+    sigmaXY[i] = sigmaX?.[i] ?? 0
+    isFiniteNonNegative(sigmaXY[i]!, `sigmaX[${i}]`)
+
+    // σ_y：默认 1（标准等权）；正有限数（权重 = 1/σ² 要求 σ > 0）
+    sigmaYY[i] = sigmaY?.[i] ?? 1
+    isFinitePositive(sigmaYY[i]!, `sigmaY[${i}]`)
   }
-  if (sigmaYY.length !== n) {
-    throw new Error(`sigmaY 长度 ${sigmaYY.length} ≠ n ${n}`)
-  }
-  validateFiniteArray(sigmaXY, 'sigmaX')
-  validateFiniteArray(sigmaYY, 'sigmaY')
 
   // 判断模式：sigmaX 全为 0 时退化为 LM
   const hasXError = sigmaXY.some((s) => s > 0)

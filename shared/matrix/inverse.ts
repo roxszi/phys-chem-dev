@@ -9,7 +9,8 @@
  *   3. 行变换把 A 部分化为单位矩阵，此时 I 部分变为 A⁻¹
  *   4. 若遇到主元为 0（列秩亏），返回 null
  */
-import type { Matrix } from './types.js'
+import type { Matrix } from "./types.js"
+
 
 /**
  * 矩阵求逆（高斯-约旦消元 + 部分主元）

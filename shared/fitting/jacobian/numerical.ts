@@ -15,9 +15,9 @@
  *   固定步长对跨尺度参数（如 A=10⁴ 和 K=10⁻⁶ 同时拟合）几乎一定挂。
  *   每个参数按自己的尺度计算绝对步长才能稳健。
  */
-import type { PredictFn, ParamNames } from '../types.js'
-import type { JacobianProvider } from './types.js'
-import { centralDiff } from '../../numeric/finite-difference.js'
+import type { PredictFn, ParamNames } from '../types.ts'
+import type { JacobianProvider } from './types.ts'
+import { centralDiff } from '@shared/math/index.ts'
 
 export interface NumericalJacobianOptions {
   /**

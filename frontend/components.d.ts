@@ -16,6 +16,8 @@ declare module 'vue' {
     MyRadio: typeof import('./components/MyRadio.vue')['default']
     MyTable: typeof import('./components/MyTable.vue')['default']
     MyTest: typeof import('./index/test/MyTest.vue')['default']
+    SucroseHydrolysis: typeof import('./index/test/SucroseHydrolysis.vue')['default']
+    SucroseHydrolysisChart: typeof import('./index/test/SucroseHydrolysisChart.vue')['default']
     TButton: typeof import('tdesign-mobile-vue')['Button']
     TConfigProvider: typeof import('tdesign-mobile-vue')['ConfigProvider']
     TDrawer: typeof import('tdesign-mobile-vue')['Drawer']

@@ -9,7 +9,9 @@
  *   2. 前向消元：每列选最大主元 → 上三角
  *   3. 回代：从最后一行往上解出 x
  */
-import type { Matrix, Vector } from './types.js'
+
+import type { Matrix, Vector } from "./types.js"
+
 
 /** 线性方程组求解器接口 */
 export interface LinearSolver {
@@ -19,6 +21,7 @@ export interface LinearSolver {
    */
   solve(A: Matrix, b: Vector): Vector | null
 }
+
 
 /**
  * 高斯消元求解器（带部分主元法）

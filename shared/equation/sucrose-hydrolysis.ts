@@ -20,17 +20,18 @@
  */
 
 // 导入公式构建的工厂函数
-import { defineEquationModel } from '../equation-back/types.js'
-
+import { defineEquationModel } from "./types.js"
+// 导入基础公式
+import { mean } from "@/shared/math/index.js"
 
 /** 公式参数 */
 const parameters = [
   {
-    id:"aZero", symbol: "α_0", name: "初始旋光度", unit:"",
+    id:"alphaInitial", symbol: "α_0", name: "初始旋光度", unit:"",
     typicalRange: [0, 1] as [number, number], description: "初始旋光度"
   },
   {
-    id: "aMax", symbol: "α_∞", name: "最终旋光度", unit:"",
+    id: "alphaEquilibrium", symbol: "α_∞", name: "最终旋光度", unit:"",
     typicalRange: [0, 1] as [number, number], description: "最终旋光度"
   },
   {
@@ -47,12 +48,137 @@ export const sucroseHydrolysis = defineEquationModel({
   description: "蔗糖水解动力学（折光法）",
   formulaTex: "\\frac{\\alpha_0 - \\alpha_\\infty}{\\alpha_t - \\alpha_\\infty} = e^{kt}",
   parameters: parameters,
+
+  // 数据验证
+  validateData: (tArr, aArr) => {
+    /** 数据长度 */
+    const n = tArr.length
+    // 检查数据量
+    if (n < 4) {
+      throw new Error("数据量不足")
+    }
+    // 检查tArr和aArr的长度是否一致
+    if (aArr.length !== n) {
+      throw new Error("t 和 α 的数据长度不一致")
+    }
+    // 合并为AOA二维数组（深拷贝）
+    /** dataAoa二维数组，[t, α][] */
+    const dataAoa = new Array<[number, number]>(n)
+    // 遍历验证 + 赋值
+    for (let i = 0; i < n; i++) {
+      /** t */
+      const t = Number(tArr[i])
+      // 检查t是否有效（不能是NaN，不能是负值）
+      if (isNaN(t) || t < 0) {
+        throw new Error(`第 ${ i + 1 } 行 t 数据有误`)
+      }
+      /** α */
+      const a = Number(aArr[i])
+      // 检查α是否有效（不能是NaN）
+      if (isNaN(a)) {
+        throw new Error(`第 ${ i + 1 } 行 α 数据有误`)
+      }
+      // 赋值
+      dataAoa[i] = [t, a]
+    }
+    // 按t从小到大排序
+    dataAoa.sort((a, b) => a[0] - b[0])
+    // 返回结果
+    return dataAoa
+  },
+
+  // 参数初始化
+  initialParameters: (tArr, aArr) => {
+    // 先验证数据，并获取AOA二维数组
+    /** AOA二维数组，[t, a][] */
+    const dataAoaSorted = sucroseHydrolysis.validateData(tArr, aArr)
+    
+    // ======================== 初始化 aZero（α_∞） ========================
+    // 如果 t0 为 0，则第一个值就是 α_0；否则，用前两个值做差值计算得到 α_0
+    /** α_0 */
+    let alphaInitial: number
+    // 如果 t0 为 0，则第一个值就是 α_0
+    if (dataAoaSorted[0]![0] === 0) {
+      // 赋值
+      alphaInitial = dataAoaSorted[0]![1]
+      // 删除 0 时刻数据
+      dataAoaSorted.shift()
+    // 否则，用前两个值做差值计算
+    } else {
+      // 取前两个数据
+      const [t1, a1] = dataAoaSorted[0]!
+      const [t2, a2] = dataAoaSorted[1]!
+      // 计算斜率
+      const slope = (a2 - a1) / (t2 - t1)
+      // 插值法计算α_0
+      alphaInitial = a1 - slope * t1
+    }
+
+    // ======================== 初始化 aMax（α_∞） ========================
+    // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞；否则，用后两个值做差值计算
+    /** α_∞ */
+    let alphaEquilibrium: number
+    // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞
+    const dataAoaSortedLength = dataAoaSorted.length
+    if (dataAoaSorted[dataAoaSortedLength - 1]![0] === Infinity) {
+      // 赋值
+      alphaEquilibrium = dataAoaSorted[dataAoaSortedLength - 1]![1]
+      // 删除 infinte 时刻数据
+      dataAoaSorted.pop()
+    // 否则，用后两个值做差值计算
+    } else {
+      // 取后两个数据
+      const [tLast, aLast] = dataAoaSorted[dataAoaSortedLength - 1]!
+      const [tSecondLast, aSecondLast] = dataAoaSorted[dataAoaSortedLength - 2]!
+      // 计算斜率
+      const slope = (aLast - aSecondLast) / (tLast - tSecondLast)
+      // 插值法计算α_∞
+      alphaEquilibrium = aLast + slope * (tLast - tSecondLast)
+    }
+
+    // ======================== 初始化 k ========================
+    // ln(α_t - α_∞) = -kt + ln(α_0 - α_∞)
+    //   => k = ln[(α_0 - α_∞)/(α_t - α_∞)] / t
+    // 先遍历计算，再求平均
+    /** kArr */
+    const kArr = []
+    /** (α_0 - α_∞) */
+    const aDuration = alphaInitial - alphaEquilibrium
+    // 遍历计算
+    forEachData: for (let i = 0; i < dataAoaSorted.length; i++) {
+      // 取数据
+      const [t, a] = dataAoaSorted[i]!
+      /** k */
+      const k = Math.log(aDuration / (a - alphaEquilibrium)) / t
+      // 检查k是否有效（不能是NaN）
+      if (isNaN(k)) {
+        console.warn(`时间为 ${ t } 的数据有问题`)
+        continue forEachData
+      }
+      // 赋值
+      kArr.push(k)
+    }
+    /** k均值 */
+    const kMean = mean(kArr)
+    // 检查k均值是否有效（不能是NaN）
+    if (isNaN(kMean)) {
+      throw new Error("k初始化失败")
+    }
+
+    // 返回结果
+    return {
+      alphaInitial: { value: alphaInitial, isFixed: false },
+      alphaEquilibrium: { value: alphaEquilibrium, isFixed: false },
+      k: { value: kMean, isFixed: false },
+    }
+  },
+
   // 模型公式
   model: (tArr, params) => {
     // 接参数
     const {
-      aZero: { value: aZeroValue },
-      aMax: { value: aMaxValue },
+      alphaInitial: { value: aZeroValue },
+      alphaEquilibrium: { value: aMaxValue },
       k: { value: kValue }
     } = params
     // 检查参数是否初始化
@@ -68,5 +194,6 @@ export const sucroseHydrolysis = defineEquationModel({
     ))
     // 返回结果
     return atArr
-  }
+  },
+
 })

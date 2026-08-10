@@ -8,7 +8,7 @@
  *   - TfjsJacobian：tfjs 自动微分（tf.grads），适合复杂公式 / 批量计算
  *   - AnalyticalJacobian：用户提供解析偏导（最快，但需要手推）
  */
-import type { PredictFn, ParamNames } from '../types.js'
+import type { PredictFn, ParamNames } from "../index.ts"
 
 export interface JacobianProvider {
   /**

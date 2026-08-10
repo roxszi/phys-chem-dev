@@ -46,7 +46,7 @@ export interface LinearizationTransformResult {
 export interface LinearizationForm {
   /**
    * 把 (x, y, params) 变换到线性空间 (x', y')
-   *
+   * 
    * 例：一级反应 c = c0·exp(-kt)
    *   → x' = t, y' = ln(c)
    *   → 拟合参数 k = -slope
@@ -125,7 +125,7 @@ type FittingParameters<P extends readonly Parameter<string>[]> =
 
 /**
  * 公式模型
- *
+ * 
  * 泛型属性 P 继承 Parameter[] 约束，并作为具体的只读元组，这样可以将 Parameter.id 作为键集合，
  * 从而让 model 的 params 拥有精确的匹配耦合
  */
@@ -140,6 +140,11 @@ export interface EquationModel<P extends readonly Parameter[]> {
   formulaTex?: string
   /** 参数定义 */
   parameters: P
+  /** 数据验证 */
+  validateData: (
+    x: number[],
+    y: number[]
+  ) => [number, number][],
   /** 参数初始化 */
   initialParameters?: (
     x: number[],

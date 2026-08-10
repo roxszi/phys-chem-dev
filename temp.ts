@@ -1,3 +1,9 @@
 
-import { levenbergMarquardt } from "@shared/fitting/index.ts"
 
+let a = Number("")
+
+// const b = Number(a)
+
+console.log(isNaN(a))
+
+console.log(a)

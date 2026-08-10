@@ -13,5 +13,5 @@
  *
  * 扩展点：未来可以加 NielsenDamping（基于增益比 ρ 的自适应）。
  */
-export type { DampingStrategy, DampingOptions } from './types.js'
-export { MarquardtDamping, createMarquardtDamping } from './marquardt.js'
+export type { DampingStrategy, DampingOptions } from './types.ts'
+export { MarquardtDamping, createMarquardtDamping } from './marquardt.ts'

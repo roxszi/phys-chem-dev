@@ -1,7 +1,13 @@
-// 示例数据
+/**
+ * 数据
+ */
 
-
-export default [
+/**
+ * 示例数据
+ * 
+ * 格式: [时间, 旋光度][]
+ */
+export const exampleDataAoa: [number, number][] = [
   [5, 10.865],
   [10, 9.9],
   [20, 8.133],
