@@ -77,6 +77,31 @@
   </MyButton>
 </div>
 
+<!-- 读取已有表格数据按钮：横向排布 -->
+<div
+  v-else
+  class="my-margin my-row"
+>
+  <!-- 读取示例数据 -->
+  <MyButton
+    theme="default"
+    :block="false"
+    size="small"
+    @click="onReadExampleData"
+  >
+    读取示例数据
+  </MyButton>
+  <!-- 读取示例数据 -->
+  <MyButton
+    theme="default"
+    :block="false"
+    size="small"
+    @click="onReadXlsxFile"
+  >
+    读取xlsx文件
+  </MyButton>
+</div>
+
 <!-- ========= 数据填写区 ========= -->
 
 <h3>📝 数据输入</h3>
@@ -100,22 +125,6 @@
 />
 <!-- 表格数据操作按钮：横向排布 -->
 <div class="my-margin my-gap my-row">
-  <!-- 读取示例数据 -->
-  <MyButton
-    theme="default"
-    :block="false"
-    @click="onReadExampleData"
-  >
-    读取示例数据
-  </MyButton>
-  <!-- 读取示例数据 -->
-  <MyButton
-    theme="default"
-    :block="false"
-    @click="onReadXlsxFile"
-  >
-    读取xlsx文件
-  </MyButton>
   <!-- 提交按钮 -->
   <MyButton
     :block="false"
@@ -136,8 +145,8 @@
   <!-- 非线性点线图 -->
   <MySymbolLineChart
     title="蔗糖水解动力学-原公式拟合"
-    xAxisName="Δt (min)"
-    yAxisName="Δα (°)"
+    xAxisName="t (min)"
+    yAxisName="α (°)"
     :dataAoa="nonlinearChartDataAoaRef"
     :dataProfileArr="chartDataProfileArr"
   />
@@ -151,7 +160,7 @@
   <!-- 线性点线图 -->
   <MySymbolLineChart
     title="蔗糖水解动力学-线性拟合"
-    xAxisName="Δt (min)"
+    xAxisName="t (min)"
     yAxisName="ln(αt-α∞)"
     :dataAoa="linearChartDataAoaRef"
     :dataProfileArr="chartDataProfileArr"
@@ -210,8 +219,8 @@ const isDrawerVisiableRef = shallowRef(false)
  * 读取示例数据的回调
  */
 function onReadExampleData() {
-  // 直接覆盖数据
-  tableDataAoaRef.value = exampleDataAoa
+  // 直接无损覆盖数据
+  tableDataAoaRef.value = [...exampleDataAoa]
 }
 
 /**

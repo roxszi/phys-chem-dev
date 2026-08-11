@@ -6,7 +6,7 @@ import { defineConfig } from "vitepress"
 // 导入tsconfig.json中的paths配置插件
 import TsconfigPaths from "vite-tsconfig-paths"
 // 导入vite的压缩插件
-// import { compression } from "vite-plugin-compression2"
+import { compression } from "vite-plugin-compression2"
 // 导入组件库的按需引入插件
 import AutoImport from "unplugin-auto-import/vite"
 import Components from "unplugin-vue-components/vite"
@@ -50,7 +50,7 @@ export default defineConfig({
           // 自动引入myPlugin.ts中的内容
           "@utils/myPlugin.ts": ["myLoading", "myDialog", "myMessage", "myError", "myWait"],
           // 自动引入vue方法
-          "vue": ["ref", "shallowRef", "onMounted", "watch", "readonly", "useTemplateRef", "computed"],
+          "vue": ["ref", "shallowRef", "onMounted", "watch", "readonly", "useTemplateRef", "computed", "nextTick"],
           // 自动引入vitepress运行时方法
           "vitepress": ["useData", "withBase"],
         }],
@@ -87,7 +87,9 @@ export default defineConfig({
             // resolveIcons: true
           })
         ]
-      })
+      }),
+      // 开启Gzip压缩。压缩算法只要gzip即可
+      compression({ algorithms: ["gzip"] }),
     ],
     // css样式处理：使用lightningcss
     // css: { transformer: "lightningcss" },
@@ -214,7 +216,7 @@ export default defineConfig({
     // markdown内图片设置
     image: {
       // 启用图片懒加载
-      lazyLoading: true
+      lazyLoad: true
     }
   }
 

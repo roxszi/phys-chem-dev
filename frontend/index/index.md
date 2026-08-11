@@ -19,14 +19,17 @@ hero:
   # 操作按钮（链接）
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: 物化实验
+      link: experiment/
+    - theme: brand
+      text: 化学计量学
+      link: chemometrics/
+    - theme: brand
+      text: 接触角
+      link: experiment/contact-angle/
     - theme: alt
-      text: API Examples
-      link: /api-examples
-    # - theme: alt
-    #   text: 关于
-    #   link: about/
+      text: 关于
+      link: about/
     - theme: alt
       text: 测试
       link: test/
@@ -54,10 +57,10 @@ features:
 #    details: 轮廓处理比色法功能。
 #    link: experiment/outline-colorimetric/
 #    linkText: 进入应用
-#  - title: 拉曼数据处理助手
-#    icon: ✨
-#    details: Andor拉曼光谱仪的sif文件数据转为excel表格的一键批处理工具。
-#    link: chemometrics/andor-raman/
-#    linkText: 进入应用
+- title: 拉曼数据处理助手
+  icon: ✨
+  details: Andor拉曼光谱仪的sif文件数据转为excel表格的一键批处理工具。
+  link: chemometrics/andor-raman/
+  linkText: 进入应用
 ---
 

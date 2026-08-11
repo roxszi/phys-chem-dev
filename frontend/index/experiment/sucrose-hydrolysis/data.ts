@@ -4,8 +4,7 @@
 
 /**
  * 示例数据
- * 
- * 格式: [时间, 旋光度][]
+ * - 格式: [时间, 旋光度][]
  */
 export const exampleDataAoa: [number, number][] = [
   [5, 10.865],

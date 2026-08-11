@@ -3,3 +3,4 @@ allowBuilds:
   vue-demi: true
 minimumReleaseAgeExclude:
   - '@types/node@26.0.1'
+  - tsx@4.23.12
