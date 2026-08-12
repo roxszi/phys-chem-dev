@@ -23,6 +23,7 @@ declare global {
   const supportsWasmPthreads: typeof import('./composables/useOpenCV').supportsWasmPthreads
   const supportsWasmSimd: typeof import('./composables/useOpenCV').supportsWasmSimd
   const useData: typeof import('vitepress').useData
+  const useLang: typeof import('./composables/useLang').useLang
   const useOpenCV: typeof import('./composables/useOpenCV').useOpenCV
   const useTFjs: typeof import('./composables/useTFjs').useTFjs
   const useTemplateRef: typeof import('vue').useTemplateRef

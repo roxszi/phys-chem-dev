@@ -1,5 +1,11 @@
 <!--
   蔗糖水解反应动力学实验助手
+  ---
+  i18n 说明：
+  - 业务文案走 langRef（由 ./SucroseHydrolysis-lang.ts + composables/useLang.ts 派生）
+  - 物理量符号 / 数学符号 / 单位留在模板字面量，不进入语言包（t、α、min⁻¹、℃、°、ln、R²、α_0、α_∞、t(1/2) 等）
+  - 内部开发者错误（throw new Error）不翻译
+  - localStorage key 不按语言区分（实验数据与界面语言无关）
 -->
 
 
@@ -10,21 +16,21 @@
 
 <!-- ========= 实验条件输入区 ========= -->
 
-<h3>⚙️ 实验条件</h3>
+<h3>{{ langRef.ConditionsHeading }}</h3>
 
 <t-input
   v-model:value="inputDataRef.temperatureStr"
-  label="实验温度"
+  :label="langRef.TemperatureLabel"
   suffix="℃"
   align="center"
-  placeholder="实验温度"
+  :placeholder="langRef.TemperaturePlaceholder"
   type="number"
 />
 <t-input
   v-model:value="inputDataRef.alphaEquilibriumStr"
   suffix="°"
   align="center"
-  placeholder="平衡时刻的旋光度"
+  :placeholder="langRef.AlphaEquilibriumPlaceholder"
   type="number"
 >
   <template #label>α<sub>∞</sub></template>
@@ -34,7 +40,7 @@
 
 <!-- 条件渲染：有数据才渲染 -->
 
-<h3>📋 数据表格</h3>
+<h3>{{ langRef.TableHeading }}</h3>
 
 <!-- 表格体 -->
 <MyTable
@@ -50,7 +56,7 @@
       size="extra-small"
       @click="onDeleteData(rowIndex)"
     >
-      删除
+      {{ langRef.DeleteButton }}
     </MyButton>
   </template>
 </MyTable>
@@ -66,14 +72,14 @@
     size="small"
     @click="onDeleteData()"
   >
-    清空表格
+    {{ langRef.ClearTableButton }}
   </MyButton>
   <MyButton
     :block="false"
     size="small"
     @click="onDataFitting()"
   >
-    拟合数据
+    {{ langRef.FitDataButton }}
   </MyButton>
 </div>
 
@@ -89,20 +95,20 @@
     size="small"
     @click="onReadExampleData"
   >
-    读取示例数据
+    {{ langRef.ReadExampleButton }}
   </MyButton>
 </div>
 
 <!-- ========= 数据填写区 ========= -->
 
-<h3>📝 数据输入</h3>
+<h3>{{ langRef.InputHeading }}</h3>
 <!-- t -->
 <t-input
   v-model:value="inputDataRef.tStr"
   label="t"
   suffix="min"
   align="center"
-  placeholder="反应时长"
+  :placeholder="langRef.TPlaceholder"
   type="number"
 />
 <!-- α -->
@@ -111,7 +117,7 @@
   label="α"
   suffix="°"
   align="center"
-  placeholder="旋光度值"
+  :placeholder="langRef.AlphaPlaceholder"
   type="number"
 />
 <!-- 表格数据操作按钮：横向排布 -->
@@ -122,20 +128,20 @@
     :disabled="!isInputedRef"
     @click="onAddData"
   >
-    提交数据
+    {{ langRef.SubmitButton }}
   </MyButton>
 </div>
 
 <!-- ========= 数据拟合区（侧边栏） ========= -->
 
 <MyDrawer
-  title="📈 拟合结果"
+  :title="langRef.ResultDrawerTitle"
   v-model:visible="isDrawerVisiableRef"
 >
 
   <!-- 非线性点线图 -->
   <MySymbolLineChart
-    title="蔗糖水解动力学-原公式拟合"
+    :title="langRef.NonlinearChartTitle"
     xAxisName="t (min)"
     yAxisName="α (°)"
     :dataAoa="nonlinearChartDataAoaRef"
@@ -144,13 +150,13 @@
 
   <!-- 拟合结果表格 -->
   <MyTTable
-    :titleArr="chartTableTitleArr"
+    :titleArr="chartTableTitleArrComputed"
     :dataAoa="chartTableDataAoaRef"
   />
 
   <!-- 线性点线图 -->
   <MySymbolLineChart
-    title="蔗糖水解动力学-线性拟合"
+    :title="langRef.LinearChartTitle"
     xAxisName="t (min)"
     yAxisName="ln(αt-α∞)"
     :dataAoa="linearChartDataAoaRef"
@@ -169,6 +175,11 @@
 import { exampleDataAoa } from "./data.ts"
 // 导入公式 + 一键拟合入口
 import { sucroseHydrolysis, fitEquation } from "@shared/equation/index.ts"
+// 导入本组件语言包
+import { langDict } from "./SucroseHydrolysis-lang.ts"
+
+/** 派生当前语言的响应式语言包（root / en） */
+const langRef = useLang(langDict)
 
 /** 输入数据的Ref对象 */
 const inputDataRef = ref({
@@ -185,19 +196,22 @@ const inputDataRef = ref({
 const isInputedRef = computed(() => {
   return ((inputDataRef.value.tStr !== "") && (inputDataRef.value.alphaStr !== ""))
 })
-/** 表格标题 */
+/**
+ * 表格标题（物理量符号，与语言无关，常量即可）
+ * 注：t / α 是物理量符号而非自然语言，不进入语言包
+ */
 const tableTitleArr = ["t", "α"]
 /** 表格内容的Ref对象 - [t, α][] */
 const tableDataAoaRef = ref<[number, number][]>([])
 /** 非线性图内容的Ref对象 */
 const nonlinearChartDataAoaRef = shallowRef<[number, number, number][]>([])
-/** 非线性数据图表类型（线性/非线性共用） */
-const chartDataProfileArr = [
-  { name: "实验值",  chartType: "symbol" as const, },
-  { name: "拟合值",  chartType: "line" as const, },
-]
-/** 图下方的拟合结果表格数据标题 */
-const chartTableTitleArr = ["拟合参数", "值"]
+/** 非线性数据图表类型（线性/非线性共用）；系列名跟随语言切换 */
+const chartDataProfileArr = computed(() => [
+  { name: langRef.value.ExperimentalSeriesName, chartType: "symbol" as const },
+  { name: langRef.value.FittedSeriesName,       chartType: "line"    as const },
+])
+/** 图下方的拟合结果表格数据标题（跟随语言切换） */
+const chartTableTitleArrComputed = computed(() => langRef.value.ChartTableTitleArr)
 /** 图下方的拟合结果表格数据 */
 const chartTableDataAoaRef = shallowRef<[string, string][]>([])
 /** 线性图内容的Ref对象 */
@@ -265,7 +279,7 @@ function onDeleteData(rowIndex?: number) {
   if (rowIndex === undefined) {
     // 提醒一下
     myDialog({
-      content: "确定清空表格？",
+      content: langRef.value.ClearConfirmContent,
       onConfirmCallBack: () => {
         // 清空表格
         tableDataAoaRef.value = []
@@ -273,7 +287,7 @@ function onDeleteData(rowIndex?: number) {
     })
   // 否则，删除指定行
   } else {
-    // 直接从dataAoaRef中删除一行数据
+    // 直接从dataAoaRef中删除一行
     tableDataAoaRef.value.splice(rowIndex, 1)
   }
 }
@@ -296,7 +310,7 @@ function onDataFitting() {
   }
   // 检查数据量是否足够
   if (dataAoa.length < 4) {
-    myDialog("数据量不足，无法拟合")
+    myDialog(langRef.value.InsufficientDataContent)
     return
   }
   // ================ 数据准备 ================
@@ -360,6 +374,10 @@ function onDataFitting() {
   nonlinearChartDataAoaRef.value = chartDataAoa as [number, number, number][]
   linearChartDataAoaRef.value = linearChartDataAoa
   // ================ 拟合结果形成表格 ================
+  /**
+   * 注：表格第一列的字符串（R²、α_0、α_∞、k、t(1/2)）是参数符号 + 单位，
+   * 与语言无关，不进入语言包。
+   */
   /** k */
   const resultK = params["k"]
   /** 半衰期 t(1/2) */
@@ -377,4 +395,3 @@ function onDataFitting() {
 
 
 </script>
-
