@@ -62,8 +62,8 @@ export const sucroseHydrolysis = defineEquationModel({
       throw new Error("t 和 α 的数据长度不一致")
     }
     // 合并为AOA二维数组（深拷贝）
-    /** dataAoa二维数组，[t, α][] */
-    const dataAoa = new Array<[number, number]>(n)
+    /** dataAoa二维数组，[t, α, i][] */
+    const dataAoa = new Array<[number, number, number]>(n)
     // 遍历验证 + 赋值
     for (let i = 0; i < n; i++) {
       /** t */
@@ -79,7 +79,7 @@ export const sucroseHydrolysis = defineEquationModel({
         throw new Error(`第 ${ i + 1 } 行 α 数据有误`)
       }
       // 赋值
-      dataAoa[i] = [t, a]
+      dataAoa[i] = [t, a, i]
     }
     // 按t从小到大排序
     dataAoa.sort((a, b) => a[0] - b[0])
@@ -90,7 +90,7 @@ export const sucroseHydrolysis = defineEquationModel({
   // 参数初始化
   initialParameters: (tArr, aArr) => {
     // 先验证数据，并获取AOA二维数组
-    /** AOA二维数组，[t, a][] */
+    /** AOA二维数组，[t, a, i][] */
     const dataAoaSorted = sucroseHydrolysis.validateData(tArr, aArr)
     
     // ======================== 初始化 aZero（α_∞） ========================
@@ -102,6 +102,9 @@ export const sucroseHydrolysis = defineEquationModel({
       // 赋值
       alphaInitial = dataAoaSorted[0]![1]
       // 删除 0 时刻数据
+      const splicedIndex = dataAoaSorted[0]![2]
+      tArr.splice(splicedIndex, 1)
+      aArr.splice(splicedIndex, 1)
       dataAoaSorted.shift()
     // 否则，用前两个值做差值计算
     } else {
@@ -119,17 +122,20 @@ export const sucroseHydrolysis = defineEquationModel({
     /** α_∞ */
     let alphaEquilibrium: number
     // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞
-    const dataAoaSortedLength = dataAoaSorted.length
-    if (dataAoaSorted[dataAoaSortedLength - 1]![0] === Infinity) {
+    const dataAoaSortedLastIndex = dataAoaSorted.length - 1
+    if (dataAoaSorted[dataAoaSortedLastIndex]![0] === Infinity) {
       // 赋值
-      alphaEquilibrium = dataAoaSorted[dataAoaSortedLength - 1]![1]
+      alphaEquilibrium = dataAoaSorted[dataAoaSortedLastIndex]![1]
       // 删除 infinte 时刻数据
+      const splicedIndex = dataAoaSorted[dataAoaSortedLastIndex]![2]
+      tArr.splice(splicedIndex, 1)
+      aArr.splice(splicedIndex, 1)
       dataAoaSorted.pop()
     // 否则，用后两个值做差值计算
     } else {
       // 取后两个数据
-      const [tLast, aLast] = dataAoaSorted[dataAoaSortedLength - 1]!
-      const [tSecondLast, aSecondLast] = dataAoaSorted[dataAoaSortedLength - 2]!
+      const [tLast, aLast] = dataAoaSorted[dataAoaSortedLastIndex]!
+      const [tSecondLast, aSecondLast] = dataAoaSorted[dataAoaSortedLastIndex - 1]!
       // 计算斜率
       const slope = (aLast - aSecondLast) / (tLast - tSecondLast)
       // 插值法计算α_∞

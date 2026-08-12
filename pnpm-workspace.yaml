@@ -2,5 +2,13 @@ allowBuilds:
   esbuild: true
   vue-demi: true
 minimumReleaseAgeExclude:
-  - '@types/node@26.0.1'
+  - "@types/node@26.0.1"
   - tsx@4.23.12
+
+# 配置覆盖部分
+overrides:
+  # 针对 markdown-it-mathjax3 插件 juice，覆盖其依赖版本
+  # markdown-it-mathjax3 对 juice 的依赖版本是 ^8.0.0，目前该大版本最新为 8.1.0
+  # 但是 pnpm 一上来就锁版本了，装的是 8.0.0，这个版本有 bug！
+  # 所以得以 8.1.0 显式覆盖
+  markdown-it-mathjax3>juice: ^8.1.0

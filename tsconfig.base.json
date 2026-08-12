@@ -17,8 +17,6 @@
       "@components/*": ["./frontend/components/*"],
       // 前端组合式函数composables
       "@composables/*": ["./frontend/composables/*"],
-      // 前端布局框架
-      "@layouts/*": ["./frontend/layouts/*"],
       // 前端工具
       "@utils/*": ["./frontend/utils/*"],
     },

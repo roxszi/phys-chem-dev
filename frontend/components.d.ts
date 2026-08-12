@@ -12,8 +12,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AndorAscsToXlsx: typeof import('./index/chemometrics/andor-raman/AndorAscsToXlsx.vue')['default']
-    ContactAngle: typeof import('./index/experiment/contact-angle/ContactAngle.vue')['default']
-    ContactAngleMulti: typeof import('./index/experiment/contact-angle/ContactAngleMulti.vue')['default']
     MyButton: typeof import('./components/MyButton.vue')['default']
     MyDrawer: typeof import('./components/MyDrawer.vue')['default']
     MyRadio: typeof import('./components/MyRadio.vue')['default']
@@ -26,6 +24,5 @@ declare module 'vue' {
     TDrawer: typeof import('tdesign-mobile-vue')['Drawer']
     TInput: typeof import('tdesign-mobile-vue')['Input']
     TTable: typeof import('tdesign-mobile-vue')['Table']
-    VerticalCalibration: typeof import('./index/experiment/contact-angle/VerticalCalibration.vue')['default']
   }
 }

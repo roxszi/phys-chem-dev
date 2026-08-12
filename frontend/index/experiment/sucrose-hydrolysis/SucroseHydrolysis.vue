@@ -91,15 +91,6 @@
   >
     读取示例数据
   </MyButton>
-  <!-- 读取示例数据 -->
-  <MyButton
-    theme="default"
-    :block="false"
-    size="small"
-    @click="onReadXlsxFile"
-  >
-    读取xlsx文件
-  </MyButton>
 </div>
 
 <!-- ========= 数据填写区 ========= -->
@@ -214,6 +205,27 @@ const linearChartDataAoaRef = shallowRef<[number, number, number][]>([])
 /** 抽屉是否开启的Ref对象 */
 const isDrawerVisiableRef = shallowRef(false)
 
+// 生命周期钩子，组件加载完成后调用
+onMounted(() => {
+  // ======== 1.  读取localStorage中的数据，恢复到表格中 ========
+  const tableDataAoaStr = localStorage.getItem("SucroseHydrolysisTableDataAoa")
+  if (tableDataAoaStr !== null) {
+    tableDataAoaRef.value = JSON.parse(tableDataAoaStr) as [number, number][]
+  }
+})
+
+// 深度监听表格内容，一旦有变化，就保存到localStorage
+watch(
+  // 监听对象：表格内容
+  tableDataAoaRef,
+  // 回调函数：保存到localStorage
+  (newValue) => {
+    localStorage.setItem("SucroseHydrolysisTableDataAoa", JSON.stringify(newValue))
+  },
+  // 1层就够了
+  { deep: 1 }
+)
+
 
 /**
  * 读取示例数据的回调
@@ -221,13 +233,6 @@ const isDrawerVisiableRef = shallowRef(false)
 function onReadExampleData() {
   // 直接无损覆盖数据
   tableDataAoaRef.value = [...exampleDataAoa]
-}
-
-/**
- * 读取xlsx数据文件的回调
- */
-function onReadXlsxFile() {
-  myDialog("敬请期待")
 }
 
 /**
@@ -305,6 +310,7 @@ function onDataFitting() {
     tArr.push(dataArr[0]!)
     alphaArr.push(dataArr[1]!)
   }
+
   // ================ 拟合 ================
   /** 拟合结果原始对象 */
   const fitResultRaw = fitEquation(sucroseHydrolysis, tArr, alphaArr, {})

@@ -1,6 +1,6 @@
 {
   "name": "phys-chem",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "物化助手，助力物理化学理论与实验教学。",
   "keywords": [],
   "author": "SI_Cheng-Yun",
@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm dev:frontend",
+    "build": "pnpm build:frontend",
     "dev-back": "pnpm dev:frontend && pnpm dev:backend",
     "dev:frontend": "vitepress dev frontend",
     "build:frontend": "vitepress build frontend",

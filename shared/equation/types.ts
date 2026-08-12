@@ -144,7 +144,7 @@ export interface EquationModel<P extends readonly Parameter[]> {
   validateData: (
     x: number[],
     y: number[]
-  ) => [number, number][],
+  ) => [number, number, number][],
   /** 参数初始化 */
   initialParameters?: (
     x: number[],

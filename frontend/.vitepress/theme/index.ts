@@ -4,7 +4,7 @@
 // 从vue导入组件的html化方法
 import { h } from "vue"
 // 导入主题重写组件
-import BaseLayout from "@layouts/BaseLayout.vue"
+import BaseLayout from "../layouts/BaseLayout.vue"
 // 导入TDesign的基础样式
 import "tdesign-mobile-vue/es/style/index.css"
 // 以VitePress基础样式变量，构建TDesign基础全局样式
@@ -26,13 +26,13 @@ const theme: Theme = {
   enhanceApp({ app, router, siteData }) {
     /**
      * 全局错误捕获
-     * @param { Error } err 错误对象
-     * @param { ComponentPublicInstance } vm Vue组件实例
-     * @param { string } info 错误信息
+     * @param err 错误对象
+     * @param instance Vue组件实例
+     * @param info 错误信息
      */
-    app.config.errorHandler = (err, vm, info) => {
+    app.config.errorHandler = (err, instance, info) => {
       // 打印错误信息
-      console.error(err, info)
+      console.error(err as Error, info)
       
     }
   }

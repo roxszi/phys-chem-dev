@@ -56,9 +56,10 @@ export function getInitialParams(
   x: number[],
   y: number[],
 ): Record<string, number> {
-  const fitted = equation.initialParameters
-    ? equation.initialParameters(x, y)
-    : ({} as Record<string, { value: number; isFixed: boolean }>)
+  const fitted =
+    equation.initialParameters
+      ? equation.initialParameters(x, y)
+      : ({} as Record<string, { value: number; isFixed: boolean }>)
 
   const out: Record<string, number> = {}
   for (const p of equation.parameters) {

@@ -110,6 +110,8 @@ function buildData() {
 <template>
   <t-table
     :bordered="true"
+    :stripe="true"
+    tableLayout="auto"
     :rowKey="option.columns[0]?.colKey ?? 'index'"
     :data="option.data"
     :columns="option.columns"
