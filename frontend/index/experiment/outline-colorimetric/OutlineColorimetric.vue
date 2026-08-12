@@ -1,7 +1,7 @@
 <!--
   轮廓-比色法业务
   结合了轮廓识别 + 比色法实现，用于胡影和奚俊婷的化学动力学教学实验
-  计算机视觉库的实现，以及一些交互的设计思路。
+  ---
   构建OpenCV.js：https://docs.opencv.ac.cn/4.12.0/d4/da1/tutorial_js_setup.html
   交互主要分3步完成，共4个状态：
   1.  读取图片/上传图片。读取到的图片将渲染到<img>/canvas上。
@@ -14,28 +14,42 @@
       3.3 近圆度 (Circularity)。[轮廓面积] ÷ [最小外接圆面积]，用于筛选近圆形轮廓。
       3.4 面积位次 (AreaOrder)。用于筛选轮廓面积。
   4.  数据导出。此处不用再有复杂交互。
- -->
+
+  i18n 说明：
+  - 业务文案走 langRef（由 ./OutlineColorimetric-lang.ts + composables/useLang.ts 派生）
+  - 数字字面量（0、255、阈值上下限、步长等）不进语言包
+  - 内部开发者错误（throw new Error）不翻译
+  - 工具调用（myLoading / myMessage / myError）由 composables 自动全局可用，无需 import
+-->
+
 
 <!-- 视图层 -->
-<template><MySpace>
+<template>
 
-  <!-- 警报框 -->
-  <t-alert theme="info" :title="lang.FunctionIntroductionTitle">
-    <div v-for="(content, index) of lang.FunctionIntroductionContent" :key="index">
+
+
+
+
+
+<div class="my-column my-gap">
+
+  <!-- 警报框：功能简介 -->
+  <MyAlert :title="langRef.FunctionIntroductionTitle" theme="info">
+    <div v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyAlert>
 
-  <!-- canvas头-步骤1 -->
-  <!-- 警报框 -->
-  <t-alert
+  <!-- 警报框：步骤1 -->
+  <MyAlert
     v-if="taskStatusRef === 1"
-    theme="warning" :title="lang.SetpTitle + '1'"
+    :title="langRef.SetpTitle + '1'"
+    theme="warning"
   >
-    <div v-for="(content, index) of lang.Setp1Content" :key="index">
+    <div v-for="(content, index) of langRef.Setp1Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyAlert>
 
   <!--
     图片上传
@@ -44,36 +58,34 @@
       上传则处理图片并进入下个流程；
       删除则清空所有数据，回到初始状态（状态1）。
    -->
-  <t-upload
-    class="center" :disabled="false" theme="image"
-    accept="image/*" :multiple="false" :draggable="false"
-    :showImageFileName="true" :abridgeName="[3, 8]"
-    v-model:files="fileArrRef" :autoUpload="false"
-    :sizeLimit="{ size: 10, unit: 'MB' }"
-    :onChange="onPicChange"
+  <MyUpload
+    class="center"
+    v-model="fileArrRef"
+    :size-limit-mb="10"
+    @change="onPicChange"
   />
 
-  <!-- canvas头-步骤2 -->
-  <!-- 警报框 -->
-  <t-alert
+  <!-- 警报框：步骤2 -->
+  <MyAlert
     v-if="taskStatusRef === 2"
-    theme="warning" :title="lang.SetpTitle + '2'"
+    :title="langRef.SetpTitle + '2'"
+    theme="warning"
   >
-    <div v-for="(content, index) of lang.Setp2Content" :key="index">
+    <div v-for="(content, index) of langRef.Setp2Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyAlert>
 
-  <!-- canvas头-步骤3 -->
-  <!-- 警报框 -->
-  <t-alert
+  <!-- 警报框：步骤3 -->
+  <MyAlert
     v-if="taskStatusRef === 3"
-    theme="warning" :title="lang.SetpTitle + '3'"
+    :title="langRef.SetpTitle + '3'"
+    theme="warning"
   >
-    <div v-for="(content, index) of lang.Setp3Content" :key="index">
+    <div v-for="(content, index) of langRef.Setp3Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyAlert>
 
   <!--
     canvas元素块
@@ -83,7 +95,7 @@
     onLongPress：在逻辑层注册，长按canvas时触发。
       步骤2、步骤3时用于清空选框（初始化）。
    -->
-  <div style="width:100%;">
+  <div class="my-w100">
     <canvas
       v-show="taskStatusRef >= 2"
       ref="canvasRef"
@@ -98,24 +110,21 @@
    -->
   <div
     v-if="taskStatusRef === 2"
-    class="center"
+    class="my-row my-gap"
   >
-    <!-- 按钮：裁剪图片 -->
-    <myButton
-      @click="onSureRect(false)"
-      data-is-determine-str="false"
+    <MyButton
       :block="false"
+      @click="onSureRect(false)"
     >
-      {{ lang.CutPictureButtonText }}
-    </myButton>
-    <!-- 按钮：裁剪完成 -->
-    <myButton
+      {{ langRef.CutPictureButtonText }}
+    </MyButton>
+    <MyButton
+      :block="false"
+      theme="danger"
       @click="onSureRect(true)"
-      data-is-determine-str="true"
-      :block="false" theme="danger"
     >
-      {{ lang.CutPictureCompleteButtonText }}
-    </myButton>
+      {{ langRef.CutPictureCompleteButtonText }}
+    </MyButton>
   </div>
 
   <!--
@@ -125,54 +134,59 @@
     onContourSlideChangeEnd：滑轨变化结束时触发，用于在细调的时候，更新滑轨的可移动范围。
     onDetermineContour：最终确定轮廓的按钮事件回调钩子。
    -->
-  <mySpace
+  <div
     v-else-if="taskStatusRef === 3"
-    size="small"
+    class="my-column my-gap"
   >
-    <!-- 遍历3个参数 -->
-    <mySpace
-      v-for="(thresholdNumArr, index) of thresholdNumAoaRef" :key="index"
-      size="small"
-    >
-      <div>{{ lang.ThresholdParamsLabel[index] }}</div>
-      <t-slider
-        @change="onSlideChange(index)"
-        v-model="thresholdNumArr[0]" :range="thresholdNumArr[4]"
-        :min="thresholdNumArr[1]" :max="thresholdNumArr[2]"
-        :step="thresholdNumArr[5]" :marks="thresholdNumArr[3]"
-        :inputNumberProps="false" :label="true" layout="horizontal"
-      /><t-divider />
-    </mySpace>
-    <!-- 按钮：下载数据 -->
-    <myButton
+    <!-- 遍历3个滑轨参数 -->
+    <MySlider
+      v-for="(thresholdNumArr, index) of thresholdNumAoaRef"
+      :key="index"
+      :title="langRef.ThresholdParamsLabel[index]"
+      v-model="thresholdNumArr[0]"
+      :range="thresholdNumArr[4]"
+      :min="thresholdNumArr[1]"
+      :max="thresholdNumArr[2]"
+      :step="thresholdNumArr[5]"
+      :marks="thresholdNumArr[3]"
+      :label="true"
+      @change="onSlideChange(index)"
+    />
+    <MyButton
+      :block="true"
+      theme="danger"
       @click="onDownloadData"
-      :block="true" theme="danger"
     >
-      {{ lang.DownloadDataButtonLabel }}
-    </myButton>
-  </mySpace>
+      {{ langRef.DownloadDataButtonLabel }}
+    </MyButton>
+  </div>
 
-</MySpace></template>
+</div>
+</template>
 
 
 <!--
   逻辑层
  -->
-<script setup>
-// 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, onBeforeUnmount, ref, shallowRef, watch, nextTick } from "vue"
-// 导入VueUse的各类响应式方法
+<script setup lang="ts">
+// 导入VueUse的响应式方法
 import { useMouseInElement, useThrottleFn } from "@vueuse/core"
-// 导入自有方法
-import my from "@/utils/myFunc.js"
 // 导入xlsx相关方法
-import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
-// 导入OpenCV.js加载器
-import { loadOpenCV } from "@/utils/opencvLoader.js"
-// 导入语言包
-import { langAll, useData } from "./OutlineColorimetric-lang.js"
-// 语言包设定为默认"root"，即中文
-const lang = shallowRef(langAll.root)
+import { aoaMapToWorkbook, downloadXlsx } from "@utils/xlsx.ts"
+// 导入OpenCV.js composable（自带 SIMD/pthreads 探测、singleton、并发去重、fallback 聚合）
+import { useOpenCV } from "@composables/useOpenCV.ts"
+// 导入本组件语言包
+import { langDict } from "./OutlineColorimetric-lang.ts"
+
+/**
+ * OpenCV.js 加载：单例 composable
+ * - OpenCV 是 readonly Ref<OpenCV | null>，加载成功后即 ready
+ * - ensureOpenCVReady() 幂等：多次调用复用同一 Promise
+ */
+const { OpenCV, ensureOpenCVReady } = useOpenCV()
+
+/** 派生当前语言的响应式语言包（root / en） */
+const langRef = useLang(langDict)
 
 /**
  * 任务状态：
@@ -182,30 +196,40 @@ const lang = shallowRef(langAll.root)
  * 4 - 完成了轮廓确认，计算RGB。
  *     其实并不存在状态4，因为计算RGB是最后一步，没有下一步了。
  */
-const taskStatusRef = ref(1)
-/** 用户上传的文件数组对象 @type { Ref<File[]> } */
-const fileArrRef = ref([])
-/** 
+const taskStatusRef = ref<1 | 2 | 3>(1)
+/** 用户上传的文件数组对象 */
+const fileArrRef = ref<UploadFile[]>([])
+/**
  * 视图层的<canvas>Dom对象
  * canvas加载很慢，需要等，比较好的等待方法是watch监听钩子。
  * 实测nextTick、onMounted都不如watch。
  */
-const canvasRef = useTemplateRef("canvasRef")
+const canvasRef = useTemplateRef<HTMLCanvasElement>("canvasRef")
 /**
  * 第三步确定轮廓的上下限范围数组对象
- * @type { import("vue").Ref<ThresholdNumAoa | []> }
  */
-const thresholdNumAoaRef = ref([])
+const thresholdNumAoaRef = ref<ThresholdNumAoa>([])
+
 /**
  * 第三步确定轮廓的上下限范围数组对象-常量
- * @type { ThresholdNumAoa }
- * @typedef { [
- *   [number, number, number, number[], boolean, number],            // 二值化阈值
- *   [[number, number], number, number, number[], boolean, number],  // 面积位次
- *   [number, number, number, number[], boolean, number]             // 圆径缩放因子
- * ] } ThresholdNumAoa
+ * 每一行：[当前值, 最小值, 最大值, marks标记, 是否range, 步长]
+ * 注：当前值在 range=true 时是 [min, max] 双值；非 range 时是 number
  */
-const thresholdNumAoaConst = [
+type ThresholdNumRow = [
+  number | [number, number],  // 当前值
+  number,                       // 最小值
+  number,                       // 最大值
+  number[] | Record<number, string>,  // marks 标记
+  boolean,                      // 是否 range
+  number                        // 步长
+]
+type ThresholdNumAoa = [
+  ThresholdNumRow,  // 二值化阈值
+  ThresholdNumRow,  // 面积位次
+  ThresholdNumRow   // 圆径缩放因子
+]
+
+const thresholdNumAoaConst: ThresholdNumAoa = [
   // 二值化阈值：当前值、最小值、最大值、marks标记、是否range、步长
   [50, 0, 200, [0, 50, 100, 150, 200], false, 1],
   // 面积位次：当前值、最小值、最大值、marks标记、是否range、步长
@@ -213,35 +237,57 @@ const thresholdNumAoaConst = [
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
   [0.5, 0, 1, [0, 0.25, 0.5, 0.75, 1], false, 0.1]
 ]
-/** 第三步确认轮廓是否是粗调模式 @type { Ref<boolean> } */
-const isContourCoarseRef = ref(true)
 
 /**
- * @typedef { object } ContactAngle 轮廓-比色法业务的全局对象
- * @property { CV } cv OpenCV.js对象
- * @property { Number } canvasStyleWidth canvas元素块的显示宽度
- * @property { string } filename 所上传文件的文件名
- * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
- * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
- * @property { CV.Mat } matGray 灰度图Mat对象
- * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
- * @property { ImageBitmap } imageBitmap canvas的图像位图元数据，用于暂存，便于恢复
- * @property { Rect } rect canvas元素块遮罩框的[左|上|右|下]坐标
- * @property { [number, number, number, number, boolean?][] } contourAoa 轮廓数据数组。[面积, 圆心X, 圆心Y, 半径, 绘图标记]
- * @property { number[] } circleAreaArr 面积位次数组
- * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
- * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
+ * canvas 选框 [左|上|右|下] 坐标
+ * 初始化为 null，第一次点击后才有值
  */
+type Rect = {
+  xMin: number | null
+  yMin: number | null
+  xMax: number | null
+  yMax: number | null
+}
+
 /**
- * @typedef { object } Rect canvas元素块遮罩框的[左|上|右|下]坐标
- * @property { number } xMin canvas元素块遮罩框的左坐标
- * @property { number } yMin canvas元素块遮罩框的上坐标
- * @property { number } xMax canvas元素块遮罩框的右坐标
- * @property { number } yMax canvas元素块遮罩框的下坐标
+ * 轮廓数据：[面积, 圆心X, 圆心Y, 半径, 是否绘图标记]
+ * 末尾 boolean? 表示是否在筛选范围内（drawContours 时设置）
  */
-/** 轮廓-比色法业务的全局对象 @type { ContactAngle } */
-const outlineColorimetricObj = {
-  cv: null,
+type ContourRow = [number, number, number, number, boolean?]
+
+/**
+ * OpenCV.js Mat 实例类型
+ * 业务持有后须显式 .delete() 释放 WASM 内存
+ * 注：不从 useOpenCV 模块导入类型（模块只导出 composable 函数与状态枚举，
+ *     OpenCV 实例类型由 composable 内部推导，外部以 any 持有即可）
+ */
+type OpenCVMat = any
+
+/**
+ * 轮廓-比色法业务的全局对象（非响应式：业务逻辑持有，不进视图层）
+ */
+const outlineColorimetricObj: {
+  /** canvas 显示宽度（px） */
+  canvasStyleWidth: number | null
+  /** 所上传文件的文件名 */
+  filename: string | null
+  /** canvas 2D 绘图上下文 */
+  ctx: CanvasRenderingContext2D | null
+  /** canvas 元素块的缩放比例：实际/显示 */
+  canvasScaling: number
+  /** 灰度图 Mat 对象（OpenCV） */
+  matGray: OpenCVMat | null
+  /** canvas 图像数据，用于 RGB 提取（保留原图色彩） */
+  imageData: ImageData | null
+  /** canvas 图像位图，用于重绘 */
+  imageBitmap: ImageBitmap | null
+  /** 选框坐标 */
+  rect: Rect
+  /** 轮廓数据数组 */
+  contourAoa: ContourRow[]
+  /** 圆面积排序数组 */
+  circleAreaArr: number[]
+} = {
   canvasStyleWidth: null,
   filename: null,
   ctx: null,
@@ -269,24 +315,17 @@ const {
  * @全局钩子 生命周期钩子、监听钩子
  */
 
-// 生命周期钩子，SSG的SPA化实现，组件挂载后执行
+// 生命周期钩子，组件挂载后执行
 // 用于进行必要的各类初始化操作
 onMounted(() => {
-  // 语言刷新。获取当前语言
-  const localeIndexValue = useData().localeIndex.value
-  // 如果当前语言不是默认语言
-  if (localeIndexValue !== "root") {
-    // 则以当前语言刷新语言包
-    lang.value = langAll[localeIndexValue]
-  }
   // 给个加载框
-  my.loading(lang.value.OpenCVLoadingContent)
+  myLoading(langRef.value.OpenCVLoadingContent)
   // 用于阻止页面刷新和关闭
   // 该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
   // 如果canvas没有初始化（第一次进入页面）
   if (!canvasRef.value) {
-    // 注册一个监听钩子，用于实现canvasRef和canvasParentRef的初始化
+    // 注册一个监听钩子，用于实现canvasRef的初始化
     // 解构赋值，得到监听钩子的stop()方法，用于停止监听
     const { stop: stopCanvasWatch } = watch(
       // 监听：canvasRef
@@ -297,7 +336,7 @@ onMounted(() => {
         if (newCanvas) {
           // 停止监听
           stopCanvasWatch()
-          // 初始化canvas的绘图上下文对象ctx，赋值给全局对象contactAngleObj
+          // 初始化canvas的绘图上下文对象ctx，赋值给全局对象
           outlineColorimetricObj.ctx = newCanvas.getContext(
             // CanvasRenderingContext2D接口的2D渲染上下文
             "2d",
@@ -309,7 +348,7 @@ onMounted(() => {
     )
   // 如果canvas已经初始化（刷新页面），则直接初始化
   } else {
-    // 初始化canvas的绘图上下文对象ctx，赋值给全局对象contactAngleObj
+    // 初始化canvas的绘图上下文对象ctx，赋值给全局对象
     outlineColorimetricObj.ctx = canvasRef.value.getContext(
       // CanvasRenderingContext2D接口的2D渲染上下文
       "2d",
@@ -317,47 +356,23 @@ onMounted(() => {
       { willReadFrequently: true }
     )
   }
-  // 导入OpenCV.js库
-  loadOpenCV().then((cvReady) => {
-    // 赋值给全局变量cv
-    outlineColorimetricObj.cv = cvReady
+  // 加载 OpenCV.js（幂等：多次调用复用同一 Promise）
+  ensureOpenCVReady().then(() => {
     // 停止加载框
-    my.loading(false)
+    myLoading(false)
+  }).catch((error: unknown) => {
+    // 停止加载框
+    myLoading(false)
+    // 报错处理
+    errorDialog(error)
   })
   // 注册一个对taskStatusRef的监听：
   // 任务状态改变时，始终保持canvas滚动到视图中间
   watch(taskStatusRef, nextTickFocusOnCanvas)
 })
 
-/**
- * 聚焦canvas
- * 下个DOM渲染周期将canvas滚动到视图中
- */
-function nextTickFocusOnCanvas() {
-  // 下个渲染周期执行focusOnCanvas()
-  nextTick(focusOnCanvas).catch((error) => {
-    my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
-  })
-  /**
-   * 聚焦canvas的内部方法
-   */
-  function focusOnCanvas() {
-    // 接参数
-    const canvas = canvasRef.value
-    // 滚动到canvas
-    canvas.scrollIntoView({
-      // 平滑滚动
-      behavior: "smooth",
-      // 垂直中心对齐
-      block: "center",
-      // 水平就近对齐
-      inline: "nearest"
-    })
-  }
-}
-
 // 生命周期钩子，组件卸载前执行
-// 用于进行必要的各类初始化操作
+// 用于进行必要的各类清理操作
 onBeforeUnmount(() => {
   // 取消监听：用于阻止页面刷新和关闭
   window.removeEventListener("beforeunload", beforeunloadHandler)
@@ -365,9 +380,9 @@ onBeforeUnmount(() => {
 
 /**
  * 页面关闭、后退或刷新的回调
- * @param { Event } event 页面关闭或刷新事件
+ * @param event 页面关闭或刷新事件
  */
-function beforeunloadHandler(event) {
+function beforeunloadHandler(event: BeforeUnloadEvent) {
   // 阻止默认行为
   event.preventDefault()
   // 取消默认事件：兼容方法
@@ -375,16 +390,14 @@ function beforeunloadHandler(event) {
 }
 
 /**
- * 报错的通知方法
- * 这是个统一化的报错通知，这个就不进行外部try...catch了
+ * 报错处理方法
+ * 流程：控制台打印 → toast 提示
  */
-function errorDialog(error) {
-  // 直接对话框报错
-  my.dialog({
-    theme: "danger",
-    header: lang.value.ErrorDialogTitle,
-    body: lang.value.ErrorDialogContent + error
-  })
+function errorDialog(error: unknown) {
+  // 控制台打印完整错误
+  console.error(langRef.value.ErrorDialogTitle, error)
+  // toast 提示用户
+  myMessage(`${langRef.value.ErrorDialogTitle}: ${String(error)}`, "error")
 }
 
 /**
@@ -392,11 +405,6 @@ function errorDialog(error) {
  * 步骤2：选框
  */
 function onCanvasClick() { try {
-  // console.log(
-  //   `canvas点击：
-  //   (${ elementX.value * outlineColorimetricObj.canvasScaling.toFixed(1) },
-  //   ${ elementY.value * outlineColorimetricObj.canvasScaling.toFixed(1) })`
-  // )
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 如果任务进度为2，则调用选框遮罩相关方法
@@ -406,8 +414,8 @@ function onCanvasClick() { try {
     // 绘图
     drawRect()
   }
-} catch (error) {
-  my.error("onCanvasClick()报错：", error, errorDialog)
+} catch (error: unknown) {
+  errorDialog(error)
 }}
 
 /**
@@ -424,38 +432,35 @@ function taskToStep1() {
 
 /**
  * 图片上传或改变时触发的回调
- * @param { TDesign.UploadFile[] } event 事件对象
- * @note 会读取全局对象contactAngleObj的<canvas>宽度对象canvasWidth
- * @note 会写入全局对象contactAngleObj的<canvas>高度对象canvasHeight
- * @note 会写入全局对象contactAngleObj的灰度图Mat对象matGray
+ * @param event 文件数组（mobile-vue t-upload onChange 签名）
  */
-async function onPicChange(event) { try {
+async function onPicChange(event: UploadFile[]) { try {
   // 如果是清空了照片，则把任务进度切换回1，并直接返回即可
   if (event.length === 0) {
     taskToStep1()
     return
   }
   // 加载框
-  my.loading(lang.value.PicLoadingContent)
+  myLoading(langRef.value.PicLoadingContent)
   // 接参数
   const { imageBitmap } = outlineColorimetricObj
   // 接收文件名
-  outlineColorimetricObj.filename = event[0].name
+  outlineColorimetricObj.filename = event[0]!.name
   // 获取文件的位图数据
-  const imageBitmapNew = await window.createImageBitmap(event[0].raw)
+  const imageBitmapNew = await window.createImageBitmap(event[0]!.raw)
   // 清空之前的位图文件的数据，释放GPU内存
   imageBitmap?.close()
-  // 赋值给全局对象contactAngleObj的位图对象imageBitmap
+  // 赋值给全局对象的位图对象
   outlineColorimetricObj.imageBitmap = imageBitmapNew
   // 第一阶段完成，任务进度改为2
   taskToStep2()
   // 停止加载框
-  my.loading(false)
-} catch (error) {
+  myLoading(false)
+} catch (error: unknown) {
   // 停止加载框
-  my.loading(false)
+  myLoading(false)
   // 报错处理
-  my.error("onPicChange()方法出错：", error, errorDialog)
+  errorDialog(error)
 }}
 
 /**
@@ -472,8 +477,8 @@ function taskToStep2() {
   // 任务进度改为2
   taskStatusRef.value = 2
   // 下个渲染周期，绘制canvas
-  nextTick(canvasRestore).catch((error) => {
-    my.error("taskToStep2().nextTick()报错：", error, errorDialog)
+  nextTick(canvasRestore).catch((error: unknown) => {
+    errorDialog(error)
   })
 }
 
@@ -500,11 +505,11 @@ function canvasRestore() {
   const { ctx, imageBitmap } = outlineColorimetricObj
   // 调整canvas的实际宽高：
   // 以图片的原始宽高设定canvas的【实际】宽高，防止图片尺寸和canvas实际尺寸不一致导致的显示问题
-  canvas.width = imageBitmap.width
-  canvas.height = imageBitmap.height
+  canvas.width = imageBitmap!.width
+  canvas.height = imageBitmap!.height
   // 调整canvas的显示高：
   // 接canvas父元素的最大内宽
-  const canvasParentClientWidth = canvas.parentElement.clientWidth
+  const canvasParentClientWidth = canvas.parentElement!.clientWidth
   // 同步canvas的最大宽度给canvas的【显示宽度】（即父元素的有效宽度）
   outlineColorimetricObj.canvasStyleWidth = canvasParentClientWidth
   canvas.style.width = canvasParentClientWidth + "px"
@@ -514,23 +519,9 @@ function canvasRestore() {
   // 设定canvas的显示高度
   canvas.style.height = canvas.height / canvasScaling + "px"
   // 把图片绘制到canvas上
-  ctx.drawImage(imageBitmap, 0, 0)
+  ctx!.drawImage(imageBitmap!, 0, 0)
   // 设置canvas的绘图上下文
   ctxSetting()
-}
-
-/**
- * 以canvas父元素宽度为依据，使canvas进行尺寸自适应
- */
-function canvasFit() {
-  // 接参数
-  const canvas = canvasRef.value
-  // 接canvas父元素的最大内宽
-  const canvasParentClientWidth = canvas.parentElement.clientWidth
-  // canvas父元素的最大内宽赋值给全局变量
-  outlineColorimetricObj.canvasStyleWidth = canvasParentClientWidth
-  // 设置canvas的显示宽度
-  canvas.style.width = canvasParentClientWidth + "px"
 }
 
 /**
@@ -540,11 +531,11 @@ function ctxSetting() {
   // 接ctx及缩放比例相关对象
   const { ctx, canvasScaling } = outlineColorimetricObj
   // 红色笔迹
-  ctx.strokeStyle = "red"
+  ctx!.strokeStyle = "red"
   // 线宽：2像素 x 缩放比例
-  ctx.lineWidth = 2 * canvasScaling
+  ctx!.lineWidth = 2 * canvasScaling
   // 填充色：半透明
-  ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+  ctx!.fillStyle = "rgba(0, 0, 0, 0.7)"
 }
 
 /**
@@ -552,7 +543,7 @@ function ctxSetting() {
  * 用于更新选框的X、Y坐标边界值
  */
 function chooseRect() {
-  /** 选框的初始相对尺寸 @const { Number } */
+  /** 选框的初始相对尺寸 */
   const RECT_SCALE = 0.8
   // 接遮罩数组、缩放比例
   const { rect, canvasScaling } = outlineColorimetricObj
@@ -562,19 +553,15 @@ function chooseRect() {
   // 如果选框X边界未定义，即第一次点击，需记录下选框的坐标
   if (!rect.xMax) {
     // 接canvas
-    const canvas = canvasRef.value
+    const canvas = canvasRef.value!
     // 计算初始化选框的半宽/半高
     const rectHalfX = canvas.width * RECT_SCALE * 0.5
     // Y轴半高：适当压扁一点
     const rectHalfY = canvas.height * RECT_SCALE * 0.5
     // 根据点击位置记录坐标
-    // rectXmax：点击位置X坐标 + 选框半宽，有可能大于<canvas>宽，则取两者小值
     rect.xMax = Math.min((realElementX + rectHalfX), canvas.width)
-    // rectYmax原理同上
     rect.yMax = Math.min((realElementY + rectHalfY), canvas.height)
-    // rectXmin：点击位置X坐标 - 选框半宽，有可能小于零，则取两者大值
     rect.xMin = Math.max((realElementX - rectHalfX), 0)
-    // rectYmin原理同上
     rect.yMin = Math.max((realElementY - rectHalfY), 0)
     // 选框边界已更新，直接返回即可
     return
@@ -584,15 +571,10 @@ function chooseRect() {
     (realElementX === rect.xMin) || (realElementX === rect.xMax)
       || (realElementY === rect.yMin) || (realElementY === rect.yMax)
   ) {
-    // 则不做任何处理，直接返回
     return
   }
   // 如果点击位置在选框外
-  // 先声明一个“是否在选框内”的标记，初始化为0
   let isInRect = 0
-  // 判断X点：
-  // 如果点击位置在框外（X值比框X坐标的最大值更大，或比X坐标最小值更小），则替换最大/最小值
-  // 否则，即点击位置在选框内，isInRect加1
   if (realElementX < rect.xMin) {
     rect.xMin = realElementX
   } else if (realElementX > rect.xMax) {
@@ -600,8 +582,6 @@ function chooseRect() {
   } else {
     isInRect++
   }
-  // 判断Y点：
-  // 同上
   if (realElementY < rect.yMin) {
     rect.yMin = realElementY
   } else if (realElementY > rect.yMax) {
@@ -609,90 +589,70 @@ function chooseRect() {
   } else {
     isInRect++
   }
-  // 如果“如果在选框内”的标记isInRect小于2，即至少x和y有一个在选框外
   if (isInRect < 2) {
-    // 此时选框点已经更新了，所以直接返回即可
     return
   }
-  // 接下来处理选框点在选框内（isInRect === 2）的情况
-  // 思路：比较斜率。有3个斜率：
-  // 1.  参考斜率，即选框自身的斜率rectSlope，也就是矩形框的交叉线。
-  //     参考斜率有正负值。求1个即可，另一个加负号，即-rectSlope。
-  // 2.  选点针对(rectXmin, rectYmin)点的斜率。
-  //     该斜率和rectSlope比较，如果大于rectSlope，则说明选点在交叉线的上方，反之在下方。
-  // 3.  选点针对(rectXmax, rectYmin)点的斜率。
-  //     该斜率和-rectSlope比较，如果【小于-rectSlope】，则说明选点在交叉线的上方，反之在下方。
-  //     这里要注意负数比较，和“2”的正数比较相反。
-  // 参考斜率rectSlope
+  // 接下来处理选框点在选框内的情况
+  // 思路：比较斜率。有3个斜率
   const rectSlope = (rect.yMax - rect.yMin) / (rect.xMax - rect.xMin)
-  // 选点针对(rect.xMin, rect.yMin)点的斜率
   const realElementSlopePositive = (realElementY - rect.yMin) / (realElementX - rect.xMin)
-  // 选点针对(rect.xMax, rect.yMin)点的斜率（这是个负数）
   const realElementSlopeNegative = (realElementY - rect.yMin) / (realElementX - rect.xMax)
   // 判断点的位置
   if (realElementSlopePositive >= rectSlope) {
     if (realElementSlopeNegative <= -rectSlope) {
-      // 选点在交叉线的上方，rectYmax往下缩
       rect.yMax = realElementY
     } else {
-      // 选点在交叉线的左边，rectXmin往右缩
       rect.xMin = realElementX
     }
   } else {
     if (realElementSlopeNegative <= -rectSlope) {
-      // 选点在交叉线的右边，rectXmax往左缩
       rect.xMax = realElementX
     } else {
-      // 选点在交叉线的下方，rectYmin往上缩
       rect.yMin = realElementY
     }
   }
-  // 选框边界更新完毕，返回
-  return
 }
 
 /**
  * 绘制选框
- * @note 会调用全局对象contactAngleObj的ctx、rect
- * @note 会读取全局对象canvasRef的height、width
  */
 function drawRect() {
   // 接对象
   const { rect, ctx, imageBitmap } = outlineColorimetricObj
   // 接canvas对象
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   // 接绘制框的宽高
-  const rectWidth = rect.xMax - rect.xMin
-  const rectHeight = rect.yMax - rect.yMin
+  const rectWidth = rect.xMax! - rect.xMin!
+  const rectHeight = rect.yMax! - rect.yMin!
   // 先对canvas进行重绘制，去掉上一次的绘制
-  ctx.drawImage(imageBitmap, 0, 0)
+  ctx!.drawImage(imageBitmap!, 0, 0)
   // 给一个遮罩
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx!.fillRect(0, 0, canvas.width, canvas.height)
   // 重绘选框中部
-  ctx.drawImage(
-    imageBitmap,
-    rect.xMin, rect.yMin, rectWidth, rectHeight,
-    rect.xMin, rect.yMin, rectWidth, rectHeight
+  ctx!.drawImage(
+    imageBitmap!,
+    rect.xMin!, rect.yMin!, rectWidth, rectHeight,
+    rect.xMin!, rect.yMin!, rectWidth, rectHeight
   )
   // 绘制中间线框
-  ctx.strokeRect(rect.xMin, rect.yMin, rectWidth, rectHeight)
+  ctx!.strokeRect(rect.xMin!, rect.yMin!, rectWidth, rectHeight)
 }
 
 /**
- * 点击“裁剪图片”按钮的事件回调钩子
- * @param { boolean } isDetermine 是否确定裁剪
+ * 点击"裁剪图片"按钮的事件回调钩子
+ * @param isDetermine 是否确定裁剪
  */
-async function onSureRect(isDetermine) { try {
+async function onSureRect(isDetermine: boolean) { try {
   // 接选框对象
   const { rect, imageBitmap } = outlineColorimetricObj
   // 接canvas对象
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   // 如果有选框
   if (rect.xMax) {
     // 以选框获取新的imageBitmap图像位图元数据
     const imageBitmapNew = await window.createImageBitmap(
-      imageBitmap,
-      rect.xMin, rect.yMin, (rect.xMax - rect.xMin), (rect.yMax - rect.yMin)
+      imageBitmap!,
+      rect.xMin!, rect.yMin!, (rect.xMax! - rect.xMin!), (rect.yMax! - rect.yMin!)
     )
     // 更新全局canvas的图像位图元数据
     imageBitmap?.close()
@@ -702,40 +662,41 @@ async function onSureRect(isDetermine) { try {
     // 清空裁剪标记
     canvasRectDataRemove()
   }
-  // 如果是“完成裁剪”，则：
+  // 如果是"完成裁剪"，则：
   // 1.  备份ImageData
   // 2.  把canvas图像转为灰度图Mat对象
   // 3.  进入下一步
   if (isDetermine === true) {
     // 接绘图上下文ctx对象、cv对象、图片的宽高
-    const { ctx, cv, matGray, imageBitmap: { width, height } } = outlineColorimetricObj
+    const { ctx, matGray, imageBitmap: { width, height } } = outlineColorimetricObj
+    // OpenCV 必须已加载（onMounted 已 await ensureOpenCVReady）
+    const cv = OpenCV.value
+    if (!cv) {
+      throw new Error("OpenCV.js 尚未加载完成")
+    }
     // 备份imageData，后面直接读取RGB用
-    outlineColorimetricObj.imageData = ctx.getImageData(0, 0, width, height)
+    outlineColorimetricObj.imageData = ctx!.getImageData(0, 0, width, height)
     // 读取图片文件为OpenCV的Mat对象
     const matOrigin = cv.imread(canvas)
     // 如果全局灰度图Mat对象存在且有成员对象delete方法，则先删除
     matGray?.delete()
     // 初始化全局灰度图Mat对象
-    outlineColorimetricObj.matGray = new cv.Mat()
+    const matGrayNew = new cv.Mat()
     // 将原始图像Mat转为灰度Mat，赋值给全局灰度图Mat对象
-    // “cvtColor”即convert color
     cv.cvtColor(
-      // 原图（输入）
       matOrigin,
-      // 灰度图（输出）
-      outlineColorimetricObj.matGray,
-      // 颜色空间转换代码：color：RGBA to gray
+      matGrayNew,
       cv.COLOR_RGBA2GRAY,
-      // 通道数：0，即自动
       0
     )
+    outlineColorimetricObj.matGray = matGrayNew
     // 释放原图Mat的WASM内存
     matOrigin.delete()
-    // 任务状态进展到“3”
+    // 任务状态进展到"3"
     taskToStep3()
   }
-} catch (error) {
-  my.error("onSureRect()方法出错：", error, errorDialog)
+} catch (error: unknown) {
+  errorDialog(error)
 }}
 
 /**
@@ -748,16 +709,40 @@ async function onSureRect(isDetermine) { try {
  * 任务进度切换到步骤3
  */
 function taskToStep3() {
-  // 把“粗/西调”设置成粗调
-  isContourCoarseRef.value = true
+  // 把"粗/西调"设置成粗调
+  // isContourCoarseRef.value = true
   // 初始化滑轨参数
   thresholdNumRestore()
   // 任务进度改为3
   taskStatusRef.value = 3
   // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
-  nextTick(getAndDrawContours).catch((error) => {
-    my.error("taskToStep3().nextTick()报错：", error, errorDialog)
+  nextTick(getAndDrawContours).catch((error: unknown) => {
+    errorDialog(error)
   })
+}
+
+/**
+ * 聚焦canvas
+ * 下个DOM渲染周期将canvas滚动到视图中
+ */
+function nextTickFocusOnCanvas() {
+  nextTick(focusOnCanvas).catch((error: unknown) => {
+    errorDialog(error)
+  })
+  /**
+   * 聚焦canvas的内部方法
+   */
+  function focusOnCanvas() {
+    // 接参数
+    const canvas = canvasRef.value
+    if (!canvas) return
+    // 滚动到canvas
+    canvas.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest"
+    })
+  }
 }
 
 /**
@@ -770,58 +755,42 @@ function thresholdNumRestore() {
   const thresholdNumAoa = thresholdNumAoaRef.value
   // 如果滑轨参数为空，则初始化滑轨参数
   if (thresholdNumAoa.length === 0) {
-    // 直接深拷贝一份副本然后赋值即可
     thresholdNumAoaRef.value = deepCopyAoa(thresholdNumAoaConst)
   // 否则，保留每个参数的取值
   } else {
-    /** 先深拷贝一份参数副本 @type { ThresholdNumAoa} */
+    /** 先深拷贝一份参数副本 */
     const thresholdNumAoaTemp = deepCopyAoa(thresholdNumAoaConst)
-    // 用参数副本的第一个值值覆盖
     for (let i = 0; i < thresholdNumAoa.length; i++) {
-      thresholdNumAoaTemp[i][0] = thresholdNumAoa[i][0]
+      thresholdNumAoaTemp[i]![0] = thresholdNumAoa[i]![0]
     }
-    // 赋值
     thresholdNumAoaRef.value = thresholdNumAoaTemp
   }
   /**
    * 深拷贝AOA数组
-   * @param { ThresholdNumAoa } aoa AOA二维数组
-   * @returns { ThresholdNumAoa } 深拷贝后的AOA二维数组
    */
-  function deepCopyAoa(aoa) {
-    // 深拷贝AOA数组
-    const aoaTemp = []
-    // 遍历每一行
+  function deepCopyAoa(aoa: ThresholdNumAoa): ThresholdNumAoa {
+    const aoaTemp: ThresholdNumAoa = [[0,0,0,[],false,0], [0,0,0,[],false,0], [0,0,0,[],false,0]]
     for (let i = 0; i < aoa.length; i++) {
-      // 深拷贝Arr数组
-      const arrTemp = []
-      // 遍历每一个元素
-      for (let j = 0; j < aoa[i].length; j++) {
-        // 如果元素是数组，则解构推
-        // @ts-ignore
-        if (typeof aoa[i][j] === "array") {
-          // @ts-ignore
-          arrTemp.push(...aoa[i][j])
-        // 如果元素不是数组，则解构直接推
+      const arrTemp: ThresholdNumRow = [0, 0, 0, [], false, 0]
+      for (let j = 0; j < aoa[i]!.length; j++) {
+        // 元素是数组则解构推，否则直接推
+        if (Array.isArray(aoa[i]![j])) {
+          arrTemp[j] = [...(aoa[i]![j] as number[])] as number | [number, number]
         } else {
-          arrTemp.push(aoa[i][j])
+          arrTemp[j] = aoa[i]![j]!
         }
       }
-      // 推进新数组
-      aoaTemp.push(arrTemp)
+      aoaTemp[i] = arrTemp
     }
-    // 返回新数组
-    // @ts-ignore
     return aoaTemp
   }
 }
 
 /**
  * 滑轨调节的事件回调钩子
- * 步骤3：基线调节。此步骤下，用户只能操作滑轨，因此事件全部来源于滑轨。
- * @param { Number } paramIndex 参数的index序号
+ * @param paramIndex 参数的 index 序号
  */
-function onSlideChange(paramIndex) { try {
+function onSlideChange(paramIndex: number) { try {
   // 如果是第1个滑轨
   if (paramIndex === 0) {
     // 则需要重新获取轮廓数据
@@ -830,19 +799,18 @@ function onSlideChange(paramIndex) { try {
   } else {
     drawContoursThrottled()
   }
-} catch (error) {
-  my.error("onSlideChange()报错：", error, errorDialog)
+} catch (error: unknown) {
+  errorDialog(error)
 }}
 
 /**
  * 选择轮廓方法的防抖方法
- * @note 给getContours做了防抖处理，以防止频繁调用
+ * 500ms trailing 节流：不节流会卡顿（用户实测确认）
  */
 const getAndDrawContoursThrottled = useThrottleFn(getAndDrawContours, 500, true)
 
 /**
  * 绘制轮廓方法的防抖方法
- * @note 给drawContours做了防抖处理，以防止频繁调用
  */
 const drawContoursThrottled = useThrottleFn(drawContours, 500, true)
 
@@ -852,47 +820,32 @@ const drawContoursThrottled = useThrottleFn(drawContours, 500, true)
  */
 function getAndDrawContours() {
   // 接二值化参数
-  const binaryThresh = thresholdNumAoaRef.value[0][0]
+  const binaryThresh = (thresholdNumAoaRef.value[0]![0] as number)
   // 接cv和灰度图Mat对象
-  const { cv, matGray } = outlineColorimetricObj
+  const { matGray } = outlineColorimetricObj
+  // OpenCV 必须已加载（步骤2的 onSureRect(true) 已确保）
+  const cv = OpenCV.value
+  if (!cv || !matGray) {
+    throw new Error("OpenCV.js 未就绪或灰度图缺失")
+  }
   // 初始化二值化的Mat对象
   const matBinary = new cv.Mat()
-  // 将灰度图转为二值化图
   cv.threshold(
-    // 输入：灰度图matGray
     matGray,
-    // 输出：二值化图matBinary
     matBinary,
-    // 阈值
     binaryThresh,
-    // 用于THRESH_BINARY和THRESH_BINARY_INV阈值类型的最大值
     255,
-    // 阈值类型
     cv.THRESH_BINARY
   )
   // 初始化轮廓查找的MatVector对象
   const matVectorContours = new cv.MatVector()
   // 初始化轮廓层次结构hierarchy
   const hierarchy = new cv.Mat()
-  // cv.findContours()方法，查找轮廓
-  // 详见：https://docs.opencv.org/4.10.0/d5/daa/tutorial_js_contours_begin.html
   cv.findContours(
-    // 二值化的Mat图像
     matBinary,
-    // 轮廓。AOA的Mat对象数组，即MatVector
     matVectorContours,
-    // 轮廓层次结构，即各轮廓间的拓扑关系
-    // 如圈形图像会有内轮廓和外轮廓，则内外轮廓间会存在包含与被包含等关系
-    // 轮廓层次结构即建立“轮廓树”，以层级化的方式描述轮廓之间的关系
     hierarchy,
-    // 轮廓检索模式
-    // RETR_EXTERNAL => retrieval external - 只检索最外层的轮廓
     cv.RETR_EXTERNAL,
-    // cv.RETR_LIST,
-    // 轮廓近似法
-    // CHAIN_APPROX_NONE => chain approx none - 不作近似处理，存储所有轮廓点
-    // CHAIN_APPROX_SIMPLE => chain approx simple - 压缩水平、垂直和对角线方向的轮廓，只保留该方向的终点坐标
-    // cv.CHAIN_APPROX_NONE
     cv.CHAIN_APPROX_SIMPLE
   )
   // 获取轮廓的数量
@@ -906,24 +859,13 @@ function getAndDrawContours() {
   forEachContours: for (let i = 0; i < contourSize; i++) {
     // 获取轮廓
     const matContour = matVectorContours.get(i)
-    // 轮廓的矩（moments）
-    // 1. 空间矩（Spatial Moments）
-    //   m00：零阶矩，[轮廓面积]，即轮廓或点的总数（如果是图像，则为非零像素的总数）
-    //   m10, m01：一阶矩，分别表示轮廓或点的质心的row/W和col/H坐标（需除以m00）
-    //   m20, m11, m02：二阶矩，用于描述轮廓或点的分布
-    // 2. 中心矩（Central Moments）
-    //   mu20, mu11, mu02：二阶中心矩，描述了轮廓或点相对于其质心的分布
-    //   mu30, mu21, mu12, mu03：三阶中心矩，用于描述轮廓或点的对称性
-    // 3. 归一化中心矩（Normalized Central Moments）
-    //   nu20, nu11, nu02：二阶归一化中心矩
-    //   nu30, nu21, nu12, nu03：三阶归一化中心矩
-    //   归一化中心矩用于描述轮廓或点的形状，这些矩是尺度不变的
+    // 轮廓的矩：m00 = 轮廓面积
     const { m00: circleArea } = cv.moments(matContour, true)
     // 如果轮廓面积小于等于1，则忽略此轮廓
     if (circleArea <= 1) {
       continue forEachContours
     }
-    // 获取该轮廓的最小外接圆。有center.x, center.y, radius
+    // 获取该轮廓的最小外接圆。有 center.x, center.y, radius
     const minEnclosingCircle = cv.minEnclosingCircle(matContour)
     // 装箱
     contourAoa.push([
@@ -950,9 +892,10 @@ function getAndDrawContours() {
  */
 function drawContours() {
   // 接参数：面积位次、缩放
-  const [ ,
+  const [
+    ,
     [[areaPercentOrderMin, areaPercentOrderMax]],
-    [scale]
+    [scale],
   ] = thresholdNumAoaRef.value
   // 接参数：canvas上下文、轮廓数组、圆面积排序数组
   const { ctx, contourAoa, circleAreaArr } = outlineColorimetricObj
@@ -969,30 +912,30 @@ function drawContours() {
   // 遍历所有轮廓
   forEachContours: for (const contour of contourAoa) {
     // 若面积不符合条件，则跳过
-    if ((contour[0] < circleAreaMin) || (contour[0] > circleAreaMax)) {
-      // 标记为false，表示不绘图
+    if ((contour[0] < circleAreaMin!) || (contour[0] > circleAreaMax!)) {
+      // 标记为 false，表示不绘图
       contour[4] = false
       continue forEachContours
     // 否则绘图
     } else {
-      // 标记为true，表示绘图
+      // 标记为 true，表示绘图
       contour[4] = true
       // 开始绘图
-      ctx.beginPath()
+      ctx!.beginPath()
       // 圆环
-      ctx.arc(
+      ctx!.arc(
         contour[1], contour[2],
-        (contour[3] * scale),
+        (contour[3] * scale as number),
         0, (2 * Math.PI)
       )
       // 绘制
-      ctx.stroke()
+      ctx!.stroke()
     }
   }
 }
 
 /**
- * 点击“下载数据”按钮的事件回调钩子
+ * 点击"下载数据"按钮的事件回调钩子
  */
 function onDownloadData() { try {
   // 把轮廓数组转换成排列好了的矩阵
@@ -1001,23 +944,22 @@ function onDownloadData() { try {
   const resultAoaoa = contourMatrixToRGB(contourMatrixAoaoa)
   // 下载RGB数据
   downloadRGB(resultAoaoa)
-} catch (error) {
-  my.error("onDownloadData()报错：", error, errorDialog)
+} catch (error: unknown) {
+  errorDialog(error)
 }}
 
 /**
  * 把轮廓数组转换成排列好了的矩阵
  * 外维是X，内维是Y
- * @returns { [number, number, number][][] } 矩阵，[x, y, 缩放后的半径][][]
  */
-function contourToMatrix() {
+function contourToMatrix(): ([number, number, number] | undefined)[][] {
   // 接轮廓数组
   const { contourAoa } = outlineColorimetricObj
   // 接缩放参数
-  const scale = thresholdNumAoaRef.value[2][0]
+  const scale = thresholdNumAoaRef.value[2]![0] as number
   // 建立X、Y的排序表
-  const xAoa = []
-  const yAoa = []
+  const xAoa: [number, number][] = []
+  const yAoa: [number, number][] = []
   // 遍历所有轮廓
   forEachContour1: for (const contour of contourAoa) {
     // 如果不绘图，则跳过
@@ -1032,83 +974,60 @@ function contourToMatrix() {
     const yDown = contour[2] - contour[3]
     const yUp = contour[2] + contour[3]
     // 遍历X轮廓数组
-    const xAoaLength = xAoa.length
     let xIndex = 0
-    forEachXAoa: while (xIndex < xAoaLength) {
-      // 如果X中心坐标在X轮廓数组的范围内
-      if ((xCenter >= xAoa[xIndex][0]) && (xCenter <= xAoa[xIndex][1])) {
-        // 则刷新该数组的范围
-        if (xLeft < xAoa[xIndex][0]) {
-          xAoa[xIndex][0] = xLeft
+    while (xIndex < xAoa.length) {
+      if ((xCenter >= xAoa[xIndex]![0]) && (xCenter <= xAoa[xIndex]![1])) {
+        if (xLeft < xAoa[xIndex]![0]) {
+          xAoa[xIndex]![0] = xLeft
         }
-        if (xRight > xAoa[xIndex][1]) {
-          xAoa[xIndex][1] = xRight
+        if (xRight > xAoa[xIndex]![1]) {
+          xAoa[xIndex]![1] = xRight
         }
-        // 然后就可以跳出循环了
-        break forEachXAoa
+        break
       }
-      // 否则，继续遍历
       xIndex++
     }
-    // 遍历结束，看看xIndex是否等于xAoaLength
-    if (xIndex === xAoaLength) {
-      // 如果等于，则说明没有找到匹配的X范围，则新增一个X范围
+    if (xIndex === xAoa.length) {
       xAoa.push([xLeft, xRight])
     }
     // 遍历Y轮廓数组
-    const yAoaLength = yAoa.length
     let yIndex = 0
-    forEachYAoa: while (yIndex < yAoaLength) {
-      // 如果Y中心坐标在Y轮廓数组的范围内
-      if ((yCenter >= yAoa[yIndex][0]) && (yCenter <= yAoa[yIndex][1])) {
-        // 则刷新该数组的范围
-        if (yDown < yAoa[yIndex][0]) {
-          yAoa[yIndex][0] = yDown
+    while (yIndex < yAoa.length) {
+      if ((yCenter >= yAoa[yIndex]![0]) && (yCenter <= yAoa[yIndex]![1])) {
+        if (yDown < yAoa[yIndex]![0]) {
+          yAoa[yIndex]![0] = yDown
         }
-        if (yUp > yAoa[yIndex][1]) {
-          yAoa[yIndex][1] = yUp
+        if (yUp > yAoa[yIndex]![1]) {
+          yAoa[yIndex]![1] = yUp
         }
-        // 然后就可以跳出循环了
-        break forEachYAoa
+        break
       }
-      // 否则，继续遍历
       yIndex++
     }
-    // 遍历结束，看看yIndex是否等于yAoaLength
-    if (yIndex === yAoaLength) {
-      // 如果等于，则说明没有找到匹配的Y范围，则新增一个Y范围
+    if (yIndex === yAoa.length) {
       yAoa.push([yDown, yUp])
     }
   }
   // 遍历结束，对xAoa和yAoa进行排序
   xAoa.sort((a, b) => (a[0] - b[0]))
   yAoa.sort((a, b) => (a[0] - b[0]))
-  // X、Y表处理完毕，下面对轮廓数据进行排序
   // 构造一个轮廓数据的AOA数组，外围row(Y)，内围col(X)
-  const contourMatrixAoa = []
-  // 有多少Y，就应该有多少行
+  const contourMatrixAoa: ([number, number, number] | undefined)[][] = []
   for (let row = 0; row < yAoa.length; row++) {
     contourMatrixAoa.push([])
   }
   // 遍历所有轮廓
   forEachContour2: for (const contour of contourAoa) {
-    // 如果不绘图，则跳过
     if (contour[4] === false) {
       continue forEachContour2
     }
-    // 获取x点、y点
     const xCenter = contour[1]
     const yCenter = contour[2]
-    // 遍历所有行(Y轴)
     for (let row = 0; row < yAoa.length; row++) {
-      // 看看y中心点是否在Y轴范围内
-      if ((yCenter >= yAoa[row][0]) && (yCenter <= yAoa[row][1])) {
-        // 如果在，则遍历当前行row的所有列col(X轴)
+      if ((yCenter >= yAoa[row]![0]) && (yCenter <= yAoa[row]![1])) {
         for (let col = 0; col < xAoa.length; col++) {
-          // 看看x中心点是否在X轴范围内
-          if ((xCenter >= xAoa[col][0]) && (xCenter <= xAoa[col][1])) {
-            // 如果在，则把轮廓数据添加到该位置：x、y、缩放后的半径
-            contourMatrixAoa[row][col] = [
+          if ((xCenter >= xAoa[col]![0]) && (xCenter <= xAoa[col]![1])) {
+            contourMatrixAoa[row]![col] = [
               contour[1], contour[2], contour[3] * scale
             ]
           }
@@ -1116,20 +1035,18 @@ function contourToMatrix() {
       }
     }
   }
-  // 返回轮廓矩阵数据
   return contourMatrixAoa
 }
 
 /**
  * 把矩阵化的轮廓数据转换成处理好的RGB结果数据数据
- * @param { [number, number, number][][] } contourMatrixAoaoa 矩阵，[x, y, 缩放后的半径][][]
- * @returns { number[][][] } 结果矩阵，最外层为[R-ave, R-sd, G-ave, G-sd, B-ave, B-sd]的[][]
+ * @returns 结果矩阵，最外层为 [R-ave, R-sd, G-ave, G-sd, B-ave, B-sd] 的 [][]
  */
-function contourMatrixToRGB(contourMatrixAoaoa) {
+function contourMatrixToRGB(contourMatrixAoaoa: ([number, number, number] | undefined)[][]): number[][][] {
   // 接imageData数据，用于提取RGB值
-  const { width: imageDataWidth, data: imageDataArray } = outlineColorimetricObj.imageData
-  /** 构建用于输出的数组 @type {  number[][][] } */
-  const dataAoaoa = []
+  const { width: imageDataWidth, data: imageDataArray } = outlineColorimetricObj.imageData!
+  /** 构建用于输出的数组 */
+  const dataAoaoa: number[][][] = []
   // 要有6个维度，因为要分别输出R、G、B，以及相应的SD值
   for (let i = 0; i < 6; i++) {
     dataAoaoa.push([])
@@ -1139,12 +1056,12 @@ function contourMatrixToRGB(contourMatrixAoaoa) {
   forEachRow: for (let row = 0; row < contourMatrixAoaoa.length; row++) {
     // 给dataAoaoa的每个维度都添加一个新行
     for (let i = 0; i < 6; i++) {
-      dataAoaoa[i].push([])
+      dataAoaoa[i]!.push([])
     }
     // 遍历当前行的每一列
-    forEachCol: for (let col = 0; col < contourMatrixAoaoa[row].length; col++) {
-      /** 接轮廓数据 @type { [number, number, number] } */
-      const contourData = contourMatrixAoaoa[row][col]
+    forEachCol: for (let col = 0; col < contourMatrixAoaoa[row]!.length; col++) {
+      /** 接轮廓数据 */
+      const contourData = contourMatrixAoaoa[row]![col]
       // 如果轮廓数据为空，则跳过
       if (!contourData) {
         continue forEachCol
@@ -1152,7 +1069,7 @@ function contourMatrixToRGB(contourMatrixAoaoa) {
       // 获取轮廓内所有点的X、Y坐标
       const contourPointAoa = getContourPoints(contourData)
       // 用于接收RGB值的数组
-      const uniPointArr = [[], [], []]
+      const uniPointArr: number[][] = [[], [], []]
       // 遍历所有点
       forEachPoint: for (const point of contourPointAoa) {
         // 获取点的X、Y坐标
@@ -1160,51 +1077,40 @@ function contourMatrixToRGB(contourMatrixAoaoa) {
         // 获取点的索引
         const index = (y * imageDataWidth + x) * 4
         for (let i = 0; i < 3; i++) {
-          // 获取点的RGB值
-          uniPointArr[i].push(imageDataArray[index + i])
+          uniPointArr[i]!.push(imageDataArray[index + i]!)
         }
       }
       // 遍历计算平均值和标准差
       for (let i = 0; i < uniPointArr.length; i++) {
-        // 计算平均值和标准差
-        const [ave, sd] = aveAndSD(uniPointArr[i])
-        // 把平均值和标准差存入dataAoaoa
-        dataAoaoa[i * 2][row][col] = ave
-        dataAoaoa[i * 2 + 1][row][col] = sd
+        const [ave, sd] = aveAndSD(uniPointArr[i]!)
+        dataAoaoa[i * 2]![row]![col] = ave
+        dataAoaoa[i * 2 + 1]![row]![col] = sd
       }
     }
   }
-  // 输出dataAoaoa
   return dataAoaoa
 }
 
 /**
  * 由轮廓数据获取全部的点
- * @param { [number, number, number] } contourData 轮廓X、Y、半径
- * @returns { [number, number][] } 轮廓数据[x, y][]
+ * @param contourData 轮廓X、Y、半径
  */
-function getContourPoints(contourData) {
-  // 接数据
+function getContourPoints(contourData: [number, number, number]): [number, number][] {
   const [xCenter, yCenter, radius] = contourData
   // radius平方
   const radiusSquare = radius * radius
-  /** 构造一个数组，用于存储轮廓数据，初始化圆点 @type { [number, number][] } */
-  const contourPointAoa = [[Math.round(xCenter), Math.round(yCenter)]]
-  forEachX: for (let xDelta = 1; xDelta <= radius; xDelta++) {
-    forEachY: for (let yDelta = 1; yDelta <= radius; yDelta++) {
-      // 计算距离平方
+  /** 构造一个数组，用于存储轮廓数据，初始化圆点 */
+  const contourPointAoa: [number, number][] = [[Math.round(xCenter), Math.round(yCenter)]]
+  for (let xDelta = 1; xDelta <= radius; xDelta++) {
+    for (let yDelta = 1; yDelta <= radius; yDelta++) {
       const distanceSquare = xDelta * xDelta + yDelta * yDelta
-      // 如果该点在半径外，即距离大于半径
       if (distanceSquare > radiusSquare) {
-        // 弃去这一轮，直接回到大遍历
-        continue forEachY
+        continue
       }
-      // 如果该点在半径内，则计算坐标点
       const xPossitive = Math.round(xCenter + xDelta)
       const yPossitive = Math.round(yCenter + yDelta)
       const xNegative = Math.round(xCenter - xDelta)
       const yNegative = Math.round(yCenter - yDelta)
-      // 推进框里
       contourPointAoa.push(
         [xPossitive, yPossitive],
         [xPossitive, yNegative],
@@ -1213,49 +1119,37 @@ function getContourPoints(contourData) {
       )
     }
   }
-  // 返回轮廓点数据
   return contourPointAoa
 }
 
 /**
  * 计算平均值和标准差
- * @param { number[] } arr 数组
- * @returns { [number, number] } 平均值和标准差
  */
-function aveAndSD(arr) {
-  // 加和
+function aveAndSD(arr: number[]): [number, number] {
   let sum = 0
-  // 遍历求加和
   for (let i = 0; i < arr.length; i++) {
-    sum = sum + arr[i]
+    sum = sum + arr[i]!
   }
-  // 算平均值
   const ave = sum / arr.length
-  // 清空加和
   sum = 0
-  // 遍历求方差
   for (let i = 0; i < arr.length; i++) {
-    sum = sum + (arr[i] - ave)**2
+    sum = sum + (arr[i]! - ave) ** 2
   }
-  // 算标准差
   const sd = Math.sqrt(sum / (arr.length - 1))
-  // 返回平均值和标准差
   return [ave, sd]
 }
 
 /**
  * 下载最终的结果文件
- * @param { Number[][][] } resultAoaoa 结果矩阵数据，[R-ave, G-ave, B-ave, A-ave, R-sd, G-sd, B-sd, A-sd][][][]
+ * @param resultAoaoa 结果矩阵数据
  */
-function downloadRGB(resultAoaoa) {
+function downloadRGB(resultAoaoa: number[][][]) {
   // 建立工作表文件的Map对象
-  const resultMap = new Map()
+  const resultMap = new Map<string, number[][]>()
   // 表格名称
   const sheetNameArr = ["R-Ave", "R-SD", "G-Ave", "G-SD", "B-Ave", "B-SD"]
-  // 遍历表格名称
   for (let i = 0; i < sheetNameArr.length; i++) {
-    // 把数据存入Map对象
-    resultMap.set(sheetNameArr[i], resultAoaoa[i])
+    resultMap.set(sheetNameArr[i]!, resultAoaoa[i]!)
   }
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)

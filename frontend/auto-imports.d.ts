@@ -16,6 +16,7 @@ declare global {
   const myMessage: typeof import('@utils/myPlugin.ts').myMessage
   const myWait: typeof import('@utils/myPlugin.ts').myWait
   const nextTick: typeof import('vue').nextTick
+  const onBeforeUnmount: typeof import('vue').onBeforeUnmount
   const onMounted: typeof import('vue').onMounted
   const readonly: typeof import('vue').readonly
   const ref: typeof import('vue').ref

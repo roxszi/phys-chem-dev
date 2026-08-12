@@ -2,9 +2,11 @@
 
 # 测试页面
 
-<!-- <ClientOnly>
+<!-- <ClientOnly> -->
 
-</ClientOnly> -->
+<Test />
+
+<!-- </ClientOnly> -->
 
 ## 备注格式备忘
 
