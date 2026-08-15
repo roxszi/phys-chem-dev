@@ -1155,21 +1155,35 @@ function contourMatrixToRGB(contourMatrixAoaoa: ([number, number, number] | unde
  * @param contourData 轮廓X、Y、半径
  */
 function getContourPoints(contourData: [number, number, number]): [number, number][] {
+  // 接数据
   const [xCenter, yCenter, radius] = contourData
+  // 如果半径小于1，则返回空数组
+  if (radius < 1) {
+    return []
+  }
   // radius平方
   const radiusSquare = radius * radius
   /** 构造一个数组，用于存储轮廓数据，初始化圆点 */
   const contourPointAoa: [number, number][] = [[Math.round(xCenter), Math.round(yCenter)]]
-  for (let xDelta = 1; xDelta <= radius; xDelta++) {
-    for (let yDelta = 1; yDelta <= radius; yDelta++) {
-      const distanceSquare = xDelta * xDelta + yDelta * yDelta
-      if (distanceSquare > radiusSquare) {
-        continue
-      }
+  // 从X开始遍历
+  forEachX: for (let xDelta = 1; xDelta <= radius; xDelta++) {
+    // 以 x² + y² <= r² 计算出 y 的最大值
+    // 计算 y² 的最大值
+    const ySquareMax = radiusSquare - xDelta * xDelta
+    // 计算 y 的最大值
+    const yDeltaMax = Math.sqrt(ySquareMax)
+    // 如果 y 的最大值小于1，则跳过
+    if (yDeltaMax < 1) {
+      continue forEachX
+    }
+    // 遍历 y
+    forEachY: for (let yDelta = 1; yDelta <= yDeltaMax; yDelta++) {
+      // 计算坐标点
       const xPossitive = Math.round(xCenter + xDelta)
       const yPossitive = Math.round(yCenter + yDelta)
       const xNegative = Math.round(xCenter - xDelta)
       const yNegative = Math.round(yCenter - yDelta)
+      // 推进框里
       contourPointAoa.push(
         [xPossitive, yPossitive],
         [xPossitive, yNegative],
@@ -1178,6 +1192,7 @@ function getContourPoints(contourData: [number, number, number]): [number, numbe
       )
     }
   }
+  // 返回轮廓点数据
   return contourPointAoa
 }
 

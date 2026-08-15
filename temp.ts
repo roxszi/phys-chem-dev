@@ -1,9 +1,7 @@
 
 /** 数据类型：显示标记 */
-type Marks = [number, ...number[], number]
+const a = Math.sqrt(0)
 
 
-const a: Marks = [1, 2]
+console.log(a)
 
-
-const [b, ...c, d] = a
