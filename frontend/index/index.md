@@ -52,11 +52,11 @@ features:
 #    details: 接触角测量后，需对图片进行的各类处理工作，以最终获得接触角数据。
 #    link: experiment/contact-angle/drop-pic-process.md
 #    linkText: 进入应用
-#  - title: 轮廓处理比色法
-#    icon: 🎨
-#    details: 轮廓处理比色法功能。
-#    link: experiment/outline-colorimetric/
-#    linkText: 进入应用
+- title: 轮廓处理比色法
+  icon: 🎨
+  details: 轮廓处理比色法功能。
+  link: experiment/outline-colorimetric/
+  linkText: 进入应用
 - title: 拉曼数据处理助手
   icon: ✨
   details: Andor拉曼光谱仪的sif文件数据转为excel表格的一键批处理工具。

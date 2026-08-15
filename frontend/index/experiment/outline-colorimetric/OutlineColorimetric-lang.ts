@@ -23,12 +23,12 @@ export const langDict = {
   FunctionIntroductionContent: {
     root: [
       "1. 读取所拍摄的样品图片。",
-      "2. 滑动阈值调节选框，并预览处理后的图片。",
-      "3. 可反复调整参数预览，直至参数合适，然后下载详细数据。",
+      "2. 框选并裁剪图片，保留待测区域。",
+      "3. 反复调整参数预览，直至参数合适，然后下载详细数据。",
     ],
     en: [
       "1. Read the sample image taken.",
-      "2. Slide the threshold adjustment box and preview the processed image.",
+      "2. Frame and crop the image, keeping the area to be measured.",
       "3. Adjust the parameters repeatedly to preview until the parameters are suitable, and then download the detailed data.",
     ],
   },
@@ -36,12 +36,12 @@ export const langDict = {
   // ================================ 步骤说明 ================================
 
   /** 步骤标题前缀 */
-  SetpTitle: {
+  StepTitle: {
     root: "步骤",
     en: "Step ",
   },
   /** 步骤1内容 */
-  Setp1Content: {
+  Step1Content: {
     root: [
       "首先点击「点击上传图片」读取图片。",
     ],
@@ -50,7 +50,7 @@ export const langDict = {
     ],
   },
   /** 步骤2内容 */
-  Setp2Content: {
+  Step2Content: {
     root: [
       "接下来需要将图片裁剪为合适的尺寸。",
       "点击/触控图片，可控制边框。",
@@ -63,7 +63,7 @@ export const langDict = {
     ],
   },
   /** 步骤3内容 */
-  Setp3Content: {
+  Step3Content: {
     root: [
       "为方便采集数据，提供了[二值化阈值]、[近圆度]、[面积滤过率]、[圆径缩放]滑轨。",
       "二值化即以0为黑，255为白。设定一个[二值化阈值]，对于灰度化处理后的照片，每个像素点高于阈值的均赋值为白(255)，低于阈值的均赋值为黑(0)。阈值越低(越黑)，则越多深色像素被定义为白；反之阈值越高(越白)，则越多浅色像素被定义为黑。",
@@ -122,15 +122,10 @@ export const langDict = {
     root: "正在启动OpenCV.js计算机视觉模块，请稍候...",
     en: "Starting OpenCV.js computer vision module, please wait...",
   },
-  /** 错误对话框标题（myError 流程使用） */
+  /** 错误提示标题（errorToast 流程使用） */
   ErrorDialogTitle: {
     root: "程序报错",
     en: "Program Error",
-  },
-  /** 错误对话框内容 */
-  ErrorDialogContent: {
-    root: "欢迎向软件开发人员（13611580728 司承运）主动告知此bug，以便及时修复。",
-    en: "Welcome to inform the software development personnel (+8613611580728 SI_Cheng-Yun) of this bug actively so that it can be repaired in time.",
   },
   /** 读取照片加载提示 */
   PicLoadingContent: {
