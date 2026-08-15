@@ -4,9 +4,9 @@
  */
 
 // 导入TDesign插件
-import { LoadingPlugin, DialogPlugin, MessagePlugin } from "tdesign-mobile-vue"
+import { LoadingPlugin, DialogPlugin, MessagePlugin } from "tdesign-vue-next"
 // 导入数据类型
-import type { LoadingInstance } from "tdesign-mobile-vue"
+import type { LoadingInstance, DialogInstance } from "tdesign-vue-next"
 
 /**
  * 全局对象
@@ -15,8 +15,10 @@ import type { LoadingInstance } from "tdesign-mobile-vue"
  */
 const myPluginObj: {
   loadingInstance: LoadingInstance | undefined,
+  dialogInstance: DialogInstance | undefined
 } = {
   loadingInstance: undefined,
+  dialogInstance: undefined
 }
 
 
@@ -34,28 +36,24 @@ export function myLoading(text?: (string | false)) {
     myPluginObj.loadingInstance = LoadingPlugin({
       // 延迟（毫秒）
       delay: 500,
-      // 一次完整动画的周期（毫秒）
-      duration: 1000,
       // 是否全屏
       fullscreen: true,
-      // 是否用默认加载指示符
+      // 加载指示符
       indicator: true,
       // 是否继承父类颜色
       inheritColor: false,
-      // 对齐方式 "horizontal" | "vertical"
-      layout: "vertical",
       // 是否加载中
       loading: true,
-      // 是否暂停动画
-      pause: false,
-      // 是否反向旋转
-      reverse: false,
-      // 尺寸 "20px"
+      // 是否防穿透
+      preventScrollThrough: true,
+      // 是否显示遮罩层
+      showOverlay: true,
+      // 尺寸
       size: "20%",
       // 文案
       text: text,
-      // 主题类型 "circular" | "spinner" | "dots"
-      theme: "circular"
+      // 层级
+      zIndex: 3500
     })
   }
 }
@@ -63,80 +61,80 @@ export function myLoading(text?: (string | false)) {
 
 /** 对话框的传参的数据类型 */
 interface MyDialogParam {
+  /** 对话框风格，默认info */
+  theme?: "default" | "info" | "warning" | "danger" | "success"
   /** 标题 */
-  title?: string
+  header?: string
   /** 内容 */
-  content: string
+  body: string
   /** 确认按钮的文字内容 */
   confirmBtn?: string
   /** 取消按钮的文字内容 */
   cancelBtn?: string
   /** 确认回调 */
-  onConfirmCallBack?: ((context: { e: MouseEvent }) => void)
+  onConfirmCallBack?: ((context: { e: MouseEvent | KeyboardEvent }) => void)
 }
 /**
  * 对话框
  * @param myDialogParam 参数
  */
 export function myDialog(myDialogParam: MyDialogParam | string) {
-  // 根据传参类型，创建参数对象
-  /** 传参对象 */
-  const paramObj: MyDialogParam =
-    (typeof myDialogParam === "string")
-      // 传参为字符串时：
-      ? {
-        title: undefined,
-        content: myDialogParam,
-        confirmBtn: "确认",
-        cancelBtn: undefined,
-        onConfirmCallBack: undefined,
-        // onCancelCallBack: undefined,
-      }
-      // 传参为对象时：
-      : {
-        title: myDialogParam.title,
-        content: myDialogParam.content,
-        confirmBtn: myDialogParam.confirmBtn ?? "确认",
-        // 取消按钮要独立处理：如果没有确认回调，那就不用显示了
-        cancelBtn: (!myDialogParam.onConfirmCallBack)
-          ? undefined
-          : (myDialogParam.cancelBtn ?? "取消")
-          ,
-        onConfirmCallBack: myDialogParam.onConfirmCallBack,
-        // onCancelCallBack: undefined,
-      }
-  // 创建对话框实例
-  DialogPlugin.show({
-    /** 操作栏 */
-    // actions: Array<ButtonProps>
-    /** 多按钮排列方式 - "horizontal" | "vertical" */
-    buttonLayout: "vertical",
-    /** 取消按钮的文字内容 */
-    cancelBtn: paramObj.cancelBtn,
-    /** 是否显示关闭小叉叉 */
+  // 如果已有dialog实例，则先关闭并销毁
+  myPluginObj.dialogInstance?.destroy()
+  // 如果传参是字符串，则直接赋值给body
+  if (typeof myDialogParam === "string") {
+    myDialogParam = { body: myDialogParam }
+  }
+  // 解构赋值获取传参
+  const {
+    theme = "info",
+    header,
+    body,
+    confirmBtn = undefined,
+    onConfirmCallBack = () => { },
+  } = myDialogParam
+  // 取消按钮要独立处理：如果没有确认回调，那就不用显示了
+  const cancelBtn =
+    myDialogParam.onConfirmCallBack
+      ? myDialogParam.cancelBtn
+      : null
+  // 创建对话框实例，赋值给全局对象
+  myPluginObj.dialogInstance = DialogPlugin({
+    // 对话框模式：模态框
+    mode: "modal",
+    // 位置：居中
+    placement: "center",
+    // 主题：信息
+    theme: theme,
+    // 关闭按钮：不显示
     closeBtn: false,
-    /** 点击蒙层时是否触发关闭事件 */
-    closeOnOverlayClick: false,
-    /** 确认按钮的文字内容 */
-    confirmBtn: paramObj.confirmBtn,
-    /** 通知内容 */
-    content: paramObj.content,
-    /** 是否在关闭弹框的时候销毁子元素 */
+    // 关闭即销毁
     destroyOnClose: true,
-    /** 防止滚动穿透 */
-    preventScrollThrough: true,
-    /** 是否显示遮罩层 */
-    showOverlay: true,
-    /** 标题 */
-    title: paramObj.title,
-    /** 是否显示 */
-    visible: true,
-    /** 宽度 */
-    width: "auto",
+    // 对话框标题
+    header: header,
+    // 对话框内容
+    body: body,
+    // 页脚内容，即按钮
+    footer: true,
+    // 确认按钮文字
+    confirmBtn: confirmBtn,
+    // 确认按钮loading状态
+    confirmLoading: false,
+    // 回车即确认
+    confirmOnEnter: true,
+    // 取消按钮文字
+    cancelBtn: cancelBtn,
     // 取消回调
     // onCancel: undefined,
     // 确认回调
-    onConfirm: paramObj.onConfirmCallBack,
+    onConfirm: (context) => {
+      // 回调传参
+      onConfirmCallBack(context)
+      // 销毁对话框
+      myPluginObj.dialogInstance?.destroy()
+    },
+    // 点击蒙层
+    // onOverlayClick: undefined
   })
 }
 
@@ -148,34 +146,25 @@ export function myDialog(myDialogParam: MyDialogParam | string) {
  */
 export function myMessage(
   content: string,
-  theme: ("info" | "success" | "warning" | "error") = "info"
+  theme: ("info" | "success" | "warning" | "error" | "loading") = "info"
 ) {
   // 调用TDesign的MessagePlugin方法
-  MessagePlugin[theme]({
-    /** 对齐方式 - "left" | "center" */
-    align: "center",
-    /** 关闭按钮 */
-    closeBtn: false,
-    /** 内容 */
-    content: content,
-    /** 显示时长，毫秒 */
-    duration: 1500,
-    // /** 多条消息间的间距，string | number | boolean */
-    // gap: 12,
-    /** 图标 */
-    icon: true,
-    // /** 链接 */
-    // link: {},
-    // /** 跑马灯效果 */
-    // marquee: {},
-    /** 是否仅显示1条信息 */
-    /** 偏移量，相对于placement的偏移量。[ 上下空出偏移量, 左右空出偏移量 ] */
-    offset: [undefined, "10%"],
-    single: false,
-    /** 是否显示 */
-    visible: true,
-    defaultVisible: true,
-  })
+  MessagePlugin(
+    // 组件风格
+    theme,
+    {
+      // 关闭按钮
+      closeBtn: false,
+      // 内容
+      content: content,
+      // 图标
+      icon: true,
+      // 位置：居中
+      placement: "center",
+    },
+    // 显示时长
+    1500
+  )
 }
 
 

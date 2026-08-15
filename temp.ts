@@ -1,9 +1,9 @@
 
+/** 数据类型：显示标记 */
+type Marks = [number, ...number[], number]
 
-let a = Number("")
 
-// const b = Number(a)
+const a: Marks = [1, 2]
 
-console.log(isNaN(a))
 
-console.log(a)
+const [b, ...c, d] = a

@@ -3,9 +3,7 @@
 # 测试页面
 
 <!-- <ClientOnly> -->
-
-<Test />
-
+  <Test />
 <!-- </ClientOnly> -->
 
 ## 备注格式备忘

@@ -1,13 +1,22 @@
-<!-- 
-  自用表格组件
-  在某些情况下，VitePress内置样式被TDsign隔离，无法直接使用
-  因此以TDesign表格组件为参考，自己封装了一个AOA二维数组驱动的轻量表格组件
-  
+<!--
+  自用表格组件（t-table 封装版）
+  ---
+  与 MyTable 的取舍：
+  - 简单数据展示（如拟合结果、参数表）→ 优先用 MyTable
+    - 原生 <table>，性能更好（无 t-table 内部计算开销）
+    - 通过 .vp-doc 父容器继承 VitePress 的表格样式（自动跟版本升级）
+  - 需要 t-table 高级特性时 → 用 MyTTable
+    - 虚拟滚动（大数据集场景）
+    - 列排序 / 过滤 / 多列合并
+    - 斑马纹 / 边框 / hover 高亮等 t-table 内置样式
+    - 缺点：t-table 内部用 scoped CSS 隔离样式，**不继承** VitePress 表格样式
+
   设计要点：
   - 数据源是 titleArr[] 数组，以及 dataAoa[][] 二维数组
-  - 序号列组件内置，为 1, 2, 3... 自增
-  - 操作列通过 #actions slot 暴露行级数据（dataArrIndex）
-  - 无样式。可继承 VitePress 样式
+  - 序号列组件内置（isNeedIndex 控制是否显示，默认 true）
+  - 操作列通过 #actions slot 暴露行级数据（rowIndex）
+  - 用 watch(props, deep: true) 桥接 props → t-table columns/data 浅层 ref
+    （浅层 ref 不追踪内部字段变化，必须整体替换 .value；deep: true 覆盖父组件原地 mutate 子数组/leaf 数字 cell 的场景）
 
   AOA 约定结构：
   - dataArr 为一行数据，与 titleArr 长度一致

@@ -6,7 +6,8 @@ import { h } from "vue"
 // 导入主题重写组件
 import BaseLayout from "../layouts/BaseLayout.vue"
 // 导入TDesign的基础样式
-import "tdesign-mobile-vue/es/style/index.css"
+// import "tdesign-vue-next/es/style/index.css"
+import "./tdesign-theme.css"
 // 以VitePress基础样式变量，构建TDesign基础全局样式
 // import "./bridge.css"
 // 导入自建样式

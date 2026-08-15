@@ -23,12 +23,16 @@
   },
   // 需要被编译器处理的文件/路径
   "include": [
+    // TDesign组件库
+    "node_modules/tdesign-vue-next/global.d.ts",
     // 前端源码
     "frontend/**/*",
     // 对于“.”开头的“.vitepress”目录，需显式添加
     "frontend/.vitepress/**/*",
     // 公共文件
-    "shared/**/*"
+    "shared/**/*",
+    // 临时测试用文件
+    "temp.ts"
   ],
   // 编译处理过程中需被直接排除的文件/路径
   "exclude": [

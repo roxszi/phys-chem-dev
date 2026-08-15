@@ -22,7 +22,11 @@
     "types": [ "node" ]
   },
   // 需要被编译器处理的文件/路径
-  "include": ["backend/**/*", "shared/**/*"],
+  "include": [
+    "backend/**/*",
+    "shared/**/*",
+    "temp.ts"
+  ],
   // 编译处理过程中需被直接排除的文件/路径
   "exclude": ["node_modules"]
 }

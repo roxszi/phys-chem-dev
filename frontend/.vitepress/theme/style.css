@@ -2,7 +2,7 @@
  * 全局样式
  */
 
-/* 自定义全局样式变量 */
+/* ==================== 自定义全局样式变量 ==================== */
 :root {
   /* 主页的文字标题 */
   /* 文字标题 */
@@ -24,6 +24,118 @@
 
 }
 
+/* ==================== 全局样式 ==================== */
+:root {
+  /* 全局计算考虑父元素padding等边缘 */
+  box-sizing: border-box;
+}
+
+/* ==================== 覆盖TDesign样式 ==================== */
+
+/**
+ * t-upload样式
+ * t-upload 可能有内部scoped，所以放在这里，全局覆盖
+ */
+/* 重写上传卡片容器的格式 */
+.t-upload__card {
+  /* 左右内边距 */
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  /* 排列方向：纵向 */
+  flex-direction: column;
+}
+/* 重写卡片内容容器（上传按钮） */
+.t-upload__card-container {
+  /* 宽度 */
+  width: 100%;
+}
+/* 重写卡片内容（渲染图） */
+.t-upload__card-content {
+  /* 不用内边距了 */
+  padding: 0;
+  /* 宽度，确保居中 */
+  width: 100%;
+  /* 高度 */
+  height: 300px;
+}
+/* 重写渲染图 */
+.t-upload img {
+  /* 外边距为0 */
+  margin: 0;
+}
+/* 重写蒙层 */
+.t-upload__card-mask {
+  /* 透明度：50% */
+  opacity: 0.5;
+}
+/* 重写蒙层按钮 */
+.t-upload__card-mask-item {
+  width: 40%;
+  height: 40%;
+}
+/* 重写卡片蒙层图标 */
+.t-upload__card-mask-item > svg {
+  /* 图标大小：100%父级尺寸 */
+  width: 100%;
+  height: 100%;
+}
+/* 重写图片下方的文字 */
+/* .t-upload__card-name { */
+  /* 文字大小 */
+  /* font-size: var(--td-font-size-body-medium); */
+/* } */
+
+/**
+ * t-slider样式
+ * t-slider 可能有内部scoped，所以放在这里，全局覆盖
+ */
+:root {
+  --my-slider: var(--td-size-4);
+}
+/* t-slider滑轨按钮的尺寸 */
+.t-slider__button {
+  width: var(--td-comp-size-xs);
+  height: var(--td-comp-size-xs);
+}
+/* t-slider滑轨槽的尺寸 */
+.t-slider__rail {
+  height: var(--my-slider);
+}
+/* t-slider滑轨的尺寸 */
+.t-slider__track {
+  height: var(--my-slider);
+}
+/* 滑轨下方的标记栏 */
+.t-slider__mark {
+  top: var(--my-slider);
+}
+/* t-slider滑轨下方文字的尺寸 */
+.t-slider__mark-text {
+  font: var(--td-font-body-medium);
+}
+
+
+
+
+
+
+
+/* 抽屉按列方向实现滚动 */
+.my-drawer {
+  /* 计算外边距时算上父元素边框 */
+  box-sizing: border-box;
+  /* 占满父级100%高度 */
+  height: 100%;
+  /* 纵向滚动：auto */
+  overflow-y: auto;
+  /* 横向滚动：不显示 */
+  overflow-x: hidden;
+  /* 上下内边距 */
+  padding: var(--my-gap) auto;
+}
+
+/* ==================== 覆盖VitePress样式 ==================== */
+
 /* 覆盖 vp-doc table 样式 */
 .vp-doc table {
   /* vp默认样式：块级 */
@@ -44,13 +156,29 @@
   text-align: center;
 }
 
+/* ==================== 组件样式 ==================== */
 
-/*
- * 自定义全局样式类
+/* 滑轨整体元素不占flex block，因此计算引用值 */
+.my-slider {
+  margin-bottom: calc(var(--my-slider) * 3);
+}
+
+/* 图表 */
+.my-chart {
+  /* 最大高度 */
+  max-height: 70vh
+}
+
+/**
+ * ==================== 自定义全局样式类 ====================
+ * - 功能拆分：每个样式类只专注于一个目的
  */
 
 /* 宽度100% */
 .my-w100 {
+  /* 计算考虑父元素padding等边缘 */
+  box-sizing: border-box;
+  /* 宽度100% */
   width: 100%;
 }
 
@@ -66,32 +194,32 @@
   padding: var(--my-gap) auto;
 }
 
-/* 间距 */
-.my-gap {
-  /* 子元素间距 */
-  gap: var(--my-gap);
+/* 小节 */
+.my-section {
+  /* 内边距 */
+  padding: calc(var(--my-gap) / 2) calc(var(--my-gap) * 2);
 }
 
 /* 列排布 */
 .my-column {
+  /* 计算考虑父元素padding等边缘 */
+  box-sizing: border-box;
+  /* 占满100%父级宽度 */
+  width: 100%;
   /* flex弹性盒子布局 */
   display: flex;
   /* 排列方向：纵向 */
   flex-direction: column;
-  /* 换行（只有横向排列会受到影响） */
-  flex-wrap: wrap;
   /* （垂直方向）内容：两边间距适度 */
   justify-content: space-around;
   /* （沿线方向）内容对齐方式：两边间距适度 */
   align-content: space-around;
   /* （沿线方向）内容两边对齐方式：拉伸对齐stretch | 居中center */
-  align-items: center;
+  /* align-items: center; */
 }
 
 /* 行排布 */
 .my-row {
-  /* 宽度100%父元素 */
-  /* width: 100%; */
   /* flex弹性盒子布局 */
   display: flex;
   /* 排列方向：纵向 */
@@ -106,22 +234,20 @@
   align-items: center;
 }
 
-/* 抽屉按列方向实现滚动 */
-.my-drawer {
-  /* 占满父级100%高度 */
-  height: 100%;
-  /* 纵向滚动：auto */
-  overflow-y: auto;
-  /* 横向滚动：不显示 */
-  overflow-x: hidden;
-  /* 上下内边距 */
-  padding: var(--my-gap) auto;
-  /* 计算外边距时算上边框 */
-  box-sizing: border-box;
+/* 间距。必须配合 flex、grid 等布局 */
+.my-gap {
+  /* 子元素间距 */
+  gap: var(--my-gap);
 }
 
-/* 图表 */
-.my-chart {
-  /* 最大高度 */
-  max-height: 70vh
+/* 居中 */
+.my-center {
+  /* 弹性盒子布局 */
+  display: flex;
+  /* 水平均匀分散 */
+  justify-content: space-around;
+  /* 垂直居中 */
+  align-items: center;
+  /* 外边距 */
+  margin: auto;
 }

@@ -283,7 +283,7 @@ async function loadOpenCV(profile: OpenCVProfile = "min") {
  * @param profile OpenCV.js 构建种类（min | all），默认 "min"
  * @example
  * ```ts
- * const { OpenCVStatus, OpenCV, OpenCVVariant, ensureOpenCVReady } = useOpenCV()
+ * const { OpenCVStatusRef, OpenCVRef, OpenCVVariantRef, ensureOpenCVReady } = useOpenCV()
  * onMounted(() => ensureOpenCVReady())
  * ```
  */
@@ -317,11 +317,11 @@ export function useOpenCV(profile: OpenCVProfile = "min") {
   // 返回 composables 内容（readonly() 包裹保证外部不能直接修改状态机）
   return {
     /** 状态机："idle" | "loading" | "ready" | "error"，外部只读 */
-    OpenCVStatus: readonly(_status),
+    OpenCVStatusRef: readonly(_status),
     /** 加载成功的 OpenCV.js 运行时（含 cv.Mat / cv.Canny 等 API），外部只读 */
-    OpenCV: readonly(_cvRef),
+    OpenCVRef: readonly(_cvRef),
     /** 实际加载的变体，外部只读 */
-    OpenCVVariant: readonly(_variant),
+    OpenCVVariantRef: readonly(_variant),
     /** 触发加载，幂等 */
     ensureOpenCVReady: ensureReady,
   }

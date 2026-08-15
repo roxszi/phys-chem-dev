@@ -26,6 +26,7 @@ declare global {
   const useData: typeof import('vitepress').useData
   const useLang: typeof import('./composables/useLang').useLang
   const useOpenCV: typeof import('./composables/useOpenCV').useOpenCV
+  const useRouter: typeof import('vitepress').useRouter
   const useTFjs: typeof import('./composables/useTFjs').useTFjs
   const useTemplateRef: typeof import('vue').useTemplateRef
   const watch: typeof import('vue').watch

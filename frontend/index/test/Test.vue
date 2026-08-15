@@ -11,36 +11,28 @@
  -->
 <template>
 
-  <t-upload
-    v-model:files="fileArrRef"
-    :autoUpload="false"
-    :disabled="true"
-    :multiple="false"
-    theme="list"
-    :max="1"
-    :onChange="onChange"
+  <div class="my-column">
+  <MyNoticeBar
+    title="测试"
   >
+    <p>ddd</p>
+    <p><strong>小标题。</strong>继续写内容。</p>
+  </MyNoticeBar>
 
-    <template #addContent>
-      <MyButton
-        :disabled="true"
-      
-      >上传</MyButton>
-    </template>
-  </t-upload>
-
-
-  <MyUpload
-    v-model:files="fileArrRef"
+  <MySlider
+    title="测试"
+    v-model:value="sliderValueRef"
+    :marks="[0,20,40,60,80,100]"
     :onChange="onChange"
-  ></MyUpload>
+  />
 
-
-
-
-
-
-
+  <MySlider
+    title="测试"
+    v-model:value="sliderValueRef"
+    :marks="[0,20,40,60,80,100]"
+    :onChange="onChange"
+  />
+</div>
 </template>
 
 
@@ -49,17 +41,24 @@
  -->
 <script setup lang="ts">
 
-import type { UploadFile, UploadChangeContext } from "tdesign-mobile-vue"
 
-const fileArrRef = ref<UploadFile[]>([])
 
-function onChange(value: UploadFile[], context: UploadChangeContext) {
-  console.log("value: ", value[0])
-  console.log("context: ", context)
-}
+const sliderValueRef = ref(20)
+const marks = {
+  0: '0',
+  20: '20',
+  40: '40',
+  60: '60',
+  80: '80',
+  100: '100',
+};
 
 function onFail() {
   console.log("上传失败")
+}
+
+function onChange(value) {
+  console.log("value: ", value)
 }
 
 </script>

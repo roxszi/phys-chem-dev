@@ -13,16 +13,24 @@ const visibleModel = defineModel<boolean>("visible", { default: false })
 
 /** 本组件的传参数据类型 */
 interface MyDrawerProps {
-  /** 标题 */
+  /** 标题内容 */
   title?: string
-  /** 按钮文字 */
+  /** 底部按钮文字 */
   buttonText?: string
+  /** 是否在父组件呈现 */
+  isAttached?: boolean
+  /** 尺寸 */
+  size?: string
+  /** 是否可拖动 */
+  isSizeDraggable?: boolean
 }
 
 /** 组件传参 */
 const props = withDefaults(defineProps<MyDrawerProps>(), {
-  /** 按钮文字 */
-  buttonText: "关闭抽屉"
+  buttonText: "关闭抽屉",
+  isAttached: false,
+  size: "80%",
+  isSizeDraggable: false,
 })
 
 </script>
@@ -32,30 +40,44 @@ const props = withDefaults(defineProps<MyDrawerProps>(), {
   视图层
  -->
 <template>
-<!-- t-drawer实现 -->
-<t-drawer v-model:visible="visibleModel">
-
-  <!-- 标题文字 -->
-  <template #title>{{ props.title }}</template>
-
-  <!-- <h3 class="t-drawer__title">📈 拟合数据</h3> -->
-
-  <!-- 内容区 -->
-  <div class="my-drawer">
-    <slot></slot>
-  </div>
-
-  <!-- 页脚 -->
-  <template #footer>
-    <MyButton
-      :block="false"
-      variant="outline"
-      size="small"
-      @click="visibleModel = false"
-    >
-      {{ props.buttonText }}
-    </MyButton>
-  </template>
-
-</t-drawer>
+  <!-- t-drawer实现 -->
+  <t-drawer
+    v-model:visible="visibleModel"
+    :showInAttachedElement="props.isAttached"
+    :size="props.size"
+    :sizeDraggable="props.isSizeDraggable"
+    :cancelBtn="null"
+    :closeBtn="false"
+    :closeOnEscKeydown="false"
+    :closeOnOverlayClick="true"
+    :confirmBtn="null"
+    :destroyOnClose="false"
+    :lazy="true"
+    mode="overlay"
+    placement="right"
+    :preventScrollThrough="true"
+    :showOverlay="true"
+  >
+    <!-- 标题文字 -->
+    <template #header>{{ props.title }}</template>
+    <!-- 主体内容 -->
+    <template #body>
+      <!-- <h3 class="t-drawer__title">📈 拟合数据</h3> -->
+      <!-- 内容容器 -->
+      <div class="my-drawer">
+        <slot />
+      </div>
+    </template>
+    <!-- 页脚 -->
+    <template #footer>
+      <!-- “关闭抽屉”按钮 -->
+      <MyButton
+        :ghost="true"
+        size="large"
+        @click="(visibleModel = false)"
+      >
+        {{ props.buttonText }}
+      </MyButton>
+    </template>
+  </t-drawer>
 </template>

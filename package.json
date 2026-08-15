@@ -45,7 +45,7 @@
     "@vueuse/core": "^14.4.0",
     "echarts": "^6.1.0",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-mobile-vue": "^1.16.1",
+    "tdesign-vue-next": "^1.20.5",
     "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "unplugin-auto-import": "^21.1.0",

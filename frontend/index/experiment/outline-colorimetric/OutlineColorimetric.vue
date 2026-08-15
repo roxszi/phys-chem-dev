@@ -23,33 +23,31 @@
 -->
 
 
-<!-- 视图层 -->
-<template>
-
-
-
-
-
-
-<div class="my-column my-gap">
+<!--
+  视图层
+-->
+<template><div class="my-column my-gap">
 
   <!-- 警报框：功能简介 -->
-  <MyAlert :title="langRef.FunctionIntroductionTitle" theme="info">
-    <div v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
+  <MyNoticeBar
+    :title="langRef.FunctionIntroductionTitle"
+    theme="info"
+  >
+    <p v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
       {{ content }}
-    </div>
-  </MyAlert>
+    </p>
+  </MyNoticeBar>
 
-  <!-- 警报框：步骤1 -->
-  <MyAlert
+  <!-- canvas头 - 警报框：步骤1 -->
+  <MyNoticeBar
     v-if="taskStatusRef === 1"
     :title="langRef.SetpTitle + '1'"
     theme="warning"
   >
-    <div v-for="(content, index) of langRef.Setp1Content" :key="index">
+    <p v-for="(content, index) of langRef.Setp1Content" :key="index">
       {{ content }}
-    </div>
-  </MyAlert>
+    </p>
+  </MyNoticeBar>
 
   <!--
     图片上传
@@ -59,33 +57,34 @@
       删除则清空所有数据，回到初始状态（状态1）。
    -->
   <MyUpload
-    class="center"
-    v-model="fileArrRef"
-    :size-limit-mb="10"
-    @change="onPicChange"
+    v-model:files="fileArrRef"
+    accept="image/*"
+    :max="1"
+    theme="image"
+    :onChange="onPicChange"
   />
 
-  <!-- 警报框：步骤2 -->
-  <MyAlert
+  <!-- canvas头 - 警报框：步骤2 -->
+  <MyNoticeBar
     v-if="taskStatusRef === 2"
     :title="langRef.SetpTitle + '2'"
     theme="warning"
   >
-    <div v-for="(content, index) of langRef.Setp2Content" :key="index">
+    <p v-for="(content, index) of langRef.Setp2Content" :key="index">
       {{ content }}
-    </div>
-  </MyAlert>
+    </p>
+  </MyNoticeBar>
 
-  <!-- 警报框：步骤3 -->
-  <MyAlert
+  <!-- canvas头 - 警报框：步骤3 -->
+  <MyNoticeBar
     v-if="taskStatusRef === 3"
     :title="langRef.SetpTitle + '3'"
     theme="warning"
   >
-    <div v-for="(content, index) of langRef.Setp3Content" :key="index">
+    <p v-for="(content, index) of langRef.Setp3Content" :key="index">
       {{ content }}
-    </div>
-  </MyAlert>
+    </p>
+  </MyNoticeBar>
 
   <!--
     canvas元素块
@@ -104,7 +103,7 @@
   </div>
 
   <!--
-    canvas脚-步骤2
+    canvas脚 - 步骤2
     主要就是遮罩裁剪。主要交互放在canvas上了。这里只是按钮。
     onSureRect：确定选框并裁剪。
    -->
@@ -140,18 +139,16 @@
   >
     <!-- 遍历3个滑轨参数 -->
     <MySlider
-      v-for="(thresholdNumArr, index) of thresholdNumAoaRef"
+      v-for="(thresholdNumArr, index) of thresholdSliderAoaRef"
       :key="index"
       :title="langRef.ThresholdParamsLabel[index]"
-      v-model="thresholdNumArr[0]"
-      :range="thresholdNumArr[4]"
-      :min="thresholdNumArr[1]"
-      :max="thresholdNumArr[2]"
-      :step="thresholdNumArr[5]"
-      :marks="thresholdNumArr[3]"
-      :label="true"
-      @change="onSlideChange(index)"
+      v-model:value="thresholdNumArr[0]"
+      :marks="thresholdNumArr[1]"
+      :step="thresholdNumArr[2]"
+      :onChange="onSlideChange"
     />
+
+    <!-- 按钮：下载数据 -->
     <MyButton
       :block="true"
       theme="danger"
@@ -177,23 +174,61 @@ import { aoaMapToWorkbook, downloadXlsx } from "@utils/xlsx.ts"
 import { useOpenCV } from "@composables/useOpenCV.ts"
 // 导入本组件语言包
 import { langDict } from "./OutlineColorimetric-lang.ts"
+// 导入组件数据类型
+import type {
+  // 上传
+  UploadFile, UploadChangeContext,
+  // 滑轨
+  SliderValue, MySliderMarks
+} from "@components/types.ts"
+
+// ==================== 类型声明 ====================
+
+/** 第3步确定轮廓的上下限范围的滑轨传参对象 */
+type ThresholdSliderArr = [
+  /** 当前值 */
+  SliderValue,
+  /** marks标记 */
+  MySliderMarks,
+  /** 步长 */
+  number
+]
+
+/**
+ * canvas 选框 [左|上|右|下] 坐标
+ * 初始化为 null，第一次点击后才有值
+ */
+type Rect = {
+  xMin: number | undefined
+  yMin: number | undefined
+  xMax: number | undefined
+  yMax: number | undefined
+}
+
+/**
+ * 轮廓数据：[面积, 圆心X, 圆心Y, 半径, 是否绘图标记]
+ * 末尾 boolean? 表示是否在筛选范围内（drawContours 时设置）
+ */
+type ContourRow = [number, number, number, number, boolean?]
+
+// ==================== 对象声明 ====================
 
 /**
  * OpenCV.js 加载：单例 composable
  * - OpenCV 是 readonly Ref<OpenCV | null>，加载成功后即 ready
  * - ensureOpenCVReady() 幂等：多次调用复用同一 Promise
  */
-const { OpenCV, ensureOpenCVReady } = useOpenCV()
+const { OpenCVRef, ensureOpenCVReady } = useOpenCV()
 
 /** 派生当前语言的响应式语言包（root / en） */
 const langRef = useLang(langDict)
 
 /**
  * 任务状态：
- * 1 - 未开始，或删除了图片。正在等待读取图片；
- * 2 - 读取到了图片。正在选框裁剪图片；
- * 3 - 完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
- * 4 - 完成了轮廓确认，计算RGB。
+ * 1.  未开始，或删除了图片。正在等待读取图片；
+ * 2.  读取到了图片。正在选框裁剪图片；
+ * 3.  完成了选框，得到了裁剪的图片。正在寻找并确定轮廓；
+ * 4.  完成了轮廓确认，计算RGB。
  *     其实并不存在状态4，因为计算RGB是最后一步，没有下一步了。
  */
 const taskStatusRef = ref<1 | 2 | 3>(1)
@@ -205,72 +240,29 @@ const fileArrRef = ref<UploadFile[]>([])
  * 实测nextTick、onMounted都不如watch。
  */
 const canvasRef = useTemplateRef<HTMLCanvasElement>("canvasRef")
-/**
- * 第三步确定轮廓的上下限范围数组对象
- */
-const thresholdNumAoaRef = ref<ThresholdNumAoa>([])
 
-/**
- * 第三步确定轮廓的上下限范围数组对象-常量
- * 每一行：[当前值, 最小值, 最大值, marks标记, 是否range, 步长]
- * 注：当前值在 range=true 时是 [min, max] 双值；非 range 时是 number
- */
-type ThresholdNumRow = [
-  number | [number, number],  // 当前值
-  number,                       // 最小值
-  number,                       // 最大值
-  number[] | Record<number, string>,  // marks 标记
-  boolean,                      // 是否 range
-  number                        // 步长
-]
-type ThresholdNumAoa = [
-  ThresholdNumRow,  // 二值化阈值
-  ThresholdNumRow,  // 面积位次
-  ThresholdNumRow   // 圆径缩放因子
-]
+/** 第三步确定轮廓的上下限范围数组对象 */
+const thresholdSliderAoaRef = ref<ThresholdSliderArr[]>([])
 
-const thresholdNumAoaConst: ThresholdNumAoa = [
-  // 二值化阈值：当前值、最小值、最大值、marks标记、是否range、步长
-  [50, 0, 200, [0, 50, 100, 150, 200], false, 1],
+/** 第三步确定轮廓的上下限范围数组对象-常量 */
+const thresholdSliderAoaConst: ThresholdSliderArr[] = [
+  // 二值化阈值：当前值、marks标记、步长
+  [50, [0, 50, 100, 150, 200], 1],
   // 面积位次：当前值、最小值、最大值、marks标记、是否range、步长
-  [[0, 100], 0, 100, [0, 25, 50, 75, 100], true, 1],
+  [[0, 100], [0, 25, 50, 75, 100], 1],
   // 圆径缩放因子：当前值、最小值、最大值、marks标记、是否range、步长
-  [0.5, 0, 1, [0, 0.25, 0.5, 0.75, 1], false, 0.1]
+  [0.5, [0, 0.25, 0.5, 0.75, 1], 0.1]
 ]
 
 /**
- * canvas 选框 [左|上|右|下] 坐标
- * 初始化为 null，第一次点击后才有值
- */
-type Rect = {
-  xMin: number | null
-  yMin: number | null
-  xMax: number | null
-  yMax: number | null
-}
-
-/**
- * 轮廓数据：[面积, 圆心X, 圆心Y, 半径, 是否绘图标记]
- * 末尾 boolean? 表示是否在筛选范围内（drawContours 时设置）
- */
-type ContourRow = [number, number, number, number, boolean?]
-
-/**
- * OpenCV.js Mat 实例类型
- * 业务持有后须显式 .delete() 释放 WASM 内存
- * 注：不从 useOpenCV 模块导入类型（模块只导出 composable 函数与状态枚举，
- *     OpenCV 实例类型由 composable 内部推导，外部以 any 持有即可）
- */
-type OpenCVMat = any
-
-/**
- * 轮廓-比色法业务的全局对象（非响应式：业务逻辑持有，不进视图层）
+ * 轮廓-比色法业务的全局对象
+ * - 非响应式：业务逻辑持有，不进视图层
  */
 const outlineColorimetricObj: {
   /** canvas 显示宽度（px） */
   canvasStyleWidth: number | null
   /** 所上传文件的文件名 */
-  filename: string | null
+  filename: string | undefined
   /** canvas 2D 绘图上下文 */
   ctx: CanvasRenderingContext2D | null
   /** canvas 元素块的缩放比例：实际/显示 */
@@ -289,17 +281,17 @@ const outlineColorimetricObj: {
   circleAreaArr: number[]
 } = {
   canvasStyleWidth: null,
-  filename: null,
+  filename: undefined,
   ctx: null,
   canvasScaling: 0.0,
   matGray: null,
   imageData: null,
   imageBitmap: null,
   rect: {
-    xMin: null,
-    yMin: null,
-    xMax: null,
-    yMax: null,
+    xMin: undefined,
+    yMin: undefined,
+    xMax: undefined,
+    yMax: undefined,
   },
   contourAoa: [],
   circleAreaArr: []
@@ -311,18 +303,22 @@ const {
   elementX, elementY,
 } = useMouseInElement(canvasRef)
 
-/**
- * @全局钩子 生命周期钩子、监听钩子
- */
+// ==================== 全局钩子 ====================
+
+// 注册一个对taskStatusRef的监听：
+// 任务状态改变时，始终保持canvas滚动到视图中间
+watch(taskStatusRef, nextTickFocusOnCanvas)
 
 // 生命周期钩子，组件挂载后执行
 // 用于进行必要的各类初始化操作
 onMounted(() => {
   // 给个加载框
   myLoading(langRef.value.OpenCVLoadingContent)
-  // 用于阻止页面刷新和关闭
+
+  // 阻止页面刷新和关闭
   // 该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
+
   // 如果canvas没有初始化（第一次进入页面）
   if (!canvasRef.value) {
     // 注册一个监听钩子，用于实现canvasRef的初始化
@@ -366,9 +362,6 @@ onMounted(() => {
     // 报错处理
     errorDialog(error)
   })
-  // 注册一个对taskStatusRef的监听：
-  // 任务状态改变时，始终保持canvas滚动到视图中间
-  watch(taskStatusRef, nextTickFocusOnCanvas)
 })
 
 // 生命周期钩子，组件卸载前执行
@@ -397,7 +390,7 @@ function errorDialog(error: unknown) {
   // 控制台打印完整错误
   console.error(langRef.value.ErrorDialogTitle, error)
   // toast 提示用户
-  myMessage(`${langRef.value.ErrorDialogTitle}: ${String(error)}`, "error")
+  myMessage(`${ langRef.value.ErrorDialogTitle }: ${ String(error) }`, "error")
 }
 
 /**
@@ -414,9 +407,11 @@ function onCanvasClick() { try {
     // 绘图
     drawRect()
   }
-} catch (error: unknown) {
+} catch (error) {
   errorDialog(error)
 }}
+
+// ==================== 业务逻辑 ====================
 
 /**
  * @步骤1 传图
@@ -432,9 +427,10 @@ function taskToStep1() {
 
 /**
  * 图片上传或改变时触发的回调
- * @param event 文件数组（mobile-vue t-upload onChange 签名）
+ * @param event - 文件数组
+ * @param context - 上下文（add / remove / progress / ...）
  */
-async function onPicChange(event: UploadFile[]) { try {
+async function onPicChange(event: UploadFile[], _context: UploadChangeContext) { try {
   // 如果是清空了照片，则把任务进度切换回1，并直接返回即可
   if (event.length === 0) {
     taskToStep1()
@@ -447,7 +443,7 @@ async function onPicChange(event: UploadFile[]) { try {
   // 接收文件名
   outlineColorimetricObj.filename = event[0]!.name
   // 获取文件的位图数据
-  const imageBitmapNew = await window.createImageBitmap(event[0]!.raw)
+  const imageBitmapNew = await window.createImageBitmap(event[0]!.raw!)
   // 清空之前的位图文件的数据，释放GPU内存
   imageBitmap?.close()
   // 赋值给全局对象的位图对象
@@ -488,10 +484,10 @@ function taskToStep2() {
 function canvasRectDataRemove() {
   // 清空选框的[上|右|下|左]遮罩边界值
   const rect = outlineColorimetricObj.rect
-  rect.xMin = null
-  rect.yMin = null
-  rect.xMax = null
-  rect.yMax = null
+  rect.xMin = undefined
+  rect.yMin = undefined
+  rect.xMax = undefined
+  rect.yMax = undefined
 }
 
 /**
@@ -503,6 +499,10 @@ function canvasRestore() {
   // 获取对象
   const canvas = canvasRef.value
   const { ctx, imageBitmap } = outlineColorimetricObj
+  // 如果canvas或imageBitmap未初始化，则报错
+  if (!canvas || !ctx || !imageBitmap) {
+    throw new Error("canvas / ctx / imageBitmap 未初始化")
+  }
   // 调整canvas的实际宽高：
   // 以图片的原始宽高设定canvas的【实际】宽高，防止图片尺寸和canvas实际尺寸不一致导致的显示问题
   canvas.width = imageBitmap!.width
@@ -550,8 +550,8 @@ function chooseRect() {
   // 点击位置的实际X、Y坐标
   const realElementX = elementX.value * canvasScaling
   const realElementY = elementY.value * canvasScaling
-  // 如果选框X边界未定义，即第一次点击，需记录下选框的坐标
-  if (!rect.xMax) {
+  // 如果选框内容未定义，即第一次点击，需记录下选框的坐标
+  if (!rect.xMax || !rect.yMax || !rect.xMin || !rect.yMin) {
     // 接canvas
     const canvas = canvasRef.value!
     // 计算初始化选框的半宽/半高
@@ -668,9 +668,10 @@ async function onSureRect(isDetermine: boolean) { try {
   // 3.  进入下一步
   if (isDetermine === true) {
     // 接绘图上下文ctx对象、cv对象、图片的宽高
-    const { ctx, matGray, imageBitmap: { width, height } } = outlineColorimetricObj
+    const { ctx, matGray, imageBitmap } = outlineColorimetricObj
+    const { width, height } = imageBitmap!
     // OpenCV 必须已加载（onMounted 已 await ensureOpenCVReady）
-    const cv = OpenCV.value
+    const cv = OpenCVRef.value
     if (!cv) {
       throw new Error("OpenCV.js 尚未加载完成")
     }
@@ -752,35 +753,39 @@ function nextTickFocusOnCanvas() {
  */
 function thresholdNumRestore() {
   // 接参数
-  const thresholdNumAoa = thresholdNumAoaRef.value
+  const thresholdSliderAoa = thresholdSliderAoaRef.value
   // 如果滑轨参数为空，则初始化滑轨参数
-  if (thresholdNumAoa.length === 0) {
-    thresholdNumAoaRef.value = deepCopyAoa(thresholdNumAoaConst)
+  if (thresholdSliderAoa.length === 0) {
+    thresholdSliderAoaRef.value = deepCopyAoa(thresholdSliderAoaConst)
   // 否则，保留每个参数的取值
   } else {
-    /** 先深拷贝一份参数副本 */
-    const thresholdNumAoaTemp = deepCopyAoa(thresholdNumAoaConst)
-    for (let i = 0; i < thresholdNumAoa.length; i++) {
-      thresholdNumAoaTemp[i]![0] = thresholdNumAoa[i]![0]
+    // 先深拷贝一份参数副本
+    const thresholdSliderAoaTemp = deepCopyAoa(thresholdSliderAoaConst)
+    // 遍历数组
+    for (let i = 0; i < thresholdSliderAoa.length; i++) {
+      // 对数值进行赋值
+      thresholdSliderAoaTemp[i]![0] = thresholdSliderAoa[i]![0]
     }
-    thresholdNumAoaRef.value = thresholdNumAoaTemp
+    // 赋值给滑轨参数
+    thresholdSliderAoaRef.value = thresholdSliderAoaTemp
   }
-  /**
-   * 深拷贝AOA数组
-   */
-  function deepCopyAoa(aoa: ThresholdNumAoa): ThresholdNumAoa {
-    const aoaTemp: ThresholdNumAoa = [[0,0,0,[],false,0], [0,0,0,[],false,0], [0,0,0,[],false,0]]
-    for (let i = 0; i < aoa.length; i++) {
-      const arrTemp: ThresholdNumRow = [0, 0, 0, [], false, 0]
-      for (let j = 0; j < aoa[i]!.length; j++) {
-        // 元素是数组则解构推，否则直接推
-        if (Array.isArray(aoa[i]![j])) {
-          arrTemp[j] = [...(aoa[i]![j] as number[])] as number | [number, number]
-        } else {
-          arrTemp[j] = aoa[i]![j]!
-        }
-      }
-      aoaTemp[i] = arrTemp
+  /** 深拷贝AOA数组 */
+  function deepCopyAoa(aoa: ThresholdSliderArr[]): ThresholdSliderArr[] {
+    // 初始化临时数组
+    const aoaTemp: ThresholdSliderArr[] = []
+    // 遍历数组
+    for (const arr of aoa) {
+      // 值
+      const value =
+        Array.isArray(arr[0])
+          ? [...arr[0]]
+          : arr[0]
+      // 范围
+      const range: MySliderMarks = [...arr[1]]
+      // 步进
+      const step = arr[2]
+      // 推入临时数组
+      aoaTemp.push([value, range, step])
     }
     return aoaTemp
   }
@@ -790,7 +795,7 @@ function thresholdNumRestore() {
  * 滑轨调节的事件回调钩子
  * @param paramIndex 参数的 index 序号
  */
-function onSlideChange(paramIndex: number) { try {
+function onSlideChange(paramIndex: SliderValue) { try {
   // 如果是第1个滑轨
   if (paramIndex === 0) {
     // 则需要重新获取轮廓数据
@@ -820,11 +825,11 @@ const drawContoursThrottled = useThrottleFn(drawContours, 500, true)
  */
 function getAndDrawContours() {
   // 接二值化参数
-  const binaryThresh = (thresholdNumAoaRef.value[0]![0] as number)
+  const binaryThresh = (thresholdSliderAoaRef.value[0]![0] as number)
   // 接cv和灰度图Mat对象
   const { matGray } = outlineColorimetricObj
   // OpenCV 必须已加载（步骤2的 onSureRect(true) 已确保）
-  const cv = OpenCV.value
+  const cv = OpenCVRef.value
   if (!cv || !matGray) {
     throw new Error("OpenCV.js 未就绪或灰度图缺失")
   }
@@ -893,10 +898,14 @@ function getAndDrawContours() {
 function drawContours() {
   // 接参数：面积位次、缩放
   const [
+    // 第一行：二值化阈值，没用
     ,
-    [[areaPercentOrderMin, areaPercentOrderMax]],
+    // 第二行：面积位次，取第一个参数（值为数组）
+    [areaPercentOrder],
+    // 第三行：缩放
     [scale],
-  ] = thresholdNumAoaRef.value
+  ] = thresholdSliderAoaRef.value as [ThresholdSliderArr, ThresholdSliderArr, ThresholdSliderArr]
+  const [areaPercentOrderMin, areaPercentOrderMax] = areaPercentOrder as [number, number]
   // 接参数：canvas上下文、轮廓数组、圆面积排序数组
   const { ctx, contourAoa, circleAreaArr } = outlineColorimetricObj
   // 轮廓数量
@@ -925,7 +934,7 @@ function drawContours() {
       // 圆环
       ctx!.arc(
         contour[1], contour[2],
-        (contour[3] * scale as number),
+        (contour[3] * (scale as number)),
         0, (2 * Math.PI)
       )
       // 绘制
@@ -956,7 +965,7 @@ function contourToMatrix(): ([number, number, number] | undefined)[][] {
   // 接轮廓数组
   const { contourAoa } = outlineColorimetricObj
   // 接缩放参数
-  const scale = thresholdNumAoaRef.value[2]![0] as number
+  const scale = thresholdSliderAoaRef.value[2]![0] as number
   // 建立X、Y的排序表
   const xAoa: [number, number][] = []
   const yAoa: [number, number][] = []

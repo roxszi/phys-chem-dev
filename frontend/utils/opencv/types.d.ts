@@ -6,6 +6,7 @@
 
 /** 导出 OpenCV 对象 */
 type OpenCV = import("@techstark/opencv-js").CV
+type OpenCVMat = import("@techstark/opencv-js").Mat
 
 /**
  * Emscripten 原生 ES Module 导出的异步工厂函数

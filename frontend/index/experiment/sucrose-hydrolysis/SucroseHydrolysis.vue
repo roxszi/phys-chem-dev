@@ -18,24 +18,27 @@
 
 <h3>{{ langRef.ConditionsHeading }}</h3>
 
-<t-input
-  v-model:value="inputDataRef.temperatureStr"
-  :label="langRef.TemperatureLabel"
-  suffix="℃"
-  align="center"
-  :placeholder="langRef.TemperaturePlaceholder"
-  type="number"
-/>
-<t-input
-  v-model:value="inputDataRef.alphaEquilibriumStr"
-  suffix="°"
-  align="center"
-  :placeholder="langRef.AlphaEquilibriumPlaceholder"
-  type="number"
->
-  <template #label>α<sub>∞</sub></template>
-</t-input>
-
+<div class="my-section my-column my-gap">
+  <t-input
+    v-model:value="inputDataRef.temperatureStr"
+    align="center"
+    :clearable="true"
+    :label="langRef.TemperatureLabel"
+    :placeholder="langRef.TemperaturePlaceholder"
+    suffix="℃"
+    type="number"
+  />
+  <t-input
+    v-model:value="inputDataRef.alphaEquilibriumStr"
+    align="center"
+    :clearable="true"
+    :placeholder="langRef.AlphaEquilibriumPlaceholder"
+    suffix="°"
+    type="number"
+  >
+    <template #label>α<sub>∞</sub></template>
+  </t-input>
+</div>
 <!-- ========= 数据表格区 ========= -->
 
 <!-- 条件渲染：有数据才渲染 -->
@@ -53,7 +56,7 @@
       :block="false"
       theme="danger"
       variant="outline"
-      size="extra-small"
+      size="small"
       @click="onDeleteData(rowIndex)"
     >
       {{ langRef.DeleteButton }}
@@ -69,14 +72,12 @@
   <MyButton
     :block="false"
     theme="danger"
-    size="small"
     @click="onDeleteData()"
   >
     {{ langRef.ClearTableButton }}
   </MyButton>
   <MyButton
     :block="false"
-    size="small"
     @click="onDataFitting()"
   >
     {{ langRef.FitDataButton }}
@@ -92,7 +93,6 @@
   <MyButton
     theme="default"
     :block="false"
-    size="small"
     @click="onReadExampleData"
   >
     {{ langRef.ReadExampleButton }}
@@ -102,29 +102,31 @@
 <!-- ========= 数据填写区 ========= -->
 
 <h3>{{ langRef.InputHeading }}</h3>
-<!-- t -->
-<t-input
-  v-model:value="inputDataRef.tStr"
-  label="t"
-  suffix="min"
-  align="center"
-  :placeholder="langRef.TPlaceholder"
-  type="number"
-/>
-<!-- α -->
-<t-input
-  v-model:value="inputDataRef.alphaStr"
-  label="α"
-  suffix="°"
-  align="center"
-  :placeholder="langRef.AlphaPlaceholder"
-  type="number"
-/>
-<!-- 表格数据操作按钮：横向排布 -->
-<div class="my-margin my-gap my-row">
+
+<div class="my-section my-column my-gap">
+  <!-- t -->
+  <t-input
+    v-model:value="inputDataRef.tStr"
+    align="center"
+    :clearable="true"
+    label="t"
+    :placeholder="langRef.TPlaceholder"
+    suffix="min"
+    type="number"
+  />
+  <!-- α -->
+  <t-input
+    v-model:value="inputDataRef.alphaStr"
+    align="center"
+    :clearable="true"
+    label="α"
+    :placeholder="langRef.AlphaPlaceholder"
+    suffix="°"
+    type="number"
+  />
   <!-- 提交按钮 -->
   <MyButton
-    :block="false"
+    size="large"
     :disabled="!isInputedRef"
     @click="onAddData"
   >
@@ -149,7 +151,7 @@
   />
 
   <!-- 拟合结果表格 -->
-  <MyTTable
+  <MyTable
     :titleArr="chartTableTitleArrComputed"
     :dataAoa="chartTableDataAoaRef"
   />
@@ -279,7 +281,7 @@ function onDeleteData(rowIndex?: number) {
   if (rowIndex === undefined) {
     // 提醒一下
     myDialog({
-      content: langRef.value.ClearConfirmContent,
+      body: langRef.value.ClearConfirmContent,
       onConfirmCallBack: () => {
         // 清空表格
         tableDataAoaRef.value = []

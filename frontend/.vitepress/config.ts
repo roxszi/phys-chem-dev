@@ -55,14 +55,14 @@ export default defineConfig({
             "computed", "nextTick"
           ],
           // 自动引入vitepress运行时方法
-          "vitepress": ["useData", "withBase"],
+          "vitepress": ["useData", "withBase", "useRouter"],
         }],
         // 自动扫描目录
         dirs: ["composables"],
         // 解析器
         resolvers: [
           // TDesign解析器，以tdesign-vue-next为库
-          TDesignResolver({ library: "mobile-vue" })
+          TDesignResolver({ library: "vue-next" })
         ],
       }),
       // 自动实现vue组件挂载
@@ -86,7 +86,7 @@ export default defineConfig({
         resolvers: [
           // TDesign解析器，以tdesign-vue-next为库
           TDesignResolver({
-            library: "mobile-vue",
+            library: "vue-next",
             // resolveIcons: true
           })
         ]

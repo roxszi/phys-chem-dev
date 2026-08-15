@@ -1,13 +1,13 @@
 <!-- 
   自用表格组件
-  TDesign表格组件效率低，自己组装了一个AOA二维数组驱动的轻量表格组件
-  
+  TDesign表格组件效率低，我自己组装了一个AOA二维数组驱动的轻量表格组件
+  ---
   设计要点：
   - 数据源是 titleArr[] 数组，以及 dataAoa[][] 二维数组
   - 序号列组件内置，为 1, 2, 3... 自增
   - 操作列通过 #actions slot 暴露行级数据（dataArrIndex）
-  - 无样式。可继承 VitePress 样式
-
+  - 直接继承了 VitePress 的表格基础样式
+  ---
   AOA 约定结构：
   - dataArr 为一行数据，与 titleArr 长度一致
   - 多行 dataArr 数据组成 dataAoa 二维数组
@@ -30,7 +30,10 @@ const props = defineProps<MyTableProps>()
 
 /** 本组件的插槽契约数据类型 */
 interface MyTableSlots {
-  /** #actions 插槽 */
+  /**
+   * #actions 插槽
+   * @prop rowIndex 当前行索引
+   */
   actions(props: { rowIndex: number }): void
 }
 
@@ -50,8 +53,8 @@ const isDataRef = computed(() => (props.dataAoa.length !== 0))
   视图层
 -->
 <template>
-  <!-- 居中 -->
-  <div>
+  <!-- 强行继承“.vp-doc”样式类 -->
+  <div class="vp-doc">
     <table>
       <!-- 表头 -->
       <thead v-if="props.titleArr.length">
@@ -73,7 +76,7 @@ const isDataRef = computed(() => (props.dataAoa.length !== 0))
             v-if="isActionsSlotsRef && isDataRef"
             scope="col"
           >
-            操作
+            ≡
           </th>
         </tr>
       </thead>
