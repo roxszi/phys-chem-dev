@@ -36,25 +36,25 @@
 <!--
   视图层
  -->
-<template><MySpace>
+<template><div class="my-column my-gap">
 
   <!-- 警报框 -->
-  <t-alert theme="info" :title="lang.FunctionIntroductionTitle">
-    <div v-for="(content, index) of lang.FunctionIntroductionContent" :key="index">
+  <MyNoticeBar theme="info" :title="langRef.FunctionIntroductionTitle">
+    <div v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyNoticeBar>
 
   <!-- canvas头-步骤1 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="taskStatusRef === 1"
-    theme="warning" :title="lang.SetpTitle + '1'"
+    theme="warning" :title="langRef.StepTitle + '1'"
   >
-    <div v-for="(content, index) of lang.Setp1Content" :key="index">
+    <div v-for="(content, index) of langRef.Step1Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyNoticeBar>
 
   <!--
     图片上传
@@ -63,25 +63,24 @@
       上传则处理图片并进入下个流程；
       删除则清空所有数据，回到初始状态（状态1）。
    -->
-  <t-upload
-    class="center" :disabled="false" theme="image"
-    accept="image/*" :multiple="false" :draggable="false"
-    :showImageFileName="true" :abridgeName="[3, 8]"
-    v-model:files="fileArrRef" :autoUpload="false"
-    :sizeLimit="{ size: 10, unit: 'MB' }"
+  <MyUpload
+    accept="image/*"
+    :max="1"
+    theme="image"
+    v-model:files="fileArrRef"
     :onChange="onPicChange"
   />
 
   <!-- canvas头-步骤2 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="taskStatusRef === 2"
-    theme="warning" :title="lang.SetpTitle + '2'"
+    theme="warning" :title="langRef.StepTitle + '2'"
   >
-    <div v-for="(content, index) of lang.Setp2Content" :key="index">
+    <div v-for="(content, index) of langRef.Step2Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyNoticeBar>
 
   <!--
     canvas头-步骤3
@@ -92,15 +91,15 @@
    -->
   <MySpace v-else-if="taskStatusRef === 3">
     <!-- 警报框 -->
-    <t-alert theme="warning" :title="lang.SetpTitle + '3'">
-      <div v-for="(content, index) of lang.Setp3Content" :key="index">
+    <MyNoticeBar theme="warning" :title="langRef.StepTitle + '3'">
+      <div v-for="(content, index) of langRef.Step3Content" :key="index">
         {{ content }}
       </div>
-    </t-alert>
+    </MyNoticeBar>
 
     <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
-    <t-alert theme="info" :title="lang.ContourAlgorithmTitle">
-      <div v-for="(content, index) of lang.ContourAlgorithmContent" :key="index">
+    <MyNoticeBar theme="info" :title="langRef.ContourAlgorithmTitle">
+      <div v-for="(content, index) of langRef.ContourAlgorithmContent" :key="index">
         <div v-if="typeof content !== 'string'">
           <strong>{{ content.strong }}</strong>{{ content.normal }}
         </div>
@@ -108,41 +107,41 @@
           {{ content }}
         </div>
       </div>
-    </t-alert>
+    </MyNoticeBar>
     <!-- 边缘检测算法切换选框 -->
     <MyRadio
       @change="onContourAlgorithmSwitch"
       v-model:value="contourAlgorithmRadioRef"
-      :radioContentArr="lang.ContourAlgorithmArr"
+      :radioContentArr="langRef.ContourAlgorithmArr"
     />
 
     <!-- 警报框：遮罩 -->
-    <t-alert theme="info" :title="lang.ContourMaskTitle">
-      <div v-for="(content, index) of lang.ContourMaskContent" :key="index">
+    <MyNoticeBar theme="info" :title="langRef.ContourMaskTitle">
+      <div v-for="(content, index) of langRef.ContourMaskContent" :key="index">
         <div v-if="typeof content !== 'string'">
           <strong>{{ content.strong }}</strong>{{ content.normal }}
         </div>
         <div v-else>{{ content }}</div>
       </div>
-    </t-alert>
+    </MyNoticeBar>
     <!-- 遮罩切换选框 -->
     <MyRadio
       v-model:value="contourFilterAlgorithmRadioRef"
-      :radioContentArr="lang.ContourMaskContentArr"
+      :radioContentArr="langRef.ContourMaskContentArr"
     />
 
-  </MySpace>
+  </div>
 
   <!-- canvas头-步骤4 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-else-if="taskStatusRef === 4"
-    theme="warning" :title="lang.SetpTitle + '4'"
+    theme="warning" :title="langRef.StepTitle + '4'"
   >
-    <div v-for="(content, index) of lang.Setp4Content" :key="index">
+    <div v-for="(content, index) of langRef.Step4Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyNoticeBar>
 
   <!--
     canvas元素块
@@ -173,14 +172,14 @@
       @click="onSureRect(false)"
       :block="false"
     >
-      {{ lang.CutPictureButtonText }}
+      {{ langRef.CutPictureButtonText }}
     </MyButton>
     <!-- 裁剪完成 -->
     <MyButton
       @click="onSureRect(true)"
       :block="false" theme="danger"
     >
-      {{ lang.CutPictureCompleteButtonText }}
+      {{ langRef.CutPictureCompleteButtonText }}
     </MyButton>
   </div>
 
@@ -197,30 +196,28 @@
     size="small"
   >
     <!-- 滑轨：主参数 -->
-    {{ lang.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="thresholdNumArrRef[0].value"
-      :min="thresholdNumArrRef[0].min" :max="thresholdNumArrRef[0].max"
+    {{ langRef.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
+    <MySlider
+      :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+      v-model:value="thresholdNumArrRef[0].value"
       :marks="thresholdNumArrRef[0].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+      :step="1"
+    />
+    <t-divider />
     <!-- 滑轨：辅助参数 -->
-    <MySpace
+    <div
       v-if="contourAlgorithmRadioRef === 0"
-      size="small"
+      class="my-column my-gap"
     >
-      {{ lang.ContourSliderAuxiliaryParameterLabel }}
-      <t-slider
-        @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-        v-model="thresholdNumArrRef[1].value"
-        :min="thresholdNumArrRef[1].min" :max="thresholdNumArrRef[1].max"
+      {{ langRef.ContourSliderAuxiliaryParameterLabel }}
+      <MySlider
+        :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+        v-model:value="thresholdNumArrRef[1].value"
         :marks="thresholdNumArrRef[1].marks"
-        :step="1" :range="false"
-        :inputNumberProps="false" :label="true" layout="horizontal"
-      /><t-divider />
-    </MySpace>
+        :step="1"
+      />
+      <t-divider />
+    </div>
     <!-- 容器（按钮容器） -->
     <div class="center">
       <!-- 轮廓粗调/细调切换 -->
@@ -230,8 +227,8 @@
       >
         {{
           isContourCoarseRef
-            ? lang.ContourSliderSwitchFineButtonLabel
-            : lang.ContourSliderSwitchCoarseButtonLabel
+            ? langRef.ContourSliderSwitchFineButtonLabel
+            : langRef.ContourSliderSwitchCoarseButtonLabel
         }}
       </MyButton>
       <!-- 确定轮廓 -->
@@ -239,10 +236,10 @@
         @click="onDetermineContour"
         :block="false" theme="danger"
       >
-        {{ lang.ContourDetermineButtonLabel }}
+        {{ langRef.ContourDetermineButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
+  </div>
 
   <!--
     canvas脚-步骤4
@@ -257,25 +254,23 @@
     size="small"
   >
     <!-- 滑轨：左截距 -->
-    {{ lang.InterceptLeftSliderLabel }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="interceptNumArrRef[0].value"
-      :min="interceptNumArrRef[0].min" :max="interceptNumArrRef[0].max"
+    {{ langRef.InterceptLeftSliderLabel }}
+    <MySlider
+      :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+      v-model:value="interceptNumArrRef[0].value"
       :marks="interceptNumArrRef[0].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+      :step="1"
+    />
+    <t-divider />
     <!-- 滑轨：右截距 -->
-    {{ lang.InterceptRightSliderLabel }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="interceptNumArrRef[1].value"
-      :min="interceptNumArrRef[1].min" :max="interceptNumArrRef[1].max"
+    {{ langRef.InterceptRightSliderLabel }}
+    <MySlider
+      :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+      v-model:value="interceptNumArrRef[1].value"
       :marks="interceptNumArrRef[1].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+      :step="1"
+    />
+    <t-divider />
     <!-- 容器（按钮容器） -->
     <div class="center">
       <!-- 返回上一步 -->
@@ -283,17 +278,17 @@
         @click="onBackToStep3"
         :block="false" theme="default"
       >
-        {{ lang.StepBackButtonLabel }}
+        {{ langRef.StepBackButtonLabel }}
       </MyButton>
       <!-- 确认基线 -->
       <MyButton
         @click="onDetermineBaseline"
         :block="false" theme="primary"
       >
-        {{ lang.BaselineConfirmButtonLabel }}
+        {{ langRef.BaselineConfirmButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
+  </div>
 
   <!--
     canvas脚-步骤5
@@ -310,11 +305,11 @@
         <!-- 表头 -->
         <thead>
           <tr>
-            <th v-for="(content, index) of lang.ResultTableContent" :key="index">
+            <th v-for="(content, index) of langRef.ResultTableContent" :key="index">
               {{ content }}
             </th>
             <!-- 处理 -->
-            <th>{{ lang.ResultTableProcessingLabel }}</th>
+            <th>{{ langRef.ResultTableProcessingLabel }}</th>
           </tr>
         </thead>
         <!-- 表格体 -->
@@ -328,13 +323,13 @@
             <td>{{ resultArr[5]?.toFixed(2) }}</td>
             <td>{{ resultArr[6]?.toFixed(2) }}</td>
             <td>{{ resultArr[7]?.toFixed(4) }}</td>
-            <td>{{ lang.FitNatureStrMap[resultArr[8]] ?? resultArr[8] }}</td>
+            <td>{{ langRef.FitNatureStrMap[resultArr[8]] ?? resultArr[8] }}</td>
             <!-- 删除按钮 -->
             <td><MyButton
               @click="onDeleteUniResult(resultArr[0])"
               :block="false" theme="danger"
             >
-              {{ lang.ResultTableDeleteButtonLabel }}
+              {{ langRef.ResultTableDeleteButtonLabel }}
             </MyButton></td>
           </tr>
         </tbody>
@@ -360,8 +355,8 @@
       >
         {{
           isResultReverseRef === false
-            ? lang.ResultTableReverseButtonLabel
-            : lang.ResultTableNormalButtonLabel
+            ? langRef.ResultTableReverseButtonLabel
+            : langRef.ResultTableNormalButtonLabel
         }}
       </MyButton>
       <!-- 下载数据 -->
@@ -369,37 +364,33 @@
         @click="onDownloadResult"
         :block="false" theme="primary"
       >
-        {{ lang.ResultTableExportButtonLabel }}
+        {{ langRef.ResultTableExportButtonLabel }}
       </MyButton>
       <!-- 清空数据 -->
       <MyButton
         @click="onDeleteAllResult"
         :block="false" theme="danger"
       >
-        {{ lang.DeleteAllResultButtonLabel }}
+        {{ langRef.DeleteAllResultButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
-</MySpace></template>
+  </div>
+</div></template>
 
 <!--
   逻辑层
  -->
-<script setup>
-// 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue"
-// 导入VueUse的各类响应式方法
+<script setup lang="ts">
+// 导入VueUse的各类响应式方法（Vue APIs 由 unplugin-auto-import 自动注入，无需 import）
 import { useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
-// 导入自有方法
-import my from "@/utils/myFunc.js"
 // 导入xlsx相关方法
-import { aoaMapToWorkbook, downloadXlsx, aoaTranspose } from "@/utils/app-xlsx.js"
-// 导入OpenCV.js加载器
-import { loadOpenCV } from "@/utils/opencvLoader.js"
+import { aoaMapToWorkbook, downloadXlsx, aoaTranspose } from "@utils/xlsx.ts"
+// 导入OpenCV.js composable（自带 SIMD/pthreads 探测、singleton、并发去重、fallback 聚合）
+import { useOpenCV } from "@composables/useOpenCV.ts"
 // 导入纯算法模块（从Vue文件中解耦出来的无UI依赖的计算逻辑）
-import * as Algorithm from "./ContactAngle-algorithm.js"
-// 导入语言包
-import { useLang, lang } from "./ContactAngle-lang.js"
+import * as Algorithm from "./ContactAngle-algorithm.ts"
+// 导入本组件语言包
+import { langDict } from "./ContactAngle-langRef.ts"
 
 // ======================================== 数据类型声明 ========================================
 
@@ -585,6 +576,16 @@ const {
   // stop: stopMouseInElement
 } = useMouseInElement(canvasRef)
 
+/**
+ * OpenCV.js 加载：单例 composable
+ * - OpenCVRef 是 readonly Ref<OpenCV | null>,加载成功后即 ready
+ * - ensureOpenCVReady() 幂等：多次调用复用同一 Promise
+ */
+const { OpenCVRef, ensureOpenCVReady } = useOpenCV()
+
+/** 派生当前语言的响应式语言包（root / en） */
+const langRef = useLang(langDict)
+
 // ================================================================================
 // 全局钩子
 // 生命周期钩子、监听钩子
@@ -593,10 +594,8 @@ const {
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
 onMounted(() => { try {
-  // 语言包水合
-  lang.value = useLang()
   // 语言刷新完毕，渲染加载框
-  my.loading(lang.value.OpenCVLoadingContent)
+  myLoading(langRef.value.OpenCVLoadingContent)
   // 接下来做一些该WebApp的准备工作
   // 阻止页面刷新和关闭，该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
@@ -656,14 +655,17 @@ onMounted(() => { try {
   //     // 赋值给全局变量cv
   //     contactAngleObj.cv = cv
   //     // 停止加载框
-  //     my.loading(false)
+  //     myLoading(false)
   //   })
   // })
-  loadOpenCV().then((cvReady) => {
+  ensureOpenCVReady().then((cvReady) => {
     // 赋值给全局变量cv
     contactAngleObj.cv = cvReady
     // 停止加载框
-    my.loading(false)
+    myLoading(false)
+  }).catch((error: unknown) => {
+    myLoading(false)
+    errorDialog(error)
   })
   // 注册一个对taskStatusRef的监听：
   // 任务状态改变时，始终保持canvas滚动到视图中间
@@ -678,7 +680,7 @@ onMounted(() => { try {
     // { delay: 500 }
   )
 } catch (error) {
-  my.error("onMounted()报错：", error, errorDialog)
+  myError("onMounted()报错：", error, errorDialog)
 }})
 
 /**
@@ -722,7 +724,7 @@ function initResultData() {
       // 清空数据
       localStorage.removeItem("contactAngleResult")
       // 通知
-      my.message(lang.value.DataInitErrorContent)
+      myMessage(langRef.value.DataInitErrorContent)
       // 跳出
       return false
     } else {
@@ -791,7 +793,7 @@ function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultRe
 function nextTickFocusOnCanvas() {
   // 下个渲染周期执行focusOnCanvas()
   nextTick(focusOnCanvas).catch((error) => {
-    my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
+    myError("nextTickFocusOnCanvas()报错：", error, errorDialog)
   })
   /**
    * 聚焦canvas的内部方法
@@ -835,10 +837,10 @@ function beforeunloadHandler(event) {
  */
 function errorDialog(error) {
   // 直接对话框报错
-  my.dialog({
+  myDialog({
     theme: "danger",
-    header: lang.value.ErrorDialogTitle,
-    body: lang.value.ErrorDialogContent + error
+    header: langRef.value.ErrorDialogTitle,
+    body: langRef.value.ErrorDialogContent + error
   })
 }
 
@@ -857,7 +859,7 @@ function onCanvasLongPress() { try {
     contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
   }
 } catch (error) {
-  my.error("onCanvasLongPress()报错：", error, errorDialog)
+  myError("onCanvasLongPress()报错：", error, errorDialog)
 }}
 
 /**
@@ -888,7 +890,7 @@ function onCanvasClick() { try {
     refreshBaselineSlider([baseline.left, baseline.right])
   }
 } catch (error) {
-  my.error("onCanvasClick()报错：", error, errorDialog)
+  myError("onCanvasClick()报错：", error, errorDialog)
 }}
 
 /**
@@ -943,7 +945,7 @@ function onSliderChange() { try {
     drawBaselineThrottled()
   }
 } catch (error) {
-  my.error("onSliderChange()报错：", error, errorDialog)
+  myError("onSliderChange()报错：", error, errorDialog)
 }}
 
 /**
@@ -967,7 +969,7 @@ function onSliderChangeEnd() { try {
     refreshBaselineSlider([userLeftIntercept, userRightIntercept], false)
   }
 } catch (error) {
-  my.error("onSliderChangeEnd()报错：", error, errorDialog)
+  myError("onSliderChangeEnd()报错：", error, errorDialog)
 }}
 
 // ================================ 步骤状态的函数方法 ================================
@@ -996,7 +998,7 @@ async function onPicChange(event) { try {
     return
   }
   // 加载框
-  my.loading(lang.value.PicLoadingContent)
+  myLoading(langRef.value.PicLoadingContent)
   // 接对象
   const { cv, ctx, matGray } = contactAngleObj
   const canvas = canvasRef.value
@@ -1043,12 +1045,12 @@ async function onPicChange(event) { try {
   // 第一阶段完成，任务进度改为2（该步骤会恢复canvas的上下文设置）
   taskToStep2()
   // 停止加载框
-  my.loading(false)
+  myLoading(false)
 } catch (error) {
   // 停止加载框
-  my.loading(false)
+  myLoading(false)
   // 报错处理
-  my.error("onPicChange()报错：", error, errorDialog)
+  myError("onPicChange()报错：", error, errorDialog)
 }}
 
 /**
@@ -1070,7 +1072,7 @@ function taskToStep2() {
   taskStatusRef.value = 2
   // 下个DOM周期：调整canvas尺寸以适应屏幕
   nextTick(canvasFit).catch((error) => {
-    my.error("taskToStep2().nextTick()报错：", error, errorDialog)
+    myError("taskToStep2().nextTick()报错：", error, errorDialog)
   })
 }
 
@@ -1172,7 +1174,7 @@ function onSureRect(isDetermine) { try {
     taskToStep3()
   }
 } catch (error) {
-  my.error("onSureRect()报错：", error, errorDialog)
+  myError("onSureRect()报错：", error, errorDialog)
 }}
 
 /**
@@ -1226,7 +1228,7 @@ function taskToStep3() {
   taskStatusRef.value = 3
   // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
   nextTick(chooseContour).catch((error) => {
-    my.error("taskToStep3().nextTick()报错：", error, errorDialog)
+    myError("taskToStep3().nextTick()报错：", error, errorDialog)
   })
 }
 
@@ -1434,7 +1436,7 @@ function drawContour([metVectorContours, metHierarchy]) {
 function onContourAlgorithmSwitch() { try {
   chooseContourThrottled()
 } catch (error) {
-  my.error("onContourAlgorithmSwitch()报错：", error, errorDialog)
+  myError("onContourAlgorithmSwitch()报错：", error, errorDialog)
 }}
 
 /**
@@ -1572,7 +1574,7 @@ function onContourSliderCoarseFineToggle() { try {
   // 更新标记
   isContourCoarseRef.value = !isContourCoarseRef.value
 } catch (error) {
-  my.error("onContourSliderCoarseFineToggle()报错：", error, errorDialog)
+  myError("onContourSliderCoarseFineToggle()报错：", error, errorDialog)
 }}
 
 /**
@@ -1610,7 +1612,7 @@ function refreshContourFineSlider() {
  */
 function onDetermineContour() { try {
   // 加载框
-  my.loading(lang.value.ContourFitLoadingContent)
+  myLoading(langRef.value.ContourFitLoadingContent)
   // 接参数
   const { cv, colLine, rect, baseline } = contactAngleObj
   const { width: canvasWidth, height: canvasHeight } = canvasRef.value
@@ -1785,12 +1787,12 @@ function onDetermineContour() { try {
   // 进入步骤4
   taskToStep4()
   // 关闭加载框
-  my.loading(false)
+  myLoading(false)
 } catch (error) {
   // 关闭加载框
-  my.loading(false)
+  myLoading(false)
   // 报错处理
-  my.error("onDetermineContour()报错：", error, errorDialog)
+  myError("onDetermineContour()报错：", error, errorDialog)
 }}
 
 /**
@@ -1873,7 +1875,7 @@ function taskToStep4() {
   taskStatusRef.value = 4
   // 下个DOM周期：绘制基线
   nextTick(drawBaseline).catch((error) => {
-    my.error("taskToStep4().nextTick()报错：", error, errorDialog)
+    myError("taskToStep4().nextTick()报错：", error, errorDialog)
   })
 }
 
@@ -2005,10 +2007,10 @@ function onBackToStep3() { try {
   taskStatusRef.value = 3
   // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
   nextTick(chooseContour).catch((error) => {
-    my.error("onBackToStep3().nextTick()报错：", error, errorDialog)
+    myError("onBackToStep3().nextTick()报错：", error, errorDialog)
   })
 } catch (error) {
-  my.error("onBackToStep3()报错：", error, errorDialog)
+  myError("onBackToStep3()报错：", error, errorDialog)
 }}
 
 /**
@@ -2146,19 +2148,19 @@ function onDetermineBaseline() { try {
   ])
   localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
   // 发个通知
-  my.dialog(
-    lang.value.ResultDialogContent[0]
+  myDialog(
+    langRef.value.ResultDialogContent[0]
       + result.contactAngleAverage.toFixed(2)
-      + lang.value.ResultDialogContent[1],
+      + langRef.value.ResultDialogContent[1],
   )
 } catch (error) {
   // 处理纯算法模块抛出的特定错误消息
   if (error.message === "方程没有2个解") {
-    my.message({ theme: "error", content: lang.value.ContactErrorMessageContent, duration: 10000 })
+    myMessage({ theme: "error", content: langRef.value.ContactErrorMessageContent, duration: 10000 })
     return
   }
   // 其它错误直接处理
-  my.error("onDetermineBaseline()报错：", error, errorDialog)
+  myError("onDetermineBaseline()报错：", error, errorDialog)
 }}
 
 /**
@@ -2169,15 +2171,15 @@ function onDeleteUniResult(resultsIndex) { try {
   // 接参数
   const result = resultRef.value
   // 弹出确认框
-  my.dialog({
+  myDialog({
     // 主题：警示
     theme: "danger",
     // 通知内容
-    body: lang.value.DeleteUniResultDialogContent,
+    body: langRef.value.DeleteUniResultDialogContent,
     // 确认按钮的文本
-    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    confirmBtn: langRef.value.DeleteResultDialogConfirmBtnLabel,
     // 取消按钮的文本
-    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
+    cancelBtn: langRef.value.DeleteResultDialogCancelBtnLabel,
     // 确认后的回调
     onConfirmCallBack: () => {
       // 删除result的对应项
@@ -2185,11 +2187,11 @@ function onDeleteUniResult(resultsIndex) { try {
       // 更新localStorage
       localStorage.setItem("contactAngleResult", JSON.stringify(result))
       // 提示用户
-      my.message(lang.value.DeleteUniResultMessageContent)
+      myMessage(langRef.value.DeleteUniResultMessageContent)
     }
   })
 } catch (error) {
-  my.error("onDeleteUniResult()报错：", error, errorDialog)
+  myError("onDeleteUniResult()报错：", error, errorDialog)
 }}
 
 /**
@@ -2199,15 +2201,15 @@ function onDeleteAllResult() { try {
   // 接参数
   const result = resultRef.value
   // 弹出确认框
-  my.dialog({
+  myDialog({
     // 主题：警示
     theme: "danger",
     // 通知内容
-    body: lang.value.DeleteAllResultDialogContent,
+    body: langRef.value.DeleteAllResultDialogContent,
     // 确认按钮的文本
-    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    confirmBtn: langRef.value.DeleteResultDialogConfirmBtnLabel,
     // 取消按钮的文本
-    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
+    cancelBtn: langRef.value.DeleteResultDialogCancelBtnLabel,
     // 确认后的回调
     onConfirmCallBack: () => {
       // 删除result的所以项
@@ -2215,11 +2217,11 @@ function onDeleteAllResult() { try {
       // 清理localStorage
       localStorage.removeItem("contactAngleResult")
       // 提示用户
-      my.message(lang.value.DeleteUniResultMessageContent)
+      myMessage(langRef.value.DeleteUniResultMessageContent)
     }
   })
 } catch (error) {
-  my.error("onDeleteAllResult()报错：", error, errorDialog)
+  myError("onDeleteAllResult()报错：", error, errorDialog)
 }}
 
 /**
@@ -2229,7 +2231,7 @@ function onReverseResultOrder() { try {
   // 直接反转即可
   isResultReverseRef.value = !isResultReverseRef.value
 } catch (error) {
-  my.error("onReverseResultOrder()报错：", error, errorDialog)
+  myError("onReverseResultOrder()报错：", error, errorDialog)
 }}
 
 /**
@@ -2237,7 +2239,7 @@ function onReverseResultOrder() { try {
  */
 function onDownloadResult() { try {
   /** 接一个AOA对象，第一个元素是表头，后面是数据 @type { (string | number)[][] } */
-  const resultAoa = [[...lang.value.ResultTableContent]]
+  const resultAoa = [[...langRef.value.ResultTableContent]]
   // 填充数据：遍历resultRef.value
   const resultOrigin = resultRef.value
   for (let i = 0; i < resultOrigin.length; i++) {
@@ -2249,13 +2251,13 @@ function onDownloadResult() { try {
   // 建立工作表文件的Map对象
   const resultMap = new Map()
   // 把数据结果AOA数组加进Map里
-  resultMap.set(lang.value.ResultSheetLabel, resultAoa)
+  resultMap.set(langRef.value.ResultSheetLabel, resultAoa)
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
   downloadXlsx(workbook, "contact-angle_data.xlsx")
 } catch (error) {
-  my.error("onDownloadResult()报错：", error, errorDialog)
+  myError("onDownloadResult()报错：", error, errorDialog)
 }}
 
 </script>

@@ -42,16 +42,16 @@ features:
   details: 蔗糖水解皂化反应常数的测定实验的数据实时处理。
   link: experiment/sucrose-hydrolysis/
   linkText: 进入应用
-#  - title: 接触角测量助手
-#    icon: 📷
-#    details: 接触角测量前，手机需进行的垂直校准操作。
-#    link: experiment/contact-angle/vertical-calibration.md
-#    linkText: 进入应用
-#  - title: 接触角图片处理助手
-#    icon: 💦
-#    details: 接触角测量后，需对图片进行的各类处理工作，以最终获得接触角数据。
-#    link: experiment/contact-angle/drop-pic-process.md
-#    linkText: 进入应用
+- title: 接触角测量助手
+  icon: 📷
+  details: 接触角测量前，手机需进行的垂直校准操作。
+  link: experiment/contact-angle/vertical-calibration.md
+  linkText: 进入应用
+- title: 接触角图片处理助手
+  icon: 💦
+  details: 接触角测量后，需对图片进行的各类处理工作，以最终获得接触角数据。
+  link: experiment/contact-angle/drop-pic-process.md
+  linkText: 进入应用
 - title: 轮廓处理比色法
   icon: 🎨
   details: 轮廓处理比色法功能。

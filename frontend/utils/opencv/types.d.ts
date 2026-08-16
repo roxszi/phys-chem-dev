@@ -4,9 +4,12 @@
  * @note 该 d.ts 文件为全局模块，务必注意命名空间/变量污染问题
  */
 
-/** 导出 OpenCV 对象 */
+/** 全局声明 OpenCV 对象 */
 type OpenCV = import("@techstark/opencv-js").CV
 type OpenCVMat = import("@techstark/opencv-js").Mat
+type OpenCVEllipse = import("@techstark/opencv-js").RotatedRect
+type OpenCVMatVector = import("@techstark/opencv-js").MatVector
+
 
 /**
  * Emscripten 原生 ES Module 导出的异步工厂函数

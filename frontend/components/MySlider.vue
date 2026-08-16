@@ -40,6 +40,8 @@ interface MySliderProps {
   vertical?: boolean
   /** 数值变化的回调 */
   onChange?: (value: SliderValue) => void
+  /** 数值变化结束的回调（用户停止拖动时触发） */
+  onChangeEnd?: (value: SliderValue) => void
 }
 
 /** 组件传参 */
@@ -50,7 +52,8 @@ const props = withDefaults(defineProps<MySliderProps>(), {
   showExtremeValues: false,
   theme: "default",
   vertical: false,
-  onChange: () => { }
+  onChange: () => { },
+  onChangeEnd: () => { },
 })
 
 /** 双相绑定传参：value */
@@ -92,6 +95,7 @@ const sliderMaxComputed = computed(() => props.marks[props.marks.length - 1])
       :showExtremeValue="props.showExtremeValues"
       :vertical="props.vertical"
       :onChange="props.onChange"
+      :onChangeEnd="props.onChangeEnd"
     />
   </div>
 </template>

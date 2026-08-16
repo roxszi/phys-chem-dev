@@ -1,13 +1,20 @@
 <!--
   垂直校准组件 Vertical Calibration
-  用于校准手机设备的垂直方向。最有的垂直方向是垂直 + 微微前倾（微微俯视）。实现思路为：
+  用于校准手机设备的垂直方向。最优的垂直方向是垂直 + 微微前倾（微微俯视）。实现思路为：
   1.  使用VueUse的运动传感器方法useDeviceMotion()实现重力感应
       使用VueUse的方向传感器方法useDeviceOrientation()实现方向感应
       方向传感器如果支持地磁传感器，也会调用地磁传感器
   2.  如果有地磁，则优先方向
       如果无地磁，但是有方向和重力，则优先重力，辅以方向
       如果无地磁，方向和重力也只有其一，那么就有啥用啥
- -->
+
+  i18n 说明：
+  - 业务文案走 langRef（由 ./VerticalCalibration-lang.ts + composables/useLang.ts 派生）
+  - 数字字面量（0、255、阈值上下限、步长等）不进语言包
+  - 内部开发者错误（throw new Error）不翻译
+  - 全局工具（myLoading / myMessage / myError / myDialog / myWait）由 unplugin-auto-import 自动注入，无需 import
+-->
+
 
 <!--
   视图层
@@ -15,98 +22,106 @@
 <template>
 
 <!-- 布局模板容器。条件渲染：默认无权限时渲染 -->
-<MySpace v-if="!permissionGranted">
+<div v-if="!permissionGranted" class="my-column">
 
   <!-- 警报框 -->
-  <t-alert
-    theme="info" :title="lang.FunctionIntroductionTitle"
-  >
-    {{ lang.FunctionIntroductionContent }}
-  </t-alert>
+  <MyNoticeBar :title="langRef.FunctionIntroductionTitle" theme="info">
+    <p>{{ langRef.FunctionIntroductionContent }}</p>
+  </MyNoticeBar>
 
   <MyButton @click="ensurePermissions">
-    {{ lang.CallSensorButtonLabel }}
+    {{ langRef.CallSensorButtonLabel }}
   </MyButton>
 
-</MySpace>
+</div>
 
 <!-- 布局模板容器。条件渲染：有权限时渲染 -->
-<MySpace v-else>
+<div v-else class="my-column">
 
   <!-- 重力感应警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="isMotionSupported"
-    theme="info" :title="lang.MotionSensorIntroductionTitle"
+    :title="langRef.MotionSensorIntroductionTitle"
+    theme="info"
   >
-    <div v-for="(content, index) of lang.MotionSensorIntroductionContent" :key="index">
+    <p
+      v-for="(content, index) of langRef.MotionSensorIntroductionContent"
+      :key="index"
+    >
       {{ content }}
-    </div>
-  </t-alert>
+    </p>
+  </MyNoticeBar>
 
   <!-- 方向感应警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="isOrientationSupported"
-    theme="info" :title="lang.OrientationSensorIntroductionTitle"
+    :title="langRef.OrientationSensorIntroductionTitle"
+    theme="info"
   >
-    <div v-for="(content, index) of lang.OrientationSensorIntroductionContent" :key="index">
+    <p
+      v-for="(content, index) of langRef.OrientationSensorIntroductionContent"
+      :key="index"
+    >
       {{ content }}
-    </div>
-  </t-alert>
+    </p>
+  </MyNoticeBar>
 
   <!-- 操作建议警报框：有地磁传感器 -->
-  <t-alert
+  <MyNoticeBar
     v-if="isGeomagneticSupported"
-    theme="warning" :title="lang.OperationSuggestionIntroductionTitle"
+    :title="langRef.OperationSuggestionIntroductionTitle"
+    theme="warning"
   >
-    {{ lang.OperationSuggestionGeomagneticIntroductionContent }}
-  </t-alert>
+    <p>{{ langRef.OperationSuggestionGeomagneticIntroductionContent }}</p>
+  </MyNoticeBar>
 
   <!-- 操作建议警报框：无地磁传感器，但有重力传感器和运动传感器 -->
-  <t-alert
+  <MyNoticeBar
     v-else-if="isMotionSupported && isOrientationSupported"
-    theme="warning" :title="lang.OperationSuggestionIntroductionTitle"
+    :title="langRef.OperationSuggestionIntroductionTitle"
+    theme="warning"
   >
-    {{ lang.OperationSuggestionNonGeomagneticIntroductionContent }}
-  </t-alert>
+    <p>{{ langRef.OperationSuggestionNonGeomagneticIntroductionContent }}</p>
+  </MyNoticeBar>
 
   <!-- 重力感应数据 -->
-  <div class="center">
+  <div class="my-column my-center">
     <table ref="tableRef">
       <!-- 表头 -->
       <thead>
         <tr>
-          <th :colspan="2">{{ lang.GravityTableHead[0] }}</th>
-          <th :colspan="2">{{ lang.GravityTableHead[1] }}</th>
+          <th :colspan="2">{{ langRef.GravityTableHead[0] }}</th>
+          <th :colspan="2">{{ langRef.GravityTableHead[1] }}</th>
         </tr>
       </thead>
       <!-- 表格体 -->
       <tbody>
         <tr>
-          <td>{{ lang.GravityTableData[0][0] }}</td>
+          <td>{{ langRef.GravityTableData[0]![0] }}</td>
           <td>{{ accelerationThrottled?.x === null ? "N/A" : accelerationThrottled?.x.toFixed(1) }}</td>
-          <td>{{ lang.GravityTableData[1][0] }}</td>
+          <td>{{ langRef.GravityTableData[1]?.[0] }}</td>
           <td>{{ orientationAlphaThrottled === null ? "N/A" : orientationAlphaThrottled.toFixed(1) }}</td>
         </tr>
         <tr>
-          <td>{{ lang.GravityTableData[0][1] }}</td>
+          <td>{{ langRef.GravityTableData[0]![1] }}</td>
           <td>{{ accelerationThrottled?.y === null ? "N/A" : accelerationThrottled?.y.toFixed(1) }}</td>
-          <td>{{ lang.GravityTableData[1][1] }}</td>
+          <td>{{ langRef.GravityTableData[1]?.[1] }}</td>
           <td>{{ orientationBetaThrottled === null ? "N/A" : orientationBetaThrottled.toFixed(1) }}</td>
         </tr>
         <tr>
-          <td>{{ lang.GravityTableData[0][2] }}</td>
+          <td>{{ langRef.GravityTableData[0]![2] }}</td>
           <td>{{ accelerationThrottled?.z === null ? "N/A" : accelerationThrottled?.z.toFixed(1) }}</td>
-          <td>{{ lang.GravityTableData[1][2] }}</td>
+          <td>{{ langRef.GravityTableData[1]?.[2] }}</td>
           <td>{{ orientationGammaThrottled === null ? "N/A" : orientationGammaThrottled.toFixed(1) }}</td>
         </tr>
         <!-- 地磁传感器 -->
         <tr v-if="isGeomagneticSupported">
-          <th :colspan="2">{{ lang.GeomagneticLabel }}</th>
-          <td :colspan="2">{{ isGeomagneticSupported ? lang.SupportedLabel : lang.NotSupportedLabel }}</td>
+          <th :colspan="2">{{ langRef.GeomagneticLabel }}</th>
+          <td :colspan="2">{{ isGeomagneticSupported ? langRef.SupportedLabel : langRef.NotSupportedLabel }}</td>
         </tr>
         <!-- 备注 -->
         <tr v-if="isNotSupportedAllRef">
-          <th :colspan="4">{{ lang.NotSupportedAllLabel }}</th>
+          <th :colspan="4">{{ langRef.NotSupportedAllLabel }}</th>
         </tr>
       </tbody>
     </table>
@@ -114,10 +129,10 @@
 
   <!-- 结束校准按钮 -->
   <MyButton @click="permissionGranted = false">
-    {{ lang.EndButtonLabel }}
+    {{ langRef.EndButtonLabel }}
   </MyButton>
 
-</MySpace>
+</div>
 
 </template>
 
@@ -126,18 +141,19 @@
   逻辑层
  -->
 <script setup lang="ts">
-// 从vueuse库导入运动传感器和方向传感器
+// 导入VueUse的运动传感器和方向传感器
 import { useDeviceMotion, useDeviceOrientation, refThrottled } from "@vueuse/core"
-// 导入语言包
-import { useLang, lang } from "./VerticalCalibration-lang.ts"
+// 导入本组件语言包
+import { langDict } from "./VerticalCalibration-lang.ts"
+
+// 派生当前语言的响应式语言包（root / en）
+const langRef = useLang(langDict)
 
 // 解构接收运动感应的各类数据
 const {
   // 是否有权限：默认都是false
   // 以此作为v-if条件渲染的依据，因此不能放在onMounted()中
   permissionGranted,
-  // 是否需要请求权限
-  // requirePermissions: isRequirePermissions,
   // 请求权限方法
   ensurePermissions,
   // 设备是否支持重力感应
@@ -177,27 +193,8 @@ const tableRef = useTemplateRef("tableRef")
 // “是否其实并不支持”标记
 const isNotSupportedAllRef = shallowRef(false)
 
-/**
- * 报错的通知方法
- */
-function errorDialog(error: Error) {
-  // 直接对话框报错
-  myDialog({
-    title: lang.value.ErrorDialogTitle,
-    content: lang.value.ErrorDialogContent + error.message,
-  })
-}
-
-// 生命周期钩子，SSG的SPA化实现，组件挂载后执行
-// 用于进行必要的各类初始化操作
-onMounted(() => { try {
-  // 语言包水合
-  lang.value = useLang()
-  // 获取硬件权限后，保持数据表格滚动到视图中间
-  watch(permissionGranted, watchPermissionGrantedHandle)
-} catch (error) {
-  myError("onMounted()报错：", error as Error, errorDialog)
-}})
+// 获取硬件权限后，保持数据表格滚动到视图中间
+watch(permissionGranted, watchPermissionGrantedHandle)
 
 /**
  * 获取硬件权限后：
@@ -220,15 +217,13 @@ function watchPermissionGrantedHandle(newPermissionGrantedValue: boolean) {
   } else {
     isNotSupportedAllRef.value = false
   }
-  // 下个渲染周期执行focusOnCanvas()
-  nextTick(focusOnTable).catch((error: Error) => {
-    myError("nextTickFocusOnCanvas()报错：", error, errorDialog)
-  })
+  // 下个渲染周期执行focusOnTable()
+  nextTick(focusOnTable)
   /**
    * 聚焦table的内部方法
    */
   function focusOnTable() {
-    // 滚动到canvas
+    // 滚动到table
     tableRef.value!.scrollIntoView({
       // 平滑滚动
       behavior: "smooth",
@@ -247,7 +242,7 @@ function watchPermissionGrantedHandle(newPermissionGrantedValue: boolean) {
   样式层
  -->
 <style lang="css" scoped>
-/* 让表格内文字居中 */
+/* 让表格内文字居中（与 .vp-doc th, td 全局样式对齐，scoped 兜底防止 vp-doc 未加载） */
 td, th {
   text-align: center;
   vertical-align: middle;

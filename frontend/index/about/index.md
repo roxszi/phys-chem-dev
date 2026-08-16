@@ -22,7 +22,7 @@
 
 深度学习业务方面，选用了 [Keras (@TensorFlow.js)](https://tensorflow.google.cn/js?hl=zh-cn) 技术栈。借助TensorFlow.js原生对Keras [API](https://js.tensorflow.org/api/latest/?hl=zh-cn) 的实现，完成便捷且通用的模型层搭建，并以TensorFlow.js运行层开启WebGPU硬件加速，彻底杜绝复杂的部署问题及对CUDA硬件的依赖问题。
 
-机器学习业务方面，主要选用了 [ml.js](https://github.com/mljs/ml) 技术栈，以实现基础的机器学习业务。
+机器学习业务方面，对于运算量较小的业务，主要选用了 [ml.js](https://github.com/mljs/ml) 技术栈，以实现基础的机器学习业务。对于运算量较大的业务，以 [TensorFlow.js - core](https://tensorflow.google.cn/js?hl=zh-cn) 实现了 WebGPU 硬件加速的高性能矩阵处理。
 
 数据表格处理及下载方面，选用了 [SheetJS](https://docs.sheetjs.com/) 技术栈，以实现便捷且通用的数据表格处理及下载功能。
 
@@ -32,17 +32,21 @@
 
 ## 开放源代码
 
-本应用的源码链接为：[https://gitcode.com/roxszi/phys-chem-dev](https://gitcode.com/roxszi/phys-chem-dev)
+本应用的源码链接为：[https://atomgit.com/roxszi/phys-chem-dev](https://atomgit.com/roxszi/phys-chem-dev)
 
 本应用的版权/著作权归 司承运 所有。
 
 源码及文档以 [木兰宽松许可证, 第2版](https://license.coscl.org.cn/MulanPSL2) 开源。
 
-本应用依赖的第三方开源库如下（排名不分先后）：
+本应用主要依赖的第三方开源库如下（排名不分先后）：
 
 - [**VitePress**](https://vitepress.dev/)
 
   本应用的页面框架，由 [Vite](https://cn.vitejs.dev/) 和 [Vue](https://cn.vuejs.org/) 驱动的静态站点生成器。
+
+  其兼具 SSG 的快速页面初次加载和 CSR 的快速页面切换导航。
+  - 采用静态 HTML 实现快速的页面初次加载；
+  - 使用客户端路由实现快速的页面切换导航。
 
   遵循 [MIT](/LICENSES/vitepress.txt) 开源协议。
 
@@ -52,7 +56,7 @@
 
   遵循 [MIT](/LICENSES/tdsign.txt) 开源协议。
 
-- [**OpenCV.js**](https://docs.opencv.org/4.12.0/d5/d10/tutorial_js_root.html)
+- [**OpenCV.js**](https://docs.opencv.org/5.0/js_tutorials/js_tutorials.html)
 
   计算机视觉库。
 

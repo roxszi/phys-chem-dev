@@ -156,6 +156,12 @@
   text-align: center;
 }
 
+/* 数学公式容器 */
+mjx-container {
+  /* 同时隐藏水平和垂直滚动条 */
+  overflow: hidden;
+}
+
 /* ==================== 组件样式 ==================== */
 
 /* 滑轨整体元素不占flex block，因此计算引用值 */
@@ -240,14 +246,8 @@
   gap: var(--my-gap);
 }
 
-/* 居中 */
+/* 居中。必须配合 flex、grid 等布局 */
 .my-center {
-  /* 弹性盒子布局 */
-  display: flex;
-  /* 水平均匀分散 */
-  justify-content: space-around;
-  /* 垂直居中 */
+  /* （沿线方向）内容两边对齐方式：拉伸对齐stretch | 居中center */
   align-items: center;
-  /* 外边距 */
-  margin: auto;
 }

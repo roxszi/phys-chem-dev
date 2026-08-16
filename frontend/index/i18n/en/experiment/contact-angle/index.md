@@ -1,18 +1,18 @@
-# Contact Angle
+# Contact angle
 
-> [!warning] This business includes two WebApps:：
+> [!warning] This business includes two WebApps:
 > 
-> 1.  [**Equipment vertical calibration**](vertical-calibration.md). It can meet the vertical calibration operation requirements of mobile phones before contact Angle measurement.
+> 1.  [**Equipment vertical calibration**](vertical-calibration.md). It can meet the vertical calibration operation requirements of mobile phones before contact angle measurement.
 > 
-> 2.  [**Droplet Photo Processing**](drop-pic-process.md). It can meet all kinds of processing requirements for images after contact Angle measurement and obtain the final contact Angle data.
+> 2.  [**Droplet image processing**](drop-pic-process.md). It can meet all kinds of processing requirements for images after contact angle measurement and obtain the final contact angle data.
 
 [[toc]]
 
-## 1.  Overview of Contact Angle
+## 1.  Overview of Contact angle
 
 The surface tension property of a liquid on a solid is generally described by the surface wetting performance of the solid. The most easily measurable and quantifiable wetting performance parameter is the **contact angle**: The contact angle is the angle ($θ$) between the gas - liquid interface and the solid - liquid interface when the liquid droplet is in equilibrium on the solid surface, as shown in Figure 1: 
 
-![图1](index_files/图1.png)<MyPicHead>Figure 1  Definition diagram of the contact Angle</MyPicHead>
+![图1](index_files/图1.png)<MyPicHead>Figure 1  Definition diagram of the contact angle</MyPicHead>
 
 In figure 1, $σ_\mathrm{sg}$ for solid - gas interfacial tension, $σ_\mathrm{lg}$ for liquid - gas interfacial tension, $σ_\mathrm{sl}$ represents the interfacial tension between solid and liquid, and $θ$ is the contact angle. Obviously, when the droplet is in equilibrium, it satisfies equation (1):
 
@@ -30,9 +30,9 @@ When 0° < $θ$ < 90°, 1 > $\cos{θ}$ > 0, the $σ_\mathrm{SV}$ > $σ_\mathrm{S
 
 When 90° < $θ$ < 180°, 0 > $\cos{θ}$ > -1, the $σ_\mathrm{SV}$ < $σ_\mathrm{SL}$. Solid surfaces tend not to be wetted by liquids.
 
-Therefore, when discussing the wettability of a liquid on a solid surface, a 90° contact Angle is generally used as the criterion for whether it wets or not: $θ$ > 90° indicates non-wettability, and $θ$ < 90° indicates wettability.
+Therefore, when discussing the wettability of a liquid on a solid surface, a 90° contact angle is generally used as the criterion for whether it wets or not: $θ$ > 90° indicates non-wettability, and $θ$ < 90° indicates wettability.
 
-Due to the universality and ease of use of contact Angle measurement, it can be said that contact Angle has become one of the most important parameters for characterizing the surface tension properties of liquids on solids, and contact Angle measurement operations have also become one of the de facto standards for characterizing surface wettability. Meanwhile, through the measurement of the contact Angle, the critical micelle concentration data of the surfactant can also be calculated.
+Due to the universality and ease of use of contact angle measurement, it can be said that contact angle has become one of the most important parameters for characterizing the surface tension properties of liquids on solids, and contact angle measurement operations have also become one of the de facto standards for characterizing surface wettability. Meanwhile, through the measurement of the contact angle, the critical micelle concentration data of the surfactant can also be calculated.
 
 ## 2.  Vertical calibration of equipment
 
@@ -50,7 +50,7 @@ When using this function, the typical data information interface is as follows:
 
 After calibration is completed, you can return to the previous page or jump to another page to exit the vertical calibration. You can also click the "End Calibration" button to temporarily exit the calibration.
 
-## 3.  Droplet photo processing
+## 3.  Droplet image processing
 
 [**Link to droplet photo processing function**](drop-pic-process.md)
 
@@ -72,7 +72,7 @@ After clicking to read the image, the software will automatically perform graysc
 
 ### 3.2 Crop the picture to the appropriate size
 
-This step is mainly completed by clicking on the grayscale image. The specific operation functions include: short press to control the expansion/reduction of the border in the cropping area; Long press to clear the existing selection box.
+This step is mainly completed by clicking on the grayscale image. The specific operation functions include: short press to control the expansion/reduction of the border in the cropping area; long press to clear the existing selection box.
 
 ![液滴照片处理说明3](index_files/液滴照片处理说明3.jpg)
 
@@ -88,9 +88,9 @@ After obtaining a relatively ideal cropping result, select the most ideal red bo
 
 ### 3.3 Search for the best outline of the droplet
 
-This step mainly involves adjusting the slide rail to modify the parameters of the contour search algorithm in real time and to view the contour effect in real time.
+This step mainly involves adjusting the slider to modify the parameters of the contour search algorithm in real time and to view the contour effect in real time.
 
-In particular, when there are many "misidentified contour lines", the misidentified contour lines can be manually filtered through the "side mask" and "center Mask" functions.
+In particular, when there are many "misidentified contour lines", the misidentified contour lines can be manually filtered through the "side mask" and "center mask" functions.
 
 #### 3.3.1 Contour / Edge detection
 
@@ -98,11 +98,11 @@ This application offers two edge detection methods ([**Canny Algorithm**](https:
 
 ![液滴照片处理说明5](index_files/液滴照片处理说明5.jpg)
 
-Of the two algorithms, the Canny algorithm has two parameters (hence two sliders are provided below the image), while the thresholding method has one parameter (hence one slider is provided below the image). To facilitate fine-tuning of parameters, this software provides a "Switch Fine adjustment/Switch coarse adjustment" button. After switching, the range value of the slide rail can be refined/coarsely adjusted. The slide rail and the fine adjustment/fine-tuning switch button are shown in the following figure.
+Among the two algorithms, the Canny algorithm has two parameters (hence two sliders are provided below the image), while the thresholding method has one parameter (hence one slider is provided below the image). To facilitate fine-tuning of parameters, this software provides a "Switch Fine adjustment/Switch coarse adjustment" button. After switching, the range value of the slider can be refined/coarsely adjusted. The slider and the fine adjustment/fine-tuning switch button are shown in the following figure.
 
 ![液滴照片处理说明6](index_files/液滴照片处理说明6.jpg)
 
-Adjusting the slide rail allows you to view the contour effect in real time (superimposing the contour line on the grayscale image). The ideal contour effect is as shown in the following figure:
+Adjusting the slider allows you to view the contour effect in real time (superimposing the contour line on the grayscale image). The ideal contour effect is as shown in the following figure:
 
 ![液滴照片处理说明7](index_files/液滴照片处理说明7.jpg)
 
@@ -110,7 +110,7 @@ In most cases, there will be a bright area in the middle of the captured droplet
 
 This optical phenomenon is extremely common under strong light sources and high contrast conditions.
 
-In this case, the bright area in the middle of the droplet will inevitably be misidentified as a contour by the contour search algorithm. **At this point, the slide rail should be adjusted as much as possible while ensuring that the contour of the droplet can be identified as accurately as possible, so as to minimize the misidentification of the contour line in the middle of the droplet.** In this case, the typical contour recognition effect that is more recommended is shown in the following figure:
+In this case, the bright area in the middle of the droplet will inevitably be misidentified as a contour by the contour search algorithm. **At this point, the slider should be adjusted as much as possible while ensuring that the contour of the droplet can be identified as accurately as possible, so as to minimize the misidentification of the contour line in the middle of the droplet.** In this case, the typical contour recognition effect that is more recommended is shown in the following figure:
 
 ![液滴照片处理说明8](index_files/液滴照片处理说明8.jpg)
 
@@ -134,15 +134,15 @@ Similarly, when the "misidentified contour lines" in the middle cannot be cleare
 
 Similarly, the "**Baseline Mask**" function can be used to manually filter out misidentified baseline contour lines and various misidentified contour lines below the baseline. **This step does not need to pursue extreme precision, as the iterative filtering algorithm of this software can automatically filter out misidentified contours near the mask line**.
 
-By rationally using the parameter adjustment slide rail and mask functions, the true contour lines can be as many as possible and the misrecognized contour lines can be as few as possible. This can achieve a better contour recognition effect.
+By rationally using the parameter adjustment slider and mask functions, the true contour lines can be as many as possible and the misrecognized contour lines can be as few as possible. This can achieve a better contour recognition effect.
 
 > [!info] Tips：
 > 
-> Adjust the slide rail as much as possible to minimize the number of misidentified contour lines in the middle of the droplet.
+> Adjust the slider as much as possible to minimize the number of misidentified contour lines in the middle of the droplet.
 > 
 > Adjust the left and right mask areas to cover the misidentified contour lines on the solid substrate (roughly covering most of them is sufficient).
 
-After completing the contour search, you can click the "Confirm Contour" button to achieve the iteration and fitting of the contour. **If the fitting effect is not good, you can click "Go Back to Previous Step" at any time to search for the contour again.**
+After completing the contour search, you can click the "Confirm Contour" button to achieve the iteration and fitting of the contour. **If the fitting effect is not good, you can click "Go Back to Previous Step" at any time to find the contour again.**
 
 ### 3.4 Search for the baseline
 
@@ -156,17 +156,17 @@ You can roughly adjust the baseline by directly clicking on the image: Clicking 
 
 Based on the coarse adjustment, slide the slider at the bottom of the image to fine-tune the left/right intercept of the baseline.
 
-After determining the intercept of the baseline, click the "Confirm Baseline" button, and the software will automatically calculate the contact Angle.
+After determining the intercept of the baseline, click the "Confirm Baseline" button, and the software will automatically calculate the contact angle.
 
-### 3.5 Calculate the contact Angle
+### 3.5 Calculate the contact angle
 
-The software will automatically calculate the determination coefficient of contour fitting, the values of the left and right contact angles, the average value of the contact angles, and the Deviation of the left and right contact angles.
+The software will automatically calculate the determination coefficient of contour fitting, the values of the left and right contact angles, the average value of the contact angles, and the deviation of the left and right contact angles.
 
-After the calculation is completed, this software will inform the user of the average contact Angle data in the form of a pop-up notification. A typical pop-up notification is shown in the following figure:
+After the calculation is completed, this software will inform the user of the average contact angle data in the form of a pop-up notification. A typical pop-up notification is shown in the following figure:
 
 ![液滴照片处理说明11](index_files/液滴照片处理说明11.jpg)
 
-In addition to pop-up notifications, the file name, average antenna value, and relative deviation value will be displayed in table form at the bottom of the page:
+In addition to pop-up notifications, the file name, average contact angle value, and relative deviation value will be displayed in table form at the bottom of the page:
 
 ![液滴照片处理说明12](index_files/液滴照片处理说明12.jpg)
 
@@ -178,7 +178,7 @@ The "Download" button below the table allows you to download the excel table fil
 
 ImageJ is an open-source image processing software maintained by the National Institutes of Health (NIH) in the United States. This software is widely used in image analysis in fields such as biology, medicine, and physics. It can be said that ImageJ is the most commonly used image processing software in the scientific research field, without any doubt.
 
-In the process of developing the contact Angle image processing software for this business, some ideas of the contact Angle plugin in ImageJ were borrowed.
+In the process of developing the contact angle image processing software for this business, some ideas of the contact angle plugin in ImageJ were borrowed.
 
 In addition, ImageJ is equipped with many powerful functions such as image filtering, morphological operations, edge detection, and region extraction. It can meet various business needs such as cell counting and measurement, protein gel analysis, quantitative analysis of tissue sections, and electron microscope image processing, providing great convenience for scientific researchers.
 

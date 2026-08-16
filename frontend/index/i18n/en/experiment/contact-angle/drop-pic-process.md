@@ -1,14 +1,22 @@
-# Contact Angle image processing assistant
+# Contact angle image processing assistant
+
+<script setup>
+// Note: After removing .md from the Components include, .md files can no longer
+// auto-resolve <Xxx /> globally; explicit import is required.
+// This is the standard pattern for VitePress .md files when unplugin-vue-components
+// does not scan .md files.
+import ContactAngle from './ContactAngle.vue'
+</script>
 
 > [!warning] The main demands addressed by this business are:
 > 
-> After the contact Angle measurement, various processing works need to be carried out on the image to finally obtain the contact Angle data.
+> After the contact angle measurement, various processing operations need to be carried out on the image to ultimately obtain the contact angle data.
 >
-> Link to the tutorial document for this business: [**Contact Angle Image Processing Tutorial**](index.md#_3-droplet-photo-processing)
+> Link to the tutorial document for this business: [**Contact angle Image Processing Tutorial**](index.md#_3-droplet-image-processing)
 > 
-> Also: [**Link to the vertical calibration function of the equipment**](vertical-calibration.md)
+> Also: [**Vertical Calibration Function Link**](vertical-calibration.md)
 
-## Droplet photo processing
+## Droplet image processing
 
-<!-- 接触角处理组件 -->
+<!-- Contact angle processing component -->
 <ContactAngle />

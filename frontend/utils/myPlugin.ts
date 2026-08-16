@@ -35,7 +35,7 @@ export function myLoading(text?: (string | false)) {
     // 创建Loading实例，赋值给全局对象
     myPluginObj.loadingInstance = LoadingPlugin({
       // 延迟（毫秒）
-      delay: 500,
+      delay: 300,
       // 是否全屏
       fullscreen: true,
       // 加载指示符
@@ -170,24 +170,44 @@ export function myMessage(
 
 /**
  * 报错处理方法
- * @param errorText 报错文案
- * @param errorObj 报错对象
- * @param callBack 回调函数
+ * @param err 错误内容
+ * @param _instance vue实例
+ * @param info 错误信息
+ * @note 对于异步Promise错误，要用 `.catch(myError)` 捕获处理
  */
-export function myError(
-  errorText: string = "程序报错",
-  errorObj: Error,
-  callBack?: Function
-) {
-  // 先在控制台打印错误信息
-  console.log(errorText, errorObj)
-  // 如果有回调，则执行回调（回调的第一个参数是错误对象）
-  if (callBack) {
-    callBack(errorObj)
-  // 否则，直接抛出错误
-  } else {
-    throw new Error(errorText, { cause: errorObj })
-  }
+export function myError(err: unknown, _instance?: unknown, info?: string) {
+  // 打印错误信息
+  console.error(`【程序报错】\n报错消息：${ info }\n报错内容：${ err }`)
+  // 标题
+  const header = "程序报错"
+  // 内容
+  const body =
+    (info === undefined)
+      ? `请截图并联系司承运：${ err }`
+      : `请截图并联系司承运：[${ info }] - ${ err }`
+  // 显式报错
+  DialogPlugin({
+    // 对话框模式：模态框
+    mode: "modal",
+    // 位置：居中
+    placement: "center",
+    // 主题：信息
+    theme: "danger",
+    // 关闭按钮：不显示
+    closeBtn: false,
+    // 关闭即销毁
+    destroyOnClose: true,
+    // 对话框标题
+    header: header,
+    // 对话框内容
+    body: body,
+    // 页脚内容，即按钮
+    footer: false,
+    // 回车即确认
+    confirmOnEnter: false
+  })
+  // 如果有加载框，就关闭
+  myLoading(false)
 }
 
 

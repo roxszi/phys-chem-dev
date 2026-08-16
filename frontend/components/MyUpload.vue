@@ -40,7 +40,7 @@ interface MyUploadProps {
   /** 是否禁用（默认false） */
   disabled?: boolean
   /** 文件变更回调 */
-  onChange?: (files: UploadFile[], context: UploadChangeContext) => void
+  onChange?: (files: UploadFile[], context?: UploadChangeContext) => void
 }
 
 /** 组件传参 */

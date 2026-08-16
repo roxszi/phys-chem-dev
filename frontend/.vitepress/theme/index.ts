@@ -27,15 +27,9 @@ const theme: Theme = {
   enhanceApp({ app, router, siteData }) {
     /**
      * 全局错误捕获
-     * @param err 错误对象
-     * @param instance Vue组件实例
-     * @param info 错误信息
+     * @note 这只能捕获同步错误，对于异步Promise错误，必须用catch捕获
      */
-    app.config.errorHandler = (err, instance, info) => {
-      // 打印错误信息
-      console.error(err as Error, info)
-      
-    }
+    app.config.errorHandler = myError
   }
 }
 

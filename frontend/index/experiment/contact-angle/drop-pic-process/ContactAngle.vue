@@ -36,25 +36,25 @@
 <!--
   视图层
  -->
-<template><MySpace>
+<template><div class="my-column my-gap">
 
   <!-- 警报框 -->
-  <t-alert theme="info" :title="lang.FunctionIntroductionTitle">
-    <div v-for="(content, index) of lang.FunctionIntroductionContent" :key="index">
+  <MyNoticeBar theme="info" :title="langRef.FunctionIntroductionTitle">
+    <p v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
       {{ content }}
-    </div>
-  </t-alert>
+    </p>
+  </MyNoticeBar>
 
   <!-- canvas头-步骤1 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="taskStatusRef === 1"
-    theme="warning" :title="lang.SetpTitle + '1'"
+    theme="warning" :title="langRef.StepTitle + '1'"
   >
-    <div v-for="(content, index) of lang.Setp1Content" :key="index">
+    <p v-for="(content, index) of langRef.Step1Content" :key="index">
       {{ content }}
-    </div>
-  </t-alert>
+    </p>
+  </MyNoticeBar>
 
   <!--
     图片上传
@@ -63,25 +63,24 @@
       上传则处理图片并进入下个流程；
       删除则清空所有数据，回到初始状态（状态1）。
    -->
-  <t-upload
-    class="center" :disabled="false" theme="image"
-    accept="image/*" :multiple="false" :draggable="false"
-    :showImageFileName="true" :abridgeName="[3, 8]"
-    v-model:files="fileArrRef" :autoUpload="false"
-    :sizeLimit="{ size: 10, unit: 'MB' }"
+  <MyUpload
+    accept="image/*"
+    :max="1"
+    theme="image"
+    v-model:files="fileArrRef"
     :onChange="onPicChange"
   />
 
   <!-- canvas头-步骤2 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-if="taskStatusRef === 2"
-    theme="warning" :title="lang.SetpTitle + '2'"
+    theme="warning" :title="langRef.StepTitle + '2'"
   >
-    <div v-for="(content, index) of lang.Setp2Content" :key="index">
+    <p v-for="(content, index) of langRef.Step2Content" :key="index">
       {{ content }}
-    </div>
-  </t-alert>
+    </p>
+  </MyNoticeBar>
 
   <!--
     canvas头-步骤3
@@ -90,59 +89,54 @@
     （参数调节放在"canvas脚-步骤3"部分了）
     onContourAlgorithmSwitchChange：切换算法时触发。
    -->
-  <MySpace v-else-if="taskStatusRef === 3">
+  <div
+    v-else-if="taskStatusRef === 3"
+    class="my-column my-gap"
+  >
     <!-- 警报框 -->
-    <t-alert theme="warning" :title="lang.SetpTitle + '3'">
-      <div v-for="(content, index) of lang.Setp3Content" :key="index">
+    <MyNoticeBar theme="warning" :title="langRef.StepTitle + '3'">
+      <p v-for="(content, index) of langRef.Step3Content" :key="index">
         {{ content }}
-      </div>
-    </t-alert>
+      </p>
+    </MyNoticeBar>
 
     <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
-    <t-alert theme="info" :title="lang.ContourAlgorithmTitle">
-      <div v-for="(content, index) of lang.ContourAlgorithmContent" :key="index">
-        <div v-if="typeof content !== 'string'">
-          <strong>{{ content.strong }}</strong>{{ content.normal }}
-        </div>
-        <div v-else>
-          {{ content }}
-        </div>
-      </div>
-    </t-alert>
+    <MyNoticeBar theme="info" :title="langRef.ContourAlgorithmTitle">
+      <p v-for="(content, index) of langRef.ContourAlgorithmContent" :key="index">
+        <strong>{{ content.strong }}</strong>{{ content.normal }}
+      </p>
+    </MyNoticeBar>
     <!-- 边缘检测算法切换选框 -->
     <MyRadio
-      @change="onContourAlgorithmSwitch"
+      :onChange="onContourAlgorithmSwitch"
       v-model:value="contourAlgorithmRadioRef"
-      :radioContentArr="lang.ContourAlgorithmArr"
+      :radioContentArr="langRef.ContourAlgorithmArr"
     />
 
     <!-- 警报框：遮罩 -->
-    <t-alert theme="info" :title="lang.ContourMaskTitle">
-      <div v-for="(content, index) of lang.ContourMaskContent" :key="index">
-        <div v-if="typeof content !== 'string'">
-          <strong>{{ content.strong }}</strong>{{ content.normal }}
-        </div>
-        <div v-else>{{ content }}</div>
-      </div>
-    </t-alert>
+    <MyNoticeBar theme="info" :title="langRef.ContourMaskTitle">
+      <p v-for="(content, index) of langRef.ContourMaskContent" :key="index">
+        <strong>{{ content.strong }}</strong>{{ content.normal }}
+      </p>
+    </MyNoticeBar>
     <!-- 遮罩切换选框 -->
     <MyRadio
       v-model:value="contourFilterAlgorithmRadioRef"
-      :radioContentArr="lang.ContourMaskContentArr"
+      :radioContentArr="langRef.ContourMaskContentArr"
     />
 
-  </MySpace>
+  </div>
 
   <!-- canvas头-步骤4 -->
   <!-- 警报框 -->
-  <t-alert
+  <MyNoticeBar
     v-else-if="taskStatusRef === 4"
-    theme="warning" :title="lang.SetpTitle + '4'"
+    theme="warning" :title="langRef.StepTitle + '4'"
   >
-    <div v-for="(content, index) of lang.Setp4Content" :key="index">
+    <div v-for="(content, index) of langRef.Step4Content" :key="index">
       {{ content }}
     </div>
-  </t-alert>
+  </MyNoticeBar>
 
   <!--
     canvas元素块
@@ -166,21 +160,21 @@
    -->
   <div
     v-if="taskStatusRef === 2"
-    class="center"
+    class="my-row my-gap"
   >
     <!-- 裁剪图片 -->
     <MyButton
       @click="onSureRect(false)"
       :block="false"
     >
-      {{ lang.CutPictureButtonText }}
+      {{ langRef.CutPictureButtonText }}
     </MyButton>
     <!-- 裁剪完成 -->
     <MyButton
       @click="onSureRect(true)"
       :block="false" theme="danger"
     >
-      {{ lang.CutPictureCompleteButtonText }}
+      {{ langRef.CutPictureCompleteButtonText }}
     </MyButton>
   </div>
 
@@ -192,37 +186,33 @@
     contourCoarseToggle：切换滑轨的粗调和细调。
     onDetermineContour：最终确定轮廓的按钮事件回调钩子。
    -->
-  <MySpace
+  <div
     v-else-if="taskStatusRef === 3"
-    size="small"
   >
     <!-- 滑轨：主参数 -->
-    {{ lang.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="thresholdNumArrRef[0].value"
-      :min="thresholdNumArrRef[0].min" :max="thresholdNumArrRef[0].max"
-      :marks="thresholdNumArrRef[0].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+    {{ langRef.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
+    <MySlider
+      :onChange="onSliderChange"
+      :onChangeEnd="onSliderChangeEnd"
+      v-model:value="thresholdSliderAoaRef[0]![0]"
+      :marks="thresholdSliderAoaRef[0]![1]"
+      :step="1"
+    />
     <!-- 滑轨：辅助参数 -->
-    <MySpace
+    <div
       v-if="contourAlgorithmRadioRef === 0"
-      size="small"
+      class="my-column my-gap"
     >
-      {{ lang.ContourSliderAuxiliaryParameterLabel }}
-      <t-slider
-        @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-        v-model="thresholdNumArrRef[1].value"
-        :min="thresholdNumArrRef[1].min" :max="thresholdNumArrRef[1].max"
-        :marks="thresholdNumArrRef[1].marks"
-        :step="1" :range="false"
-        :inputNumberProps="false" :label="true" layout="horizontal"
-      /><t-divider />
-    </MySpace>
+      {{ langRef.ContourSliderAuxiliaryParameterLabel }}
+      <MySlider
+        :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+        v-model:value="thresholdSliderAoaRef[1]![0]"
+        :marks="thresholdSliderAoaRef[1]![1]"
+        :step="1"
+      />
+    </div>
     <!-- 容器（按钮容器） -->
-    <div class="center">
+    <div class="my-row my-gap">
       <!-- 轮廓粗调/细调切换 -->
       <MyButton
         @click="onContourSliderCoarseFineToggle"
@@ -230,8 +220,8 @@
       >
         {{
           isContourCoarseRef
-            ? lang.ContourSliderSwitchFineButtonLabel
-            : lang.ContourSliderSwitchCoarseButtonLabel
+            ? langRef.ContourSliderSwitchFineButtonLabel
+            : langRef.ContourSliderSwitchCoarseButtonLabel
         }}
       </MyButton>
       <!-- 确定轮廓 -->
@@ -239,10 +229,10 @@
         @click="onDetermineContour"
         :block="false" theme="danger"
       >
-        {{ lang.ContourDetermineButtonLabel }}
+        {{ langRef.ContourDetermineButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
+  </div>
 
   <!--
     canvas脚-步骤4
@@ -252,69 +242,64 @@
     onBackToStep3：返回第3步，这里需要有次功能，以满足找基线时候对轮廓的反复微调。
     onDetermineBaseline：最终确定基线的按钮事件回调钩子。
    -->
-  <MySpace
+  <div
     v-else-if="taskStatusRef === 4"
-    size="small"
   >
     <!-- 滑轨：左截距 -->
-    {{ lang.InterceptLeftSliderLabel }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="interceptNumArrRef[0].value"
-      :min="interceptNumArrRef[0].min" :max="interceptNumArrRef[0].max"
-      :marks="interceptNumArrRef[0].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+    {{ langRef.InterceptLeftSliderLabel }}
+    <MySlider
+      :onChange="onSliderChange"
+      :onChangeEnd="onSliderChangeEnd"
+      v-model:value="interceptSliderAoaRef[0]![0]"
+      :marks="interceptSliderAoaRef[0]![1]"
+    />
     <!-- 滑轨：右截距 -->
-    {{ lang.InterceptRightSliderLabel }}
-    <t-slider
-      @change="onSliderChange" @changeEnd="onSliderChangeEnd"
-      v-model="interceptNumArrRef[1].value"
-      :min="interceptNumArrRef[1].min" :max="interceptNumArrRef[1].max"
-      :marks="interceptNumArrRef[1].marks"
-      :step="1" :range="false"
-      :inputNumberProps="false" :label="true" layout="horizontal"
-    /><t-divider />
+    {{ langRef.InterceptRightSliderLabel }}
+    <MySlider
+      :onChange="onSliderChange"
+      :onChangeEnd="onSliderChangeEnd"
+      v-model:value="interceptSliderAoaRef[1]![0]"
+      :marks="interceptSliderAoaRef[1]![1]"
+    />
     <!-- 容器（按钮容器） -->
-    <div class="center">
+    <div class="my-row my-gap">
       <!-- 返回上一步 -->
       <MyButton
         @click="onBackToStep3"
         :block="false" theme="default"
       >
-        {{ lang.StepBackButtonLabel }}
+        {{ langRef.StepBackButtonLabel }}
       </MyButton>
       <!-- 确认基线 -->
       <MyButton
         @click="onDetermineBaseline"
         :block="false" theme="primary"
       >
-        {{ lang.BaselineConfirmButtonLabel }}
+        {{ langRef.BaselineConfirmButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
+  </div>
 
   <!--
     canvas脚-步骤5
     数据结果的呈现：数据表格、下载按钮
    -->
-  <MySpace
+  <div
     v-if="resultTableDataRef?.length !== 0"
-    size="small"
+    class="my-column my-gap"
   >
     <!-- 表格和翻页器容器 -->
     <div>
       <!-- 接触角数据表格 -->
-      <div class="center"><table>
+      <div class="my-w100"><table>
         <!-- 表头 -->
         <thead>
           <tr>
-            <th v-for="(content, index) of lang.ResultTableContent" :key="index">
+            <th v-for="(content, index) of langRef.ResultTableContent" :key="index">
               {{ content }}
             </th>
             <!-- 处理 -->
-            <th>{{ lang.ResultTableProcessingLabel }}</th>
+            <th>{{ langRef.ResultTableProcessingLabel }}</th>
           </tr>
         </thead>
         <!-- 表格体 -->
@@ -328,13 +313,13 @@
             <td>{{ resultArr[5]?.toFixed(2) }}</td>
             <td>{{ resultArr[6]?.toFixed(2) }}</td>
             <td>{{ resultArr[7]?.toFixed(4) }}</td>
-            <td>{{ lang.FitNatureStrMap[resultArr[8]] ?? resultArr[8] }}</td>
+            <td>{{ langRef.FitNatureStrMap[resultArr[8]] ?? resultArr[8] }}</td>
             <!-- 删除按钮 -->
             <td><MyButton
               @click="onDeleteUniResult(resultArr[0])"
               :block="false" theme="danger"
             >
-              {{ lang.ResultTableDeleteButtonLabel }}
+              {{ langRef.ResultTableDeleteButtonLabel }}
             </MyButton></td>
           </tr>
         </tbody>
@@ -352,7 +337,7 @@
     </div>
 
     <!-- 容器（按钮容器） -->
-    <div class="center">
+    <div class="my-row my-gap">
       <!-- 倒序/正序 -->
       <MyButton
         @click="onReverseResultOrder"
@@ -360,8 +345,8 @@
       >
         {{
           isResultReverseRef === false
-            ? lang.ResultTableReverseButtonLabel
-            : lang.ResultTableNormalButtonLabel
+            ? langRef.ResultTableReverseButtonLabel
+            : langRef.ResultTableNormalButtonLabel
         }}
       </MyButton>
       <!-- 下载数据 -->
@@ -369,94 +354,95 @@
         @click="onDownloadResult"
         :block="false" theme="primary"
       >
-        {{ lang.ResultTableExportButtonLabel }}
+        {{ langRef.ResultTableExportButtonLabel }}
       </MyButton>
       <!-- 清空数据 -->
       <MyButton
         @click="onDeleteAllResult"
         :block="false" theme="danger"
       >
-        {{ lang.DeleteAllResultButtonLabel }}
+        {{ langRef.DeleteAllResultButtonLabel }}
       </MyButton>
     </div>
-  </MySpace>
-</MySpace></template>
+  </div>
+</div></template>
+
 
 <!--
   逻辑层
  -->
-<script setup>
-// 导入VUE的各类响应式方法
-import { useTemplateRef, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue"
+<script setup lang="ts">
 // 导入VueUse的各类响应式方法
 import { useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
-// 导入自有方法
-import my from "@/utils/myFunc.js"
 // 导入xlsx相关方法
-import { aoaMapToWorkbook, downloadXlsx } from "@/utils/app-xlsx.js"
-// 导入OpenCV.js加载器
-import { loadOpenCV } from "@/utils/opencvLoader.js"
-// 导入纯算法模块（从Vue文件中解耦出来的无UI依赖的计算逻辑）
-import * as Algorithm from "./ContactAngle-algorithm.js"
-// 导入语言包
-import { useLang, lang } from "./ContactAngle-lang.js"
+import { aoaMapToWorkbook, downloadXlsx } from "@utils/xlsx.ts"
+// 导入OpenCV.js composable
+import { useOpenCV } from "@composables/useOpenCV.ts"
+// 导入纯算法模块（无UI依赖的纯计算逻辑）
+import * as Algorithm from "./ContactAngle-algorithm.ts"
+// 导入本组件语言包
+import { langDict } from "./ContactAngle-lang.ts"
+// 导入组件数据类型
+import type {
+  // 上传
+  UploadFile,
+  // 滑轨
+  MySliderMarks
+} from "@components/types.ts"
 
 // ======================================== 数据类型声明 ========================================
 
-/**
- * @typedef { object } SliderParam 调参数组
- * @property { number } value 当前值
- * @property { number } min 最小值
- * @property { number } max 最大值
- * @property { number[] } marks 标记
- */
-/**
- * @typedef { [string, number, number, number, number, number, number, string] } ResultDatum 单个数据结果
- *   [文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
- */
-/**
- * @typedef { [number, string, number, number, number, number, number, number, string] } OrderResultDatum 带序号的单个数据结果
- *   [序号, 文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
- */
+// 引入数据类型
+import type { Rect, ColLine, Baseline } from "./types.ts"
+
 /**
  * 接触角业务的全局对象
- * @typedef { object } ContactAngle
- * @property { CV } cv OpenCV.js对象
- * @property { number } canvasStyleWidth canvas元素块的显示宽度
- * @property { string } filename 所上传文件的文件名
- * @property { CanvasRenderingContext2D } ctx canvas的绘图上下文对象
- * @property { number } canvasScaling canvas元素块的缩放比例：实际/显示
- * @property { CV.Mat } matGray 灰度图Mat对象
- * @property { ImageData } imageData canvas的图像数据，用于暂存，便于恢复
- * @property { Rect } rect canvas元素块选框
- * @property { ColLine } colLine 轮廓选择时用于过滤的两侧基线
- * @property { Baseline } baseline 轮廓选择时用于过滤的底部基线。
- *    此值应与步骤4滑轨绑定，相对canvas对称（当且仅当步骤4）。
- *    步骤4的计算应以Ref对象为基准，而不是baseline对象。步骤4的逻辑归集到Ref对象了。
- * @property { [number, number] } baselineReferencePoint 基线参考点
- * @property { CV.Ellipse } ellipse 拟合得到的椭圆对象
- * @property { number } ellipseR2 椭圆拟合的决定系数R²
- * @property { string } resultType 拟合迭代结果的类型
  * @note canvas的实际宽高在canvasRef.value.width和canvasRef.value.height上
  * @note canvas的显示宽最大值在canvasParentRef.value.clientWidth上，但是这个可能会变化！很坑
  */
-/**
- * @typedef { object } Rect canvas元素块选框
- * @property { number } Rect.xMax canvas元素块选框的X坐标大值(亦用于步骤3的遮罩框)
- * @property { number } Rect.yMax canvas元素块选框的Y坐标大值(亦用于步骤3的遮罩框)
- * @property { number } Rect.xMin canvas元素块选框的X坐标小值(亦用于步骤3的遮罩框)
- * @property { number } Rect.yMin canvas元素块选框的Y坐标小值(亦用于步骤3的遮罩框)
- */
-/**
- * @typedef { object } ColLine canvas元素块遮罩线
- * @property { number } ColLine.left canvas元素块遮罩线的左侧线X坐标
- * @property { number } ColLine.right canvas元素块遮罩线的右侧线X坐标
- */
-/**
- * @typedef { object } Baseline canvas元素基线遮罩线
- * @property { number } Baseline.left canvas元素块基线遮罩线的左侧Y坐标
- * @property { number } Baseline.right canvas元素块基线遮罩线的右侧Y坐标
- */
+interface ContactAngle {
+  /** canvas元素块的显示宽度 */
+  canvasStyleWidth: number | null
+  /** 所上传文件的文件名 */
+  filename: string | null
+  /** canvas的绘图上下文对象 */
+  ctx: CanvasRenderingContext2D | null
+  /** canvas元素块的缩放比例：实际/显示 */
+  canvasScaling: number
+  /** 灰度图Mat对象 */
+  matGray: OpenCVMat | null
+  /** canvas的图像数据，用于暂存，便于恢复 */
+  imageData: ImageData | null
+  /** canvas元素块选框 */
+  rect: Rect
+  /** 轮廓选择时用于过滤的两侧基线 */
+  colLine: ColLine
+  /**
+   * 轮廓选择时用于过滤的底部基线。
+   * - 此值应与步骤4滑轨绑定，相对canvas对称（当且仅当步骤4）。
+   * - 步骤4的计算应以Ref对象为基准，而不是baseline对象。步骤4的逻辑归集到Ref对象了。
+   */
+  baseline: Baseline
+  /** 基线参考点 */
+  baselineReferencePoint: [number, number] | null
+  /** 拟合得到的椭圆对象 */
+  ellipse: OpenCVEllipse | null
+  /** 椭圆拟合的决定系数R² */
+  ellipseR2: number | null
+  /** 拟合迭代结果的类型 */
+  resultType: string | null
+}
+
+/** slider参数对象 */
+type SliderParamArr = [
+  number, MySliderMarks
+]
+/** 拟合结果类型 */
+type FitResult = "迭代收敛" | "迭代达上限" | "有效点不足"
+/** 单个数据结果。[文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型] */
+type ResultDatum =[string, number, number, number, number, number, number, FitResult]
+/** 带序号的单个数据结果 */
+type OrderResultDatum = [number, ...ResultDatum]
 
 // ======================================== 业务内的全局对象 ========================================
 
@@ -470,42 +456,33 @@ import { useLang, lang } from "./ContactAngle-lang.js"
  *     其实并不存在状态5，因为计算接触角是最后一步，没有下一步了。
  */
 const taskStatusRef = ref(1)
-/** 用户上传的文件数组对象 @type { Ref<File[]> } */
-const fileArrRef = ref([])
+/** 用户上传的文件数组对象 */
+const fileArrRef = ref<File[]>([])
 /** 
  * 视图层的<canvas>Dom对象
  * canvas加载很慢，需要等，比较好的等待方法是watch监听钩子。
  * 实测nextTick、onMounted都不如watch。
  */
 const canvasRef = useTemplateRef("canvasRef")
-/** 第三步寻找轮廓的调参数组Ref对象 @type { Ref<SliderParam[]> } */
-const thresholdNumArrRef = ref([])
-/** 第三步寻找轮廓的调参数组常量对象 @type { SliderParam[] } */
-const thresholdNumArrConst = [{
-  // 主参数：当前值、最小值、最大值、marks标记
-  value: 255,
-  min: 0,
-  max: 255,
-  marks: [0, 85, 170, 255]
-}, {
-  // 辅助参数：当前值、最小值、最大值、marks标记
-  value: 0,
-  min: 0,
-  max: 255,
-  marks: [0, 85, 170, 255]
-}]
+/** 第三步寻找轮廓的调参数组Ref对象 */
+const thresholdSliderAoaRef = ref<SliderParamArr[]>([])
+/** 第三步寻找轮廓的调参数组常量对象 */
+const thresholdSliderAoaConst: SliderParamArr[] = [
+  // 主参数：当前值、marks标记
+  [255, [0, 85, 170, 255]],
+  // 辅助参数：当前值、marks标记
+  [0, [0, 85, 170, 255]],
+]
 /**
  * 第三步寻找轮廓的算法选框对象
- * @type { Ref<number> }
  * @value 0 - Canny算法
  * @value 1 - 阈值化法
  */
 const contourAlgorithmRadioRef = ref(0)
-/** 第三步寻找轮廓是否是粗调模式 @type { Ref<boolean> } */
+/** 第三步寻找轮廓是否是粗调模式 */
 const isContourCoarseRef = ref(true)
 /** 
  * 第三步寻找轮廓的遮罩算法选框对象
- * @type { Ref<number> }
  * @value 0 - 基线遮罩
  * @value 1 - 两边遮罩
  * @value 2 - 中心遮罩
@@ -513,37 +490,28 @@ const isContourCoarseRef = ref(true)
 const contourFilterAlgorithmRadioRef = ref(0)
 /**
  * 第四步寻找基线的截距
- * @type { Ref<SliderParam[]> }
- * 格式：左截距：当前值、最小值、最大值、marks标记，右截距：当前值、最小值、最大值、marks标记
+ * 格式：左截距：当前值、marks标记，右截距：当前值、marks标记
  * @note 不能轻易赋值，因为在步骤4，一旦赋值，就会触发绘制基线等回调
  */
-const interceptNumArrRef = ref([])
-/**
- * 第五步计算接触角的最终结果
- * @type { Ref<ResultDatum[]> }
- * 分别是：[文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
- */
-const resultRef = ref([])
-/** 第五步最终结果表格的页码 @type { Ref<number> } */
+const interceptSliderAoaRef = ref<SliderParamArr[]>([])
+/** 第五步计算接触角的最终结果数组 */
+const resultRef = ref<ResultDatum[]>([])
+/** 第五步最终结果表格的页码 */
 const resultTableCurrentPageRef = ref(1)
 /**
  * 第五步最终结果数据是否倒序显示
- * @type { Ref<boolean> }
  * @value false - 升序
  * @value true - 数据倒置
  */
 const isResultReverseRef = ref(false)
 /**
  * 第五步最终结果的表格内容
- * @type { Ref<OrderResultDatum[]> }
- * 分别是：[序号, 文件名, 接触角, 偏差, 左接触角, 右接触角, 基线角度, 拟合R², 拟合结果类型]
  * @note resultTableDataRef比resultRef多了个序号
  * 可能因版本差异，数组元素数量不足7个，所以用可选链，并需在软件初始化时做验证
  */
-const resultTableDataRef = ref([])
-/** 接触角业务的全局对象 @type { ContactAngle } */
-const contactAngleObj = {
-  cv: null,
+const resultTableDataRef = ref<OrderResultDatum[]>([])
+/** 接触角业务的全局对象 */
+const contactAngleObj: ContactAngle = {
   canvasStyleWidth: null,
   filename: null,
   ctx: null,
@@ -581,6 +549,40 @@ const {
   // stop: stopMouseInElement
 } = useMouseInElement(canvasRef)
 
+/**
+ * OpenCV.js 加载：单例 composable
+ * - OpenCVRef 是 readonly Ref<OpenCV | null>,加载成功后即 ready
+ * - ensureOpenCVReady() 幂等：多次调用复用同一 Promise
+ */
+const { OpenCVRef, ensureOpenCVReady } = useOpenCV()
+
+/** 派生当前语言的响应式语言包（root / en） */
+const langRef = useLang(langDict)
+
+// 监听resultRef，实现表格数据resultTableDataRef刷新
+watch(
+  [resultRef, resultTableCurrentPageRef, isResultReverseRef],
+  refreshResultTableData,
+  {
+    // 立即执行
+    immediate: true,
+    // 深度监听：2，（1是本体，2是子数组）
+    deep: 2
+  }
+)
+// 注册一个对taskStatusRef的监听：
+// 任务状态改变时，始终保持canvas滚动到视图中间
+watch(taskStatusRef, nextTickFocusOnCanvas)
+// 注册一个<canvas>长按的监听钩子
+onLongPress(
+  // 监听对象：<canvas>
+  canvasRef,
+  // 回调钩子
+  onCanvasLongPress,
+  // 配置：长按时间
+  // { delay: 500 }
+)
+
 // ================================================================================
 // 全局钩子
 // 生命周期钩子、监听钩子
@@ -588,27 +590,15 @@ const {
 
 // 生命周期钩子，SSG的SPA化实现，组件挂载后执行
 // 用于进行必要的各类初始化操作
-onMounted(() => { try {
-  // 语言包水合
-  lang.value = useLang()
-  // 语言刷新完毕，渲染加载框
-  my.loading(lang.value.OpenCVLoadingContent)
+onMounted(() => {
+  // 渲染加载框
+  myLoading(langRef.value.OpenCVLoadingContent)
   // 接下来做一些该WebApp的准备工作
   // 阻止页面刷新和关闭，该方法不能阻止页面前进（跳转）、后退
   window.addEventListener("beforeunload", beforeunloadHandler)
   // 初始化数据结果resultRef
   initResultData()
-  // 监听resultRef，实现表格数据resultTableDataRef刷新
-  watch(
-    [resultRef, resultTableCurrentPageRef, isResultReverseRef],
-    refreshResultTableData,
-      {
-      // 立即执行
-      immediate: true,
-      // 深度监听：2，（1是本体，2是子数组）
-      deep: 2
-    }
-  )
+  // 初始化canvas
   // 如果canvas没有初始化（第一次进入页面）
   if (!canvasRef.value) {
     // 注册一个监听钩子，用于实现canvasRef的初始化监听
@@ -628,7 +618,7 @@ onMounted(() => { try {
             "2d",
             // 为频繁读取做优化，但仅Gecko内核（FireFox浏览器）支持
             { willReadFrequently: true }
-          )
+          )!
         }
       }
     )
@@ -640,42 +630,14 @@ onMounted(() => { try {
       "2d",
       // 为频繁读取做优化，但仅Gecko内核（FireFox浏览器）支持
       { willReadFrequently: true }
-    )
+    )!
   }
   // 导入OpenCV.js库
-  // 这是从@techstark/opencv-js库中导入cv对象，原库cv比较大，已改为重构建的OpenCV.js了，故注释掉
-  // const cvImportPromise = import("@techstark/opencv-js")
-  // // 等待OpenCV.js加载完成
-  // cvImportPromise.then((cvReadyPromise) => {
-  //   // 动态导入钩子里面仍是个Promise对象，需要再then
-  //   cvReadyPromise.default.then((cv) => {
-  //     // 赋值给全局变量cv
-  //     contactAngleObj.cv = cv
-  //     // 停止加载框
-  //     my.loading(false)
-  //   })
-  // })
-  loadOpenCV().then((cvReady) => {
-    // 赋值给全局变量cv
-    contactAngleObj.cv = cvReady
+  ensureOpenCVReady().then(() => {
     // 停止加载框
-    my.loading(false)
-  })
-  // 注册一个对taskStatusRef的监听：
-  // 任务状态改变时，始终保持canvas滚动到视图中间
-  watch(taskStatusRef, nextTickFocusOnCanvas)
-  // 注册一个<canvas>长按的监听钩子
-  onLongPress(
-    // 监听对象：<canvas>
-    canvasRef,
-    // 回调钩子
-    onCanvasLongPress,
-    // 配置：长按时间
-    // { delay: 500 }
-  )
-} catch (error) {
-  my.error("onMounted()报错：", error, errorDialog)
-}})
+    myLoading(false)
+  }).catch(myError)
+})
 
 /**
  * 数据初始化
@@ -686,23 +648,16 @@ function initResultData() {
   const DATA_LENGTH = 8
   // 从localStorage中读取
   const resultDataStr = localStorage.getItem("contactAngleResult")
-  // 如果没有数据
-  if (!resultDataStr) {
-    // 直接跳出即可
-    return
-  }
-  /** 处理数据，将字符串转为JSON对象 @type { ResultDatum[] } */
-  const resultDataAoa = JSON.parse(resultDataStr)
+  // 如果没有数据，直接跳出即可
+  if (!resultDataStr) return
+  /** 处理数据，将字符串转为JSON对象 */
+  const resultDataAoa = JSON.parse(resultDataStr) as ResultDatum[]
   // 数据检查
-  if(!dataInitCheck(resultDataAoa)) {
-    return
-  }
+  if(!dataInitCheck(resultDataAoa)) return
   // 遍历数据
   for (const resultDataArr of resultDataAoa) {
     // 数据检查
-    if(!dataInitCheck(resultDataArr)) {
-      return
-    }
+    if(!dataInitCheck(resultDataArr)) return
     // 强行初始化数据长度
     resultDataArr.length = DATA_LENGTH
   }
@@ -710,18 +665,19 @@ function initResultData() {
   resultRef.value = resultDataAoa
   /**
    * 数据检查
-   * @param { ResultDatum | ResultDatum[] } dataArr 数据数组
+   * @param dataArr 数据数组
    */
-  function dataInitCheck(dataArr) {
+  function dataInitCheck(dataArr: ResultDatum[] | ResultDatum) {
     // 如果数据格式有问题，则清空数据
     if (!Array.isArray(dataArr)) {
       // 清空数据
       localStorage.removeItem("contactAngleResult")
       // 通知
-      my.message(lang.value.DataInitErrorContent)
-      // 跳出
+      myMessage(langRef.value.DataInitErrorContent)
+      // 返回false
       return false
     } else {
+      // 否则返回true
       return true
     }
   }
@@ -729,14 +685,13 @@ function initResultData() {
 
 /**
  * 刷新数据呈现
- * @param { [ResultDatum[], number, boolean] } 参数数组
- * 包含以下内容：
- * - [0] newResultAoa - 新结果数据
- * - [1] newResultTablePage - 新页码数据
- * - [2] newIsResultReverse - 新是否倒序数据
- * - 结果数据：文件名、接触角均值、左接触角、右接触角、左右偏差、基线角度、椭圆拟合的决定系数R²
+ * @param newResultAoa - 新结果数据
+ * @param newResultTablePage - 新页码数据
+ * @param newIsResultReverse - 新是否倒序数据
  */
-function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultReverse]) {
+function refreshResultTableData(
+  [newResultAoa, newResultTablePage, newIsResultReverse]: [ResultDatum[], number, boolean]
+) {
   // 接参数
   const resultAoaLength = newResultAoa.length
   // 如果新数据为空，则清空表格数据
@@ -764,12 +719,12 @@ function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultRe
       ]
   // 接收新数据。这一步操作是为了避免原数组长度不足endIndex造成的bug
   const resultTableDataAoaTemp = newResultAoa.slice(startIndex, endIndex)
-  /** 建立一个空数组，用于存放处理后的数据 @type { OrderResultDatum[] } */
-  const resultTableDataAoa = []
+  /** 建立一个空数组，用于存放处理后的数据 */
+  const resultTableDataAoa: OrderResultDatum[] = []
   // 遍历取值 + 补一个原index
   for (let i = 0; i < resultTableDataAoaTemp.length; i++) {
     // 把原index加上，推进新数组里
-    resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoaTemp[i]])
+    resultTableDataAoa.push([(startIndex + i), ...resultTableDataAoaTemp[i]!])
   }
   // 如果是倒序
   if (newIsResultReverse) {
@@ -786,15 +741,13 @@ function refreshResultTableData([newResultAoa, newResultTablePage, newIsResultRe
  */
 function nextTickFocusOnCanvas() {
   // 下个渲染周期执行focusOnCanvas()
-  nextTick(focusOnCanvas).catch((error) => {
-    my.error("nextTickFocusOnCanvas()报错：", error, errorDialog)
-  })
+  nextTick(focusOnCanvas).catch(myError)
   /**
    * 聚焦canvas的内部方法
    */
   function focusOnCanvas() {
     // 接参数
-    const canvas = canvasRef.value
+    const canvas = canvasRef.value!
     // 滚动到canvas
     canvas.scrollIntoView({
       // 平滑滚动
@@ -816,9 +769,9 @@ onBeforeUnmount(() => {
 
 /**
  * 页面关闭、后退或刷新的回调
- * @param { Event } event 页面关闭或刷新事件
+ * @param event 页面关闭或刷新事件
  */
-function beforeunloadHandler(event) {
+function beforeunloadHandler(event: Event) {
   // 阻止默认行为
   event.preventDefault()
   // 取消默认事件：兼容方法
@@ -826,23 +779,10 @@ function beforeunloadHandler(event) {
 }
 
 /**
- * 报错的通知方法
- * @param { Error } error 报错信息
- */
-function errorDialog(error) {
-  // 直接对话框报错
-  my.dialog({
-    theme: "danger",
-    header: lang.value.ErrorDialogTitle,
-    body: lang.value.ErrorDialogContent + error
-  })
-}
-
-/**
  * 长按<canvas>触发的回调
  * 步骤2、步骤3：清空<canvas>上的标记
  */
-function onCanvasLongPress() { try {
+function onCanvasLongPress() {
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2或3时
@@ -850,11 +790,9 @@ function onCanvasLongPress() { try {
     // 清空canvas上的矩形标记数据
     canvasMarkDataRemove()
     // 恢复canvas原图
-    contactAngleObj.ctx.putImageData(contactAngleObj.imageData, 0, 0)
+    contactAngleObj.ctx!.putImageData(contactAngleObj.imageData!, 0, 0)
   }
-} catch (error) {
-  my.error("onCanvasLongPress()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 点击<canvas>触发的回调
@@ -862,7 +800,7 @@ function onCanvasLongPress() { try {
  * 步骤3：遮罩
  * 步骤4：绘制基线
  */
-function onCanvasClick() { try {
+function onCanvasClick() {
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为2时，即选框绘制阶段，则调用选框方法
@@ -881,11 +819,9 @@ function onCanvasClick() { try {
     // 接参数
     const { baseline } = contactAngleObj
     // 刷新细调滑块（这一步会触发绘图）
-    refreshBaselineSlider([baseline.left, baseline.right])
+    refreshBaselineSlider([baseline.left!, baseline.right!])
   }
-} catch (error) {
-  my.error("onCanvasClick()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 清空canvas上的各类标记数据
@@ -912,6 +848,7 @@ function canvasMarkDataRemove() {
 function ctxSetting() {
   // 接参数
   const { ctx, canvasScaling } = contactAngleObj
+  if (!ctx) throw new Error("ctx is undefined")
   // 红色笔迹
   ctx.strokeStyle = "red"
   // 线宽：2像素 x 缩放比例
@@ -926,21 +863,19 @@ function ctxSetting() {
  * 步骤4：基线细调。此步骤下，用户点击canvas会触发绑定值的修改，也会触发该回调。
  * @note 对于模型绑定，即便是其它操作修改了所绑定的值，也会触发值变化事件的回调。
  */
-function onSliderChange() { try {
+function onSliderChange() {
   // 获取任务进度
   const taskStatus = taskStatusRef.value
   // 任务进度为3时，即确定轮廓阶段
   if (taskStatus === 3) {
     // 直接执行节流处理的轮廓查找方法
-    chooseContourThrottled()
+    chooseContourThrottled().catch(myError)
   // 任务进度为4时，即基线绘制阶段
   } else if (taskStatus === 4) {
     // 直接执行节流的绘制基线方法
-    drawBaselineThrottled()
+    drawBaselineThrottled().catch(myError)
   }
-} catch (error) {
-  my.error("onSliderChange()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 调节滑轨操作刚停止的事件回调钩子
@@ -948,7 +883,7 @@ function onSliderChange() { try {
  * 步骤4：基线细调，此步骤下，用户点击canvas会触发绑定值的修改，也会触发该回调。
  * @note 步骤4的计算应以Ref对象为基准，而不是baseline对象。步骤4的逻辑归集到Ref对象了。
  */
-function onSliderChangeEnd() { try {
+function onSliderChangeEnd() {
   // 接参数
   const taskStatus = taskStatusRef.value
   // 任务进度为3，且为细调状态
@@ -958,13 +893,11 @@ function onSliderChangeEnd() { try {
   // 任务进度为4
   } else if (taskStatus === 4) {
     // 接参数
-    const [{ value: userLeftIntercept }, { value: userRightIntercept }] = interceptNumArrRef.value
+    const [[userLeftIntercept], [userRightIntercept]] = interceptSliderAoaRef.value as [SliderParamArr, SliderParamArr]
     // 执行滑轨数据刷新方法（会被动触发绘制基线），此处从滑轨取值，本身就是用户视角，无需显示再转为用户视角
     refreshBaselineSlider([userLeftIntercept, userRightIntercept], false)
   }
-} catch (error) {
-  my.error("onSliderChangeEnd()报错：", error, errorDialog)
-}}
+}
 
 // ================================ 步骤状态的函数方法 ================================
 
@@ -983,23 +916,27 @@ function taskToStep1() {
 
 /**
  * 图片上传或改变时触发的回调
- * @param { TDesign.UploadFile[] } event 事件对象
+ * @param event 事件对象
  */
-async function onPicChange(event) { try {
+async function onPicChange(event: UploadFile[]) {
   // 如果是清空了照片，则把任务进度切换回1，并直接返回即可
   if (event.length === 0) { 
     taskToStep1()
     return
   }
   // 加载框
-  my.loading(lang.value.PicLoadingContent)
+  myLoading(langRef.value.PicLoadingContent)
   // 接对象
-  const { cv, ctx, matGray } = contactAngleObj
+  const uploadFile = event[0]
+  const { ctx, matGray } = contactAngleObj
+  const cv = OpenCVRef.value as OpenCV
   const canvas = canvasRef.value
+  // 验证对象
+  if (!uploadFile || !cv || !canvas || !ctx || !matGray) throw new Error("object is undefined")
   // 接收文件名
-  contactAngleObj.filename = event[0].name
+  contactAngleObj.filename = uploadFile.name!
   // 从第一个对象获取文件url
-  const fileURL = URL.createObjectURL(event[0].raw)
+  const fileURL = URL.createObjectURL(uploadFile.raw!)
   // 构造<img>元素
   const imgElement = new Image()
   // 在网页内隐藏<img>元素
@@ -1013,9 +950,7 @@ async function onPicChange(event) { try {
   // 读取完毕，销毁图片元素以释放内存
   imgElement.remove()
   // 如果全局灰度图Mat对象存在且有成员对象delete方法，则先删除
-  if (matGray?.delete) {
-    matGray.delete()
-  }
+  matGray?.delete()
   // 初始化全局灰度图Mat对象
   contactAngleObj.matGray = new cv.Mat()
   // 将原始图像Mat转为灰度Mat，赋值给全局灰度图Mat对象
@@ -1039,13 +974,8 @@ async function onPicChange(event) { try {
   // 第一阶段完成，任务进度改为2（该步骤会恢复canvas的上下文设置）
   taskToStep2()
   // 停止加载框
-  my.loading(false)
-} catch (error) {
-  // 停止加载框
-  my.loading(false)
-  // 报错处理
-  my.error("onPicChange()报错：", error, errorDialog)
-}}
+  myLoading(false)
+}
 
 /**
  * @步骤2 绘制选框
@@ -1065,9 +995,7 @@ function taskToStep2() {
   // 任务进度改为2
   taskStatusRef.value = 2
   // 下个DOM周期：调整canvas尺寸以适应屏幕
-  nextTick(canvasFit).catch((error) => {
-    my.error("taskToStep2().nextTick()报错：", error, errorDialog)
-  })
+  nextTick(canvasFit).catch(myError)
 }
 
 /**
@@ -1077,11 +1005,11 @@ function taskToStep2() {
  */
 function canvasFit() {
   // 接参数
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   // 接canvas父元素的最大内宽，赋值给全局变量
-  contactAngleObj.canvasStyleWidth = canvas.parentElement.clientWidth
+  contactAngleObj.canvasStyleWidth = canvas.parentElement!.clientWidth
   // 设置canvas的显示宽度
-  canvas.style.width = canvas.parentElement.clientWidth + "px"
+  canvas.style.width = canvas.parentElement!.clientWidth + "px"
   // 以canvas的真实宽度和显示宽度之比，赋值给全局对象的缩放比例变量
   contactAngleObj.canvasScaling = canvas.width / contactAngleObj.canvasStyleWidth
   // 更新canvas的显示高度
@@ -1098,7 +1026,7 @@ function canvasFit() {
 function chooseRect() {
   // 接参数
   const { canvasScaling, rect } = contactAngleObj
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   // 点击位置的实际坐标
   const clickX = elementX.value * canvasScaling
   const clickY = elementY.value * canvasScaling
@@ -1114,39 +1042,44 @@ function chooseRect() {
 function drawRect() {
   // 接参数
   const { ctx, imageData, rect } = contactAngleObj
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
+  // 验证
+  if (!ctx || !imageData || !rect) throw new Error("object is undefined")
   // 先对选框进行初始化，去掉上一次的绘制
   ctx.putImageData(imageData, 0, 0)
   // 画一个全canvas遮罩
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   // 计算宽高
-  const rectWidth = rect.xMax - rect.xMin
-  const rectHeight = rect.yMax - rect.yMin
+  const rectWidth = rect.xMax! - rect.xMin!
+  const rectHeight = rect.yMax! - rect.yMin!
   // 然后重绘选框中部
   ctx.putImageData(
     imageData, 0, 0,
-    rect.xMin, rect.yMin, rectWidth, rectHeight
+    rect.xMin!, rect.yMin!, rectWidth, rectHeight
   )
   // 最后直接绘制框
-  ctx.strokeRect(rect.xMin, rect.yMin, rectWidth, rectHeight)
+  ctx.strokeRect(rect.xMin!, rect.yMin!, rectWidth, rectHeight)
 }
 
 /**
  * "裁剪图片"或"完成裁剪"的回调方法
- * @param { boolean } isDetermine 是否确定完成裁剪
+ * @param isDetermine 是否确定完成裁剪
  */
-function onSureRect(isDetermine) { try {
+function onSureRect(isDetermine: boolean) {
   // 接参数
-  const { cv, matGray, ctx, rect } = contactAngleObj
-  const canvas = canvasRef.value
+  const { matGray, ctx, rect } = contactAngleObj
+  const cv = OpenCVRef.value
+  const canvas = canvasRef.value!
+  // 验证
+  if (!cv || !canvas || !ctx || !matGray) throw new Error("object is undefined")
   // 如果有选框
   if (rect.xMax) {
     // 开始裁剪：确定裁剪区域
     const rectRect = new cv.Rect(
-      rect.xMin,
-      rect.yMin,
-      rect.xMax - rect.xMin,
-      rect.yMax - rect.yMin
+      rect.xMin!,
+      rect.yMin!,
+      rect.xMax - rect.xMin!,
+      rect.yMax! - rect.yMin!
     )
     // 裁剪区域确定好了，可以清空裁剪标记了
     canvasMarkDataRemove()
@@ -1167,9 +1100,7 @@ function onSureRect(isDetermine) { try {
     // 则任务状态进展到"3"
     taskToStep3()
   }
-} catch (error) {
-  my.error("onSureRect()报错：", error, errorDialog)
-}}
+}
 
 /**
  * @步骤3 选择轮廓
@@ -1221,9 +1152,7 @@ function taskToStep3() {
   // 切换到状态3
   taskStatusRef.value = 3
   // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
-  nextTick(chooseContour).catch((error) => {
-    my.error("taskToStep3().nextTick()报错：", error, errorDialog)
-  })
+  nextTick(chooseContour).catch(myError)
 }
 
 /**
@@ -1233,40 +1162,21 @@ function taskToStep3() {
  */
 function thresholdNumArrRestore() {
   // 接参数
-  const thresholdNumArr = thresholdNumArrRef.value
-  // 如果滑轨参数为空，则初始化滑轨参数
-  if (thresholdNumArr.length === 0) {
-    // 空数组，用于存数据
-    const thresholdNumArrTemp = []
-    // 直接从滑轨副本赋值即可
-    for (let i = 0; i < thresholdNumArrConst.length; i++) {
-      // 解构赋值
-      const thresholdNumTemp = { ...thresholdNumArrConst[i] }
-      // marks数组要再次解构，否则只是内存空间的指针引用
-      thresholdNumTemp.marks = [...thresholdNumArrConst[i].marks]
-      // 推进数组
-      thresholdNumArrTemp.push(thresholdNumTemp)
-    }
-    // 赋值
-    thresholdNumArrRef.value = thresholdNumArrTemp
-  // 否则，保留每个参数的取值
-  } else {
-    // 空数组，用于存数据
-    const thresholdNumArrTemp = []
-    // 从滑轨副本赋值（取值不能赋值）
-    for (let i = 0; i < thresholdNumArrConst.length; i++) {
-      // 解构赋值
-      const thresholdNumTemp = { ...thresholdNumArrConst[i] }
-      // marks数组要再次解构，否则只是内存空间的指针引用
-      thresholdNumTemp.marks = [...thresholdNumArrConst[i].marks]
-      // 用当前值覆盖
-      thresholdNumTemp.value = thresholdNumArr[i].value
-      // 推进数组
-      thresholdNumArrTemp.push(thresholdNumTemp)
-    }
-    // 赋值
-    thresholdNumArrRef.value = thresholdNumArrTemp
+  const thresholdNumArr = thresholdSliderAoaRef.value
+  // 空数组，用于存数据
+  const thresholdNumArrTemp = []
+  // 直接从滑轨副本赋值即可
+  for (let i = 0; i < thresholdSliderAoaConst.length; i++) {
+    // 推进数组
+    thresholdNumArrTemp.push([
+      // value
+      thresholdNumArr[i]?.[0] ?? thresholdSliderAoaConst[i]![0],
+      // marks
+      [...thresholdSliderAoaConst[i]![1]]
+    ])
   }
+  // 赋值
+  thresholdSliderAoaRef.value = thresholdNumArrTemp as SliderParamArr[]
 }
 
 /**
@@ -1282,8 +1192,8 @@ function chooseContour() {
   // 绘制轮廓
   drawContour([metVectorContours, metHierarchy])
   // 绘制完毕，销毁Met对象以释放WASM内存
-  metVectorContours.delete()
-  metHierarchy.delete()
+  metVectorContours?.delete()
+  metHierarchy?.delete()
   // 最后绘制遮罩
   drawMask()
 }
@@ -1297,15 +1207,18 @@ const chooseContourThrottled = useThrottleFn(chooseContour, 500, true)
  * 获取轮廓（OpenCV 绘图）
  *   1.  先用2种算法（中的一个）得到二值化轮廓图
  *   2.  然后根据传参寻找轮廓
- * @returns { [CV.MatVector, CV.Mat] } 轮廓AOA数组和轮廓层次结构
+ * @returns 轮廓AOA数组和轮廓层次结构
  * @note 返回的2个对象，务必记得在用完后手动删除，否则会一直占用WASM内存
  */
-function getContour() {
+function getContour(): [OpenCVMatVector, OpenCVMat] {
   // 接参数
-  const { cv, matGray } = contactAngleObj
+  const { matGray } = contactAngleObj
+  const cv = OpenCVRef.value
   const contourAlgorithmRadio = contourAlgorithmRadioRef.value
+  // 验证
+  if (!cv || !matGray) throw new Error("object is undefined")
   // 接阈值数组参数
-  const [{ value: mainParam }, { value: auxParam }] = thresholdNumArrRef.value
+  const [[mainParam], [auxParam]] = thresholdSliderAoaRef.value as [SliderParamArr, SliderParamArr]
   // 初始化一个二值化图的过渡对象
   const matBinary = new cv.Mat()
   // 选框为0，则为Canny算法
@@ -1379,13 +1292,17 @@ function getContour() {
 
 /**
  * 绘制轮廓（OpenCV 绘图）
- * @param { [CV.MatVector, CV.Mat] } 轮廓AOA数组和轮廓层次结构
+ * @param metVectorContours 轮廓AOA数组
+ * @param metHierarchy 轮廓层次结构
  * @note 传参的2个对象，务必记得在用完后手动删除，否则会一直占用WASM内存
  */
-function drawContour([metVectorContours, metHierarchy]) {
+function drawContour([metVectorContours, metHierarchy]: [OpenCVMatVector, OpenCVMat]) {
   // 接参数
-  const { cv, matGray, canvasScaling, ctx } = contactAngleObj
-  const canvas = canvasRef.value
+  const { matGray, canvasScaling, ctx } = contactAngleObj
+  const cv = OpenCVRef.value
+  const canvas = canvasRef.value!
+  // 验证
+  if (!cv || !matGray || !ctx) throw new Error("object is undefined")
   // 从灰度图拷贝一个原画布，用于绘制轮廓
   const matContoursHandleMat = new cv.Mat()
   matGray.copyTo(matContoursHandleMat)
@@ -1427,11 +1344,9 @@ function drawContour([metVectorContours, metHierarchy]) {
 /**
  * 轮廓算法切换的回调钩子
  */
-function onContourAlgorithmSwitch() { try {
-  chooseContourThrottled()
-} catch (error) {
-  my.error("onContourAlgorithmSwitch()报错：", error, errorDialog)
-}}
+function onContourAlgorithmSwitch() {
+  chooseContourThrottled().catch(myError)
+}
 
 /**
  * 选择遮罩（中转方法）
@@ -1442,6 +1357,8 @@ function chooseMask() {
   const { ctx, imageData, canvasScaling, colLine, rect, baseline } = contactAngleObj
   const canvas = canvasRef.value
   const contourFilterAlgorithmRadio = contourFilterAlgorithmRadioRef.value
+  // 验证
+  if (!canvas || !ctx || !imageData) throw new Error("object is undefined")
   // 点击位置的实际坐标
   const clickX = elementX.value * canvasScaling
   const clickY = elementY.value * canvasScaling
@@ -1473,7 +1390,7 @@ function chooseMask() {
 function chooseBaseline() {
   // 接参数
   const { canvasScaling, baseline } = contactAngleObj
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   // 点击位置的实际坐标
   const clickX = elementX.value * canvasScaling
   const clickY = elementY.value * canvasScaling
@@ -1492,10 +1409,12 @@ function drawMask() {
   // 接参数
   const { ctx, colLine, rect, baseline } = contactAngleObj
   const canvas = canvasRef.value
+  // 验证
+  if (!canvas || !ctx) throw new Error("object is undefined")
   // 左边的线
   if (colLine.left !== null) {
     // 左边阴影区
-    ctx.fillRect(0, 0, colLine.left, canvas.height)
+    ctx.fillRect(0, 0, colLine.left!, canvas.height)
     // 绘制左边线：开始绘制
     ctx.beginPath()
     // 起点坐标
@@ -1519,7 +1438,7 @@ function drawMask() {
     ctx.stroke()
   }
   // 中间遮罩区
-  if (rect.xMin !== null) {
+  if (rect.xMin !== null && rect.xMax !== null && rect.yMin !== null && rect.yMax !== null) {
     // 计算宽高
     const rectW = rect.xMax - rect.xMin
     const rectH = rect.yMax - rect.yMin
@@ -1529,7 +1448,7 @@ function drawMask() {
     ctx.strokeRect(rect.xMin, rect.yMin, rectW, rectH)
   }
   // 基线遮罩区
-  if (baseline.left !== null) {
+  if (baseline.left !== null && baseline.right !== null) {
     // 开始绘制
     ctx.beginPath()
     // 四个点
@@ -1556,7 +1475,7 @@ function drawMask() {
  * 轮廓粗/细调的切换的回调钩子
  * @note 会被动触发绘制轮廓
  */
-function onContourSliderCoarseFineToggle() { try {
+function onContourSliderCoarseFineToggle() {
   // 如果目前是细调，则要修改为粗调
   if (isContourCoarseRef.value === false) {
     thresholdNumArrRestore()
@@ -1567,9 +1486,7 @@ function onContourSliderCoarseFineToggle() { try {
   }
   // 更新标记
   isContourCoarseRef.value = !isContourCoarseRef.value
-} catch (error) {
-  my.error("onContourSliderCoarseFineToggle()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 步骤3里刷新细调滑块的具体方法
@@ -1577,27 +1494,26 @@ function onContourSliderCoarseFineToggle() { try {
  */
 function refreshContourFineSlider() {
   // 接收主参数和辅助参数
-  const [{ value: mainParam }, { value: auxParam }] = thresholdNumArrRef.value
+  const [[mainParam], [auxParam]] = thresholdSliderAoaRef.value as [SliderParamArr, SliderParamArr]
   // 找主参数的下限：主参数的下限必须不小于0，不大于243
   const mainParamMin = Math.max(0, Math.min(243, (mainParam - 6)))
   // 找辅助参数的下限：辅助参数的下限必须不小于0，不大于243
   const auxParamMin = Math.max(0, Math.min(243, (auxParam - 6)))
-  /** 细调的阈值数组 @type { SliderParam[] } */
-  const thresholdNumArrTemp = [{
-    // 主参数：当前值、下限、上限、mark标记
-    value: mainParam,
-    min: mainParamMin,
-    max: mainParamMin + 12,
-    marks: [mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12]
-  }, {
+  /** 细调的阈值数组 */
+  const thresholdNumArrTemp: SliderParamArr[] = [
+    // 主参数：当前值、mark标记
+    [
+      mainParam,
+      [mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12]
+    ],
     // 辅助参数：当前值、下限、上限、mark标记
-    value: auxParam,
-    min: auxParamMin,
-    max: auxParamMin + 12,
-    marks: [auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12]
-  }]
+    [
+      auxParam,
+      [auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12]
+    ]
+  ]
   // 赋值（这一步会触发绘图）
-  thresholdNumArrRef.value = thresholdNumArrTemp
+  thresholdSliderAoaRef.value = thresholdNumArrTemp
 }
 
 /**
@@ -1606,10 +1522,11 @@ function refreshContourFineSlider() {
  */
 function onDetermineContour() { try {
   // 加载框
-  my.loading(lang.value.ContourFitLoadingContent)
+  myLoading(langRef.value.ContourFitLoadingContent)
   // 接参数
-  const { cv, colLine, rect, baseline } = contactAngleObj
-  const { width: canvasWidth, height: canvasHeight } = canvasRef.value
+  const { colLine, rect, baseline } = contactAngleObj
+  const cv = OpenCVRef.value as OpenCV
+  const { width: canvasWidth, height: canvasHeight } = canvasRef.value!
   // 获取轮廓
   const [metVectorContours, metHierarchy] = getContour()
   // 轮廓层次结构Mat对象不需要，销毁以释放WASM内存
@@ -1634,11 +1551,11 @@ function onDetermineContour() { try {
     baselineReferencePoint,
     R2Arr,
     resultType,
-    ...restEllipseObj
+    // ...restEllipseObj
   } = Algorithm.getEllipse({ cv, contourPointAoa, contourPointToBaselineDistanceArr })
   // 写回全局对象
   contactAngleObj.ellipse = ellipse
-  contactAngleObj.ellipseR2 = R2Arr[R2Arr.length - 1]
+  contactAngleObj.ellipseR2 = R2Arr[R2Arr.length - 1] as number
   contactAngleObj.resultType = resultType
   contactAngleObj.baselineReferencePoint = baselineReferencePoint
   // 绘制椭圆
@@ -1646,12 +1563,12 @@ function onDetermineContour() { try {
   // 进入步骤4
   taskToStep4()
   // 关闭加载框
-  my.loading(false)
-} catch (error) {
+  myLoading(false)
+} catch (err) {
   // 关闭加载框
-  my.loading(false)
+  myLoading(false)
   // 报错处理
-  my.error("onDetermineContour()报错：", error, errorDialog)
+  throw new Error("onDetermineContour()报错：", { cause: err })
 }}
 
 /**
@@ -1659,8 +1576,11 @@ function onDetermineContour() { try {
  */
 function drawEllipse() {
   // 接参数
-  const { cv, matGray, canvasScaling, ctx, ellipse } = contactAngleObj
+  const { matGray, canvasScaling, ctx, ellipse } = contactAngleObj
+  const cv = OpenCVRef.value
   const canvas = canvasRef.value
+  // 验证
+  if (!matGray || !canvasScaling || !ctx || !ellipse || !cv || !canvas) throw new Error("drawEllipse()参数错误")
   // 拷贝一个灰度图的原画布Mat对象
   const matEllipseHandle = new cv.Mat()
   matGray.copyTo(matEllipseHandle)
@@ -1733,9 +1653,7 @@ function taskToStep4() {
   // 状态机切换到4
   taskStatusRef.value = 4
   // 下个DOM周期：绘制基线
-  nextTick(drawBaseline).catch((error) => {
-    my.error("taskToStep4().nextTick()报错：", error, errorDialog)
-  })
+  nextTick(drawBaseline).catch(myError)
 }
 
 /**
@@ -1748,8 +1666,10 @@ function initialBaseline() {
   // 接参数
   const { ellipse, baselineReferencePoint, baseline } = contactAngleObj
   const canvas = canvasRef.value
+  // 验证
+  if (!ellipse || !baselineReferencePoint || !canvas) throw new Error("initialBaseline()参数错误")
   // 如果用户没指定基线，则需要自动计算
-  if (baseline.left === null) {
+  if (baseline.left === null || baseline.right === null) {
     // 拟合得到的椭圆一般来说是“正”的
     // 也就是接近90°的倍数，比如263°、92°等。不会出现极端“歪”的情况，如45°这样
     // 可以先对90°取余，余下的数如果小于45°（92°的情况），则直接用余数
@@ -1780,8 +1700,10 @@ function initialBaseline() {
 function drawBaseline() {
   // 接参数
   const { ctx, imageData } = contactAngleObj
-  const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
+  const [[leftIntercept], [rightIntercept]] = interceptSliderAoaRef.value as [SliderParamArr, SliderParamArr]
   const canvas = canvasRef.value
+  // 验证
+  if (!ctx || !imageData || !canvas) throw new Error("drawBaseline()参数错误")
   // 计算真正的截距（canvas视角的y值）
   const realLeftY = canvas.height - leftIntercept
   const realRightY = canvas.height - rightIntercept
@@ -1805,15 +1727,21 @@ const drawBaselineThrottled = useThrottleFn(drawBaseline, 200, true)
 
 /**
  * 步骤4里刷新滑块数据的具体方法
- * @param { [number, number] } 左截距和右截距数据
- * @param { boolean } [isConvertToUser = true] 是否需要转换成用户视角
+ * @param leftInterceptRaw 左截距
+ * @param rightInterceptRaw 右截距
+ * @param isConvertToUser 是否需要转换成用户视角
  * @note baseline对象的值是canvas视角的y值，当使用baseline对象传参时，需要转换成用户视角；
  *       滑轨组件的值是用户视角的y值，当使用滑轨组件传参时，需显式声明不需转换
  * @note 会触发绘制基线截距
  */
-function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertToUser = true) {
+function refreshBaselineSlider(
+  [leftInterceptRaw, rightInterceptRaw]: [number, number],
+  isConvertToUser = true
+) {
   // 接参数
   const canvas = canvasRef.value
+  // 验证
+  if (!canvas) throw new Error("refreshBaselineSlider()参数错误")
   // 把截距改为用户视角，并取整
   const leftIntercept =
     isConvertToUser
@@ -1833,44 +1761,38 @@ function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertT
   // 右截距的下限
   const rightParamMin = rightIntercept - (delta * 3)
   // 细调的阈值数组
-  /** @type { SliderParam[] } */
-  const interceptNumArr = [{
+  const interceptNumArr: SliderParamArr[] = [
     // 左截距：当前值、下限、上限、mark标记
-    value: leftIntercept,
-    min: leftParamMin,
-    max: (leftParamMin + (delta * 6)),
-    marks: [
-      leftParamMin, (leftParamMin + (delta * 2)),
-      (leftParamMin + (delta * 4)), (leftParamMin + (delta * 6))
-    ]
-  }, {
+    [
+      leftIntercept,
+      [
+        leftParamMin, (leftParamMin + (delta * 2)),
+        (leftParamMin + (delta * 4)), (leftParamMin + (delta * 6))
+      ]
+    ],
     // 右截距：当前值、下限、上限、mark标记
-    value: rightIntercept,
-    min: rightParamMin,
-    max: (rightParamMin + (delta * 6)),
-    marks: [
-      rightParamMin, (rightParamMin + (delta * 2)),
-      (rightParamMin + (delta * 4)), (rightParamMin + (delta * 6))
+    [
+      rightIntercept,
+      [
+        rightParamMin, (rightParamMin + (delta * 2)),
+        (rightParamMin + (delta * 4)), (rightParamMin + (delta * 6))
+      ]
     ]
-  }]
+  ]
   // 赋值（这一步会触发绘图）
-  interceptNumArrRef.value = interceptNumArr
+  interceptSliderAoaRef.value = interceptNumArr
 }
 
 /**
  * 步骤4里返回上一步的事件回调钩子
  */
-function onBackToStep3() { try {
+function onBackToStep3() {
   // 直接返回上一步即可
   // 不能初始化上一步，如果初始化的话，已有轮廓数据的暂存参数设置就会丢失
   taskStatusRef.value = 3
   // 下一个DOM周期：用轮廓查找方法刷新一次轮廓渲染
-  nextTick(chooseContour).catch((error) => {
-    my.error("onBackToStep3().nextTick()报错：", error, errorDialog)
-  })
-} catch (error) {
-  my.error("onBackToStep3()报错：", error, errorDialog)
-}}
+  nextTick(chooseContour).catch(myError)
+}
 
 /**
  * @步骤5 计算接触角
@@ -1906,11 +1828,13 @@ function onBackToStep3() { try {
  */
 function onDetermineBaseline() { try {
   // 接截距值
-  const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
+  const [[leftIntercept],[rightIntercept]] = interceptSliderAoaRef.value as [SliderParamArr, SliderParamArr]
   // 接参数
-  const { width: canvasWidth, height: canvasHeight } = canvasRef.value
+  const { width: canvasWidth, height: canvasHeight } = canvasRef.value as HTMLCanvasElement
   // 接椭圆对象
   const { ellipse } = contactAngleObj
+  // 验证
+  if (!ellipse || !canvasWidth || !canvasHeight) throw new Error("onDetermineBaseline()参数错误")
   // 计算接触角
   const result = Algorithm.calculateContactAngle({
     ellipse,
@@ -1920,49 +1844,49 @@ function onDetermineBaseline() { try {
   })
   // 将结果写入结果ref对象和本地localStorage
   resultRef.value.push([
-    contactAngleObj.filename,
+    contactAngleObj.filename!,
     result.contactAngleAverage,
     result.contactAngleDeviation,
     result.contactAngleLeft,
     result.contactAngleRight,
     result.interceptAngle,
-    contactAngleObj.ellipseR2,
-    contactAngleObj.resultType
+    contactAngleObj.ellipseR2!,
+    contactAngleObj.resultType as FitResult,
   ])
   localStorage.setItem("contactAngleResult", JSON.stringify(resultRef.value))
   // 发个通知
-  my.dialog(
-    lang.value.ResultDialogContent[0]
+  myDialog(
+    langRef.value.ResultDialogContent[0]
       + result.contactAngleAverage.toFixed(2)
-      + lang.value.ResultDialogContent[1],
+      + langRef.value.ResultDialogContent[1],
   )
-} catch (error) {
+} catch (err) {
   // 处理纯算法模块抛出的特定错误消息
-  if (error.message === "方程没有2个解") {
-    my.message({ theme: "error", content: lang.value.ContactErrorMessageContent, duration: 10000 })
+  if ((err as Error).message === "方程没有2个解") {
+    myMessage(langRef.value.ContactErrorMessageContent, "warning")
     return
   }
   // 其它错误直接处理
-  my.error("onDetermineBaseline()报错：", error, errorDialog)
+  throw new Error("onDetermineBaseline()报错", { cause: err })
 }}
 
 /**
  * 删除单个数据结果
- * @param { number } resultsIndex 结果的索引
+ * @param resultsIndex 结果的索引
  */
-function onDeleteUniResult(resultsIndex) { try {
+function onDeleteUniResult(resultsIndex: number) {
   // 接参数
   const result = resultRef.value
   // 弹出确认框
-  my.dialog({
+  myDialog({
     // 主题：警示
     theme: "danger",
     // 通知内容
-    body: lang.value.DeleteUniResultDialogContent,
+    body: langRef.value.DeleteUniResultDialogContent,
     // 确认按钮的文本
-    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    confirmBtn: langRef.value.DeleteResultDialogConfirmBtnLabel,
     // 取消按钮的文本
-    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
+    cancelBtn: langRef.value.DeleteResultDialogCancelBtnLabel,
     // 确认后的回调
     onConfirmCallBack: () => {
       // 删除result的对应项
@@ -1970,29 +1894,27 @@ function onDeleteUniResult(resultsIndex) { try {
       // 更新localStorage
       localStorage.setItem("contactAngleResult", JSON.stringify(result))
       // 提示用户
-      my.message(lang.value.DeleteUniResultMessageContent)
+      myMessage(langRef.value.DeleteUniResultMessageContent)
     }
   })
-} catch (error) {
-  my.error("onDeleteUniResult()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 删除全部数据结果
  */
-function onDeleteAllResult() { try {
+function onDeleteAllResult() {
   // 接参数
   const result = resultRef.value
   // 弹出确认框
-  my.dialog({
+  myDialog({
     // 主题：警示
     theme: "danger",
     // 通知内容
-    body: lang.value.DeleteAllResultDialogContent,
+    body: langRef.value.DeleteAllResultDialogContent,
     // 确认按钮的文本
-    confirmBtn: lang.value.DeleteResultDialogConfirmBtnLabel,
+    confirmBtn: langRef.value.DeleteResultDialogConfirmBtnLabel,
     // 取消按钮的文本
-    cancelBtn: lang.value.DeleteResultDialogCancelBtnLabel,
+    cancelBtn: langRef.value.DeleteResultDialogCancelBtnLabel,
     // 确认后的回调
     onConfirmCallBack: () => {
       // 删除result的所以项
@@ -2000,48 +1922,42 @@ function onDeleteAllResult() { try {
       // 清理localStorage
       localStorage.removeItem("contactAngleResult")
       // 提示用户
-      my.message(lang.value.DeleteUniResultMessageContent)
+      myMessage(langRef.value.DeleteUniResultMessageContent)
     }
   })
-} catch (error) {
-  my.error("onDeleteAllResult()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 结果正序/倒序排序的回调
  */
-function onReverseResultOrder() { try {
+function onReverseResultOrder() {
   // 直接反转即可
   isResultReverseRef.value = !isResultReverseRef.value
-} catch (error) {
-  my.error("onReverseResultOrder()报错：", error, errorDialog)
-}}
+}
 
 /**
  * 下载结果
  */
-function onDownloadResult() { try {
-  /** 接一个AOA对象，第一个元素是表头，后面是数据 @type { (string | number)[][] } */
-  const resultAoa = [[...lang.value.ResultTableContent]]
+function onDownloadResult() {
+  /** 接一个AOA对象，第一个元素是表头，后面是数据 */
+  const resultAoa: (string | number)[][] = [[...langRef.value.ResultTableContent]]
   // 填充数据：遍历resultRef.value
   const resultOrigin = resultRef.value
   for (let i = 0; i < resultOrigin.length; i++) {
     // 将代理对象转成普通数组
-    const resultArr = [(i + 1), ...resultOrigin[i]]
+    const resultArr = [(i + 1), ...resultOrigin[i]!]
     // 将结果数组推入AOA对象
     resultAoa.push(resultArr)
   }
   // 建立工作表文件的Map对象
   const resultMap = new Map()
   // 把数据结果AOA数组加进Map里
-  resultMap.set(lang.value.ResultSheetLabel, resultAoa)
+  resultMap.set(langRef.value.ResultSheetLabel, resultAoa)
   // AOA数据的Map对象转成xlsx文件
   const workbook = aoaMapToWorkbook(resultMap)
   // 下载xlsx文件
   downloadXlsx(workbook, "contact-angle_data.xlsx")
-} catch (error) {
-  my.error("onDownloadResult()报错：", error, errorDialog)
-}}
+}
 
 </script>
 

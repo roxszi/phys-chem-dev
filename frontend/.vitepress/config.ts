@@ -67,21 +67,23 @@ export default defineConfig({
       }),
       // 自动实现vue组件挂载
       Components({
-        // 涉及的文件扩展名：vue、md
-        include: [/\.vue$/, /\.vue\?vue/, /\.vue\.[tj]sx?\?vue/, /\.md$/],
         // 生成d.ts文件
         dts: true,
+        // 哪些文件可作为组件：vue
+        extensions: ["vue"],
         // 组件存放目录的相对路径
         dirs: [
           "components",
           "index"
         ],
+        // （额外）包含的文件扩展名：vue、md
+        // 注意：这会导致 .md 也作为组件解析。因此 .md 和.vue 一定不能重名
+        include: [/\.vue$/, /\.vue\?vue/, /\.vue\.[tj]sx?\?vue/, /\.md$/],
         // 读取子目录
         deep: true,
         // 以子目录作为命名空间前缀
+        // 这会导致组件名前缀为：`${前缀}/xxx`，而不是`xxx`，进而引发引入失败
         directoryAsNamespace: false,
-        // 可解析的组件扩展名
-        extensions: ["vue"],
         // 解析器
         resolvers: [
           // TDesign解析器，以tdesign-vue-next为库

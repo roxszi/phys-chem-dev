@@ -30,9 +30,9 @@
     }
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.0",
+    "@hono/node-server": "^2.1.1",
     "dotenv": "^17.4.2",
-    "hono": "^4.13.1"
+    "hono": "^4.13.2"
   },
   "devDependencies": {
     "@tdesign-vue-next/auto-import-resolver": "^0.1.7",
@@ -45,7 +45,7 @@
     "@vueuse/core": "^14.4.0",
     "echarts": "^6.1.0",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-vue-next": "^1.20.5",
+    "tdesign-vue-next": "^1.20.6",
     "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "unplugin-auto-import": "^21.1.0",
