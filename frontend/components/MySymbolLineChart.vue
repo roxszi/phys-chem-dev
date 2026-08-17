@@ -45,14 +45,14 @@ import type { EChartsOption } from "echarts"
  * - line：线
  * - symbol-line：点线
  */
-type SymbolLineChartType = "symbol" | "line" | "symbol-line"
+export type MySymbolLineChartType = "symbol" | "line" | "symbol-line"
 
 /** 数据信息 */
 type SymbolLineChartDataProfile = {
   /** 数据名称 */
   name: string
   /** 图表类型 */
-  chartType: SymbolLineChartType
+  chartType: MySymbolLineChartType
   /** 是否支持交互式图例，默认支持 */
   isSupportLegend?: boolean
 }

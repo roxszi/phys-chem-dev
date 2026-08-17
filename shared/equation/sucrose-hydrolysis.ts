@@ -121,27 +121,27 @@ export const sucroseHydrolysis = defineEquationModel({
     // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞；否则，用后两个值做差值计算
     /** α_∞ */
     let alphaEquilibrium: number
-    // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞
+    // 取后两个数据
     const dataAoaSortedLastIndex = dataAoaSorted.length - 1
-    if (dataAoaSorted[dataAoaSortedLastIndex]![0] === Infinity) {
+    const [tLast, aLast] = dataAoaSorted[dataAoaSortedLastIndex]!
+    // 如果最后一个 t 为 infinte，则最后一组数据就是 α_∞
+    if (tLast === Infinity) {
       // 赋值
-      alphaEquilibrium = dataAoaSorted[dataAoaSortedLastIndex]![1]
-      // 删除 infinte 时刻数据
+      alphaEquilibrium = aLast
+      // 从原始数组里删除 infinte 时刻数据
       const splicedIndex = dataAoaSorted[dataAoaSortedLastIndex]![2]
       tArr.splice(splicedIndex, 1)
       aArr.splice(splicedIndex, 1)
       dataAoaSorted.pop()
     // 否则，用后两个值做差值计算
     } else {
-      // 取后两个数据
-      const [tLast, aLast] = dataAoaSorted[dataAoaSortedLastIndex]!
+      // 倒数第二组数据
       const [tSecondLast, aSecondLast] = dataAoaSorted[dataAoaSortedLastIndex - 1]!
       // 计算斜率
       const slope = (aLast - aSecondLast) / (tLast - tSecondLast)
       // 插值法计算α_∞
       alphaEquilibrium = aLast + slope * (tLast - tSecondLast)
     }
-
     // ======================== 初始化 k ========================
     // ln(α_t - α_∞) = -kt + ln(α_0 - α_∞)
     //   => k = ln[(α_0 - α_∞)/(α_t - α_∞)] / t
@@ -170,7 +170,6 @@ export const sucroseHydrolysis = defineEquationModel({
     if (isNaN(kMean)) {
       throw new Error("k初始化失败")
     }
-
     // 返回结果
     return {
       alphaInitial: { value: alphaInitial, isFixed: false },

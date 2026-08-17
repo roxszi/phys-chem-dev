@@ -40,9 +40,9 @@
 
   <!-- 警报框 -->
   <MyNoticeBar theme="info" :title="langRef.FunctionIntroductionTitle">
-    <div v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
+    <p v-for="(content, index) of langRef.FunctionIntroductionContent" :key="index">
       {{ content }}
-    </div>
+    </p>
   </MyNoticeBar>
 
   <!-- canvas头-步骤1 -->
@@ -51,9 +51,9 @@
     v-if="taskStatusRef === 1"
     theme="warning" :title="langRef.StepTitle + '1'"
   >
-    <div v-for="(content, index) of langRef.Step1Content" :key="index">
+    <p v-for="(content, index) of langRef.Step1Content" :key="index">
       {{ content }}
-    </div>
+    </p>
   </MyNoticeBar>
 
   <!--
@@ -77,9 +77,9 @@
     v-if="taskStatusRef === 2"
     theme="warning" :title="langRef.StepTitle + '2'"
   >
-    <div v-for="(content, index) of langRef.Step2Content" :key="index">
+    <p v-for="(content, index) of langRef.Step2Content" :key="index">
       {{ content }}
-    </div>
+    </p>
   </MyNoticeBar>
 
   <!--
@@ -89,12 +89,12 @@
     （参数调节放在"canvas脚-步骤3"部分了）
     onContourAlgorithmSwitchChange：切换算法时触发。
    -->
-  <MySpace v-else-if="taskStatusRef === 3">
+  <div v-else-if="taskStatusRef === 3" class="my-column my-gap">
     <!-- 警报框 -->
     <MyNoticeBar theme="warning" :title="langRef.StepTitle + '3'">
-      <div v-for="(content, index) of langRef.Step3Content" :key="index">
+      <p v-for="(content, index) of langRef.Step3Content" :key="index">
         {{ content }}
-      </div>
+      </p>
     </MyNoticeBar>
 
     <!-- 警报框：轮廓算法/边缘检测算法切换开关 -->
@@ -110,7 +110,7 @@
     </MyNoticeBar>
     <!-- 边缘检测算法切换选框 -->
     <MyRadio
-      @change="onContourAlgorithmSwitch"
+      :onChange="onContourAlgorithmSwitch"
       v-model:value="contourAlgorithmRadioRef"
       :radioContentArr="langRef.ContourAlgorithmArr"
     />
@@ -138,9 +138,9 @@
     v-else-if="taskStatusRef === 4"
     theme="warning" :title="langRef.StepTitle + '4'"
   >
-    <div v-for="(content, index) of langRef.Step4Content" :key="index">
+    <p v-for="(content, index) of langRef.Step4Content" :key="index">
       {{ content }}
-    </div>
+    </p>
   </MyNoticeBar>
 
   <!--
@@ -191,16 +191,16 @@
     contourCoarseToggle：切换滑轨的粗调和细调。
     onDetermineContour：最终确定轮廓的按钮事件回调钩子。
    -->
-  <MySpace
+  <div
     v-else-if="taskStatusRef === 3"
-    size="small"
+    class="my-column"
   >
     <!-- 滑轨：主参数 -->
     {{ langRef.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
     <MySlider
       :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
-      v-model:value="thresholdNumArrRef[0].value"
-      :marks="thresholdNumArrRef[0].marks"
+      v-model:value="thresholdSliderAoaRef[0]![0]"
+      :marks="thresholdSliderAoaRef[0]![1]"
       :step="1"
     />
     <t-divider />
@@ -212,8 +212,8 @@
       {{ langRef.ContourSliderAuxiliaryParameterLabel }}
       <MySlider
         :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
-        v-model:value="thresholdNumArrRef[1].value"
-        :marks="thresholdNumArrRef[1].marks"
+        v-model:value="thresholdSliderAoaRef[1]![0]"
+        :marks="thresholdSliderAoaRef[1]![1]"
         :step="1"
       />
       <t-divider />
@@ -249,16 +249,15 @@
     onBackToStep3：返回第3步，这里需要有次功能，以满足找基线时候对轮廓的反复微调。
     onDetermineBaseline：最终确定基线的按钮事件回调钩子。
    -->
-  <MySpace
+  <div
     v-else-if="taskStatusRef === 4"
-    size="small"
   >
     <!-- 滑轨：左截距 -->
     {{ langRef.InterceptLeftSliderLabel }}
     <MySlider
       :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
-      v-model:value="interceptNumArrRef[0].value"
-      :marks="interceptNumArrRef[0].marks"
+      v-model:value="interceptSliderAoaRef[0]![0]"
+      :marks="interceptSliderAoaRef[0]![1]"
       :step="1"
     />
     <t-divider />
@@ -266,8 +265,8 @@
     {{ langRef.InterceptRightSliderLabel }}
     <MySlider
       :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
-      v-model:value="interceptNumArrRef[1].value"
-      :marks="interceptNumArrRef[1].marks"
+      v-model:value="interceptSliderAoaRef[1]![0]"
+      :marks="interceptSliderAoaRef[1]![1]"
       :step="1"
     />
     <t-divider />
@@ -294,9 +293,9 @@
     canvas脚-步骤5
     数据结果的呈现：数据表格、下载按钮
    -->
-  <MySpace
+  <div
     v-if="resultTableDataRef?.length !== 0"
-    size="small"
+    class="my-column my-gap"
   >
     <!-- 表格和翻页器容器 -->
     <div>
@@ -383,6 +382,12 @@
 <script setup lang="ts">
 // 导入VueUse的各类响应式方法（Vue APIs 由 unplugin-auto-import 自动注入，无需 import）
 import { useMouseInElement, onLongPress, useThrottleFn } from "@vueuse/core"
+
+/**
+ * 滑轨参数元组：[value, marks]
+ * @note 与 ContactAngle.vue 对齐(共享 langDict 与 algorithm)
+ */
+type SliderParamArr = [number, MySliderMarks]
 // 导入xlsx相关方法
 import { aoaMapToWorkbook, downloadXlsx, aoaTranspose } from "@utils/xlsx.ts"
 // 导入OpenCV.js composable（自带 SIMD/pthreads 探测、singleton、并发去重、fallback 聚合）
@@ -390,7 +395,7 @@ import { useOpenCV } from "@composables/useOpenCV.ts"
 // 导入纯算法模块（从Vue文件中解耦出来的无UI依赖的计算逻辑）
 import * as Algorithm from "./ContactAngle-algorithm.ts"
 // 导入本组件语言包
-import { langDict } from "./ContactAngle-langRef.ts"
+import { langDict } from "./ContactAngle-lang.ts"
 
 // ======================================== 数据类型声明 ========================================
 
@@ -470,21 +475,14 @@ const fileArrRef = ref([])
  */
 const canvasRef = useTemplateRef("canvasRef")
 /** 第三步寻找轮廓的调参数组Ref对象 @type { Ref<SliderParam[]> } */
-const thresholdNumArrRef = ref([])
-/** 第三步寻找轮廓的调参数组常量对象 @type { SliderParam[] } */
-const thresholdNumArrConst = [{
-  // 主参数：当前值、最小值、最大值、marks标记
-  value: 255,
-  min: 0,
-  max: 255,
-  marks: [0, 85, 170, 255]
-}, {
-  // 辅助参数：当前值、最小值、最大值、marks标记
-  value: 0,
-  min: 0,
-  max: 255,
-  marks: [0, 85, 170, 255]
-}]
+const thresholdSliderAoaRef = ref<SliderParamArr[]>([])
+/** 第三步寻找轮廓的调参数组常量对象：[value, marks] 元组 */
+const thresholdSliderAoaConst: SliderParamArr[] = [
+  // 主参数：[当前值, marks标记]
+  [255, [0, 85, 170, 255]],
+  // 辅助参数：[当前值, marks标记]
+  [0, [0, 85, 170, 255]],
+]
 /**
  * 第三步寻找轮廓的算法选框对象
  * @type { Ref<number> }
@@ -508,7 +506,7 @@ const contourFilterAlgorithmRadioRef = ref(0)
  * 格式：左截距：当前值、最小值、最大值、marks标记，右截距：当前值、最小值、最大值、marks标记
  * @note 不能轻易赋值，因为在步骤4，一旦赋值，就会触发绘制基线等回调
  */
-const interceptNumArrRef = ref([])
+const interceptSliderAoaRef = ref([])
 /**
  * 第五步计算接触角的最终结果
  * @type { Ref<ResultDatum[]> }
@@ -964,7 +962,7 @@ function onSliderChangeEnd() { try {
   // 任务进度为4
   } else if (taskStatus === 4) {
     // 接参数
-    const [{ value: userLeftIntercept }, { value: userRightIntercept }] = interceptNumArrRef.value
+    const [[userLeftIntercept], [userRightIntercept]] = interceptSliderAoaRef.value
     // 执行滑轨数据刷新方法（会被动触发绘制基线），此处从滑轨取值，本身就是用户视角，无需显示再转为用户视角
     refreshBaselineSlider([userLeftIntercept, userRightIntercept], false)
   }
@@ -1239,39 +1237,35 @@ function taskToStep3() {
  */
 function thresholdNumArrRestore() {
   // 接参数
-  const thresholdNumArr = thresholdNumArrRef.value
+  const thresholdNumArr = thresholdSliderAoaRef.value
   // 如果滑轨参数为空，则初始化滑轨参数
   if (thresholdNumArr.length === 0) {
     // 空数组，用于存数据
-    const thresholdNumArrTemp = []
+    const thresholdNumArrTemp: SliderParamArr[] = []
     // 直接从滑轨副本赋值即可
-    for (let i = 0; i < thresholdNumArrConst.length; i++) {
-      // 解构赋值
-      const thresholdNumTemp = { ...thresholdNumArrConst[i] }
+    for (let i = 0; i < thresholdSliderAoaConst.length; i++) {
+      // 解构赋值：取 [value, marks]
       // marks数组要再次解构，否则只是内存空间的指针引用
-      thresholdNumTemp.marks = [...thresholdNumArrConst[i].marks]
-      // 推进数组
-      thresholdNumArrTemp.push(thresholdNumTemp)
+      const [constValue, constMarks] = thresholdSliderAoaConst[i]!
+      thresholdNumArrTemp.push([constValue, [...constMarks!]])
     }
     // 赋值
-    thresholdNumArrRef.value = thresholdNumArrTemp
+    thresholdSliderAoaRef.value = thresholdNumArrTemp
   // 否则，保留每个参数的取值
   } else {
     // 空数组，用于存数据
-    const thresholdNumArrTemp = []
+    const thresholdNumArrTemp: SliderParamArr[] = []
     // 从滑轨副本赋值（取值不能赋值）
-    for (let i = 0; i < thresholdNumArrConst.length; i++) {
-      // 解构赋值
-      const thresholdNumTemp = { ...thresholdNumArrConst[i] }
+    for (let i = 0; i < thresholdSliderAoaConst.length; i++) {
+      // 解构赋值：取 [value, marks]
       // marks数组要再次解构，否则只是内存空间的指针引用
-      thresholdNumTemp.marks = [...thresholdNumArrConst[i].marks]
+      const [constValue, constMarks] = thresholdSliderAoaConst[i]!
       // 用当前值覆盖
-      thresholdNumTemp.value = thresholdNumArr[i].value
-      // 推进数组
-      thresholdNumArrTemp.push(thresholdNumTemp)
+      const currentValue = thresholdNumArr[i]![0]
+      thresholdNumArrTemp.push([currentValue, [...constMarks!]])
     }
     // 赋值
-    thresholdNumArrRef.value = thresholdNumArrTemp
+    thresholdSliderAoaRef.value = thresholdNumArrTemp
   }
 }
 
@@ -1311,7 +1305,7 @@ function getContour() {
   const { cv, matGray } = contactAngleObj
   const contourAlgorithmRadio = contourAlgorithmRadioRef.value
   // 接阈值数组参数
-  const [{ value: mainParam }, { value: auxParam }] = thresholdNumArrRef.value
+  const [[mainParam], [auxParam]] = thresholdSliderAoaRef.value
   // 初始化一个二值化图的过渡对象
   const matBinary = new cv.Mat()
   // 选框为0，则为Canny算法
@@ -1583,27 +1577,20 @@ function onContourSliderCoarseFineToggle() { try {
  */
 function refreshContourFineSlider() {
   // 接收主参数和辅助参数
-  const [{ value: mainParam }, { value: auxParam }] = thresholdNumArrRef.value
+  const [[mainParam], [auxParam]] = thresholdSliderAoaRef.value
   // 找主参数的下限：主参数的下限必须不小于0，不大于243
   const mainParamMin = Math.max(0, Math.min(243, (mainParam - 6)))
   // 找辅助参数的下限：辅助参数的下限必须不小于0，不大于243
   const auxParamMin = Math.max(0, Math.min(243, (auxParam - 6)))
-  /** 细调的阈值数组 @type { SliderParam[] } */
-  const thresholdNumArrTemp = [{
-    // 主参数：当前值、下限、上限、mark标记
-    value: mainParam,
-    min: mainParamMin,
-    max: mainParamMin + 12,
-    marks: [mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12]
-  }, {
-    // 辅助参数：当前值、下限、上限、mark标记
-    value: auxParam,
-    min: auxParamMin,
-    max: auxParamMin + 12,
-    marks: [auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12]
-  }]
+  /** 细调的阈值数组：[value, marks] 元组 */
+  const thresholdNumArrTemp: SliderParamArr[] = [
+    // 主参数：[当前值, marks 标记]
+    [mainParam, [mainParamMin, mainParamMin + 4, mainParamMin + 8, mainParamMin + 12]],
+    // 辅助参数：[当前值, marks 标记]
+    [auxParam, [auxParamMin, auxParamMin + 4, auxParamMin + 8, auxParamMin + 12]],
+  ]
   // 赋值（这一步会触发绘图）
-  thresholdNumArrRef.value = thresholdNumArrTemp
+  thresholdSliderAoaRef.value = thresholdNumArrTemp
 }
 
 /**
@@ -1921,7 +1908,7 @@ function initialBaseline() {
 function drawBaseline() {
   // 接参数
   const { ctx, imageData } = contactAngleObj
-  const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
+  const [[leftIntercept], [rightIntercept]] = interceptSliderAoaRef.value
   const canvas = canvasRef.value
   // 计算真正的截距（canvas视角的y值）
   const realLeftY = canvas.height - leftIntercept
@@ -1973,29 +1960,21 @@ function refreshBaselineSlider([leftInterceptRaw, rightInterceptRaw], isConvertT
   const leftParamMin = leftIntercept - (delta * 3)
   // 右截距的下限
   const rightParamMin = rightIntercept - (delta * 3)
-  // 细调的阈值数组
-  /** @type { SliderParam[] } */
-  const interceptNumArr = [{
-    // 左截距：当前值、下限、上限、mark标记
-    value: leftIntercept,
-    min: leftParamMin,
-    max: (leftParamMin + (delta * 6)),
-    marks: [
+  // 细调的阈值数组：[value, marks] 元组
+  const interceptNumArr: SliderParamArr[] = [
+    // 左截距：[当前值, marks 标记]
+    [leftIntercept, [
       leftParamMin, (leftParamMin + (delta * 2)),
       (leftParamMin + (delta * 4)), (leftParamMin + (delta * 6))
-    ]
-  }, {
-    // 右截距：当前值、下限、上限、mark标记
-    value: rightIntercept,
-    min: rightParamMin,
-    max: (rightParamMin + (delta * 6)),
-    marks: [
+    ]],
+    // 右截距：[当前值, marks 标记]
+    [rightIntercept, [
       rightParamMin, (rightParamMin + (delta * 2)),
       (rightParamMin + (delta * 4)), (rightParamMin + (delta * 6))
-    ]
-  }]
+    ]],
+  ]
   // 赋值（这一步会触发绘图）
-  interceptNumArrRef.value = interceptNumArr
+  interceptSliderAoaRef.value = interceptNumArr
 }
 
 /**
@@ -2047,7 +2026,7 @@ function onBackToStep3() { try {
  */
 function onDetermineBaseline() { try {
   // 接截距值
-  const [{ value: leftIntercept }, { value: rightIntercept }] = interceptNumArrRef.value
+  const [[leftIntercept], [rightIntercept]] = interceptSliderAoaRef.value
   // 接参数
   const { width: canvasWidth, height: canvasHeight } = canvasRef.value
   

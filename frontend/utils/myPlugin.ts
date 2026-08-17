@@ -177,7 +177,7 @@ export function myMessage(
  */
 export function myError(err: unknown, _instance?: unknown, info?: string) {
   // 打印错误信息
-  console.error(`【程序报错】\n报错消息：${ info }\n报错内容：${ err }`)
+  console.error("【程序报错】\n报错消息:", info, "\n报错内容:", err)
   // 标题
   const header = "程序报错"
   // 内容

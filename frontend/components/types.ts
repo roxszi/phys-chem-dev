@@ -9,3 +9,6 @@ export type { UploadFile, UploadChangeContext } from "./MyUpload.vue"
 
 // MySlider
 export type { SliderValue, MySliderMarks } from "./MySlider.vue"
+
+// MySymbolLineChart
+export type { MySymbolLineChartType } from "./MySymbolLineChart.vue"

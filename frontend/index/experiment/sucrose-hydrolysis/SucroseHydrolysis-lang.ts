@@ -47,6 +47,11 @@ export const langDict = {
     root: "删除",
     en: "Delete",
   },
+  /** 行内恢复按钮文字 */
+  RestoreButton: {
+    root: "恢复",
+    en: "Restore",
+  },
   /** 清空整个表格按钮文字 */
   ClearTableButton: {
     root: "清空表格",
@@ -88,6 +93,11 @@ export const langDict = {
 
   // ================================ 拟合结果抽屉 ================================
 
+  /** 数据趋势有误的提示内容 */
+  IncorrectDataContent: {
+    root: (strArr: string[]) => `t 在 ${ strArr.join("、") } 时刻处的数据趋势有误（应单调递减），请检查。`,
+    en: (strArr: string[]) => `Data trends at ${ strArr.join(", ") } times are incorrect (should decrease monotonically). Please check your data.`,
+  },
   /** 拟合结果抽屉标题 */
   ResultDrawerTitle: {
     root: "📈 拟合结果",
@@ -123,13 +133,13 @@ export const langDict = {
 
   /** 清空表格二次确认 */
   ClearConfirmContent: {
-    root: "确定清空表格？",
-    en: "Are you sure you want to clear the table?",
+    root: "此操作会彻底清空所有数据，请确认。",
+    en: "This operation will completely erase all data. Please confirm.",
   },
   /** 数据量不足以拟合 */
   InsufficientDataContent: {
-    root: "数据量不足，无法拟合",
-    en: "Insufficient data points to fit.",
+    root: "数据量不足（至少 4 组），无法拟合",
+    en: "Insufficient data points (at least 4 groups) to fit.",
   },
 
 }

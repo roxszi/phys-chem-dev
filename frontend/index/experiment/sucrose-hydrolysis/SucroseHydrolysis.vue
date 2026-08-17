@@ -49,15 +49,29 @@
 <MyTable
   :titleArr="tableTitleArr"
   :dataAoa="tableDataAoaRef"
+  :rowMarkAoa="tableRowMarkArrRef"
 >
-  <!-- 插槽：删除行数据 -->
-  <template #actions="{ rowIndex }">
+  <!-- 插槽：删除/恢复行数据 -->
+  <template #actions="{ rowIndex, rowMarkArr }">
+    <!-- 恢复 -->
     <MyButton
+      v-if="rowMarkArr?.[0] === false"
+      :block="false"
+      theme="primary"
+      variant="outline"
+      size="small"
+      @click="onSwitchDataActivation(rowIndex, rowMarkArr?.[0])"
+    >
+      {{ langRef.RestoreButton }}
+    </MyButton>
+    <!-- 删除 -->
+    <MyButton
+      v-else
       :block="false"
       theme="danger"
       variant="outline"
       size="small"
-      @click="onDeleteData(rowIndex)"
+      @click="onSwitchDataActivation(rowIndex, rowMarkArr?.[0])"
     >
       {{ langRef.DeleteButton }}
     </MyButton>
@@ -72,7 +86,7 @@
   <MyButton
     :block="false"
     theme="danger"
-    @click="onDeleteData()"
+    @click="onDeleteAllData"
   >
     {{ langRef.ClearTableButton }}
   </MyButton>
@@ -179,6 +193,8 @@ import { exampleDataAoa } from "./data.ts"
 import { sucroseHydrolysis, fitEquation } from "@shared/equation/index.ts"
 // 导入本组件语言包
 import { langDict } from "./SucroseHydrolysis-lang.ts"
+// 导入组件类型
+import type { MySymbolLineChartType } from "@components/types.ts"
 
 /** 派生当前语言的响应式语言包（root / en） */
 const langRef = useLang(langDict)
@@ -203,14 +219,26 @@ const isInputedRef = computed(() => {
  * 注：t / α 是物理量符号而非自然语言，不进入语言包
  */
 const tableTitleArr = ["t", "α"]
+/** 原始数据内容的ShallowRef对象 - [t, α, isActivated][] */
+const rawDataAoaRef = shallowRef<[number, number, boolean][]>([])
 /** 表格内容的Ref对象 - [t, α][] */
 const tableDataAoaRef = ref<[number, number][]>([])
+/** 表格行标记的Ref对象 */
+const tableRowMarkArrRef = ref<[boolean][]>([])
 /** 非线性图内容的Ref对象 */
 const nonlinearChartDataAoaRef = shallowRef<[number, number, number][]>([])
 /** 非线性数据图表类型（线性/非线性共用）；系列名跟随语言切换 */
 const chartDataProfileArr = computed(() => [
-  { name: langRef.value.ExperimentalSeriesName, chartType: "symbol" as const },
-  { name: langRef.value.FittedSeriesName,       chartType: "line"    as const },
+  // 实验值：点图
+  {
+    name: langRef.value.ExperimentalSeriesName,
+    chartType: "symbol" as MySymbolLineChartType
+  },
+  // 拟合值：线图
+  {
+    name: langRef.value.FittedSeriesName,
+    chartType: "line" as MySymbolLineChartType
+  },
 ])
 /** 图下方的拟合结果表格数据标题（跟随语言切换） */
 const chartTableTitleArrComputed = computed(() => langRef.value.ChartTableTitleArr)
@@ -223,32 +251,49 @@ const isDrawerVisiableRef = shallowRef(false)
 
 // 生命周期钩子，组件加载完成后调用
 onMounted(() => {
-  // ======== 1.  读取localStorage中的数据，恢复到表格中 ========
-  const tableDataAoaStr = localStorage.getItem("SucroseHydrolysisTableDataAoa")
-  if (tableDataAoaStr !== null) {
-    tableDataAoaRef.value = JSON.parse(tableDataAoaStr) as [number, number][]
+  // 读取localStorage中的数据，恢复到表格中
+  const rawDataAoaStr = localStorage.getItem("SucroseHydrolysisTableDataAoa")
+  if (rawDataAoaStr !== null) {
+    rawDataAoaRef.value = JSON.parse(rawDataAoaStr) as [number, number, boolean][]
   }
 })
 
-// 深度监听表格内容，一旦有变化，就保存到localStorage
+// 监听表格原始内容，一旦有变化，就更新表格内容
 watch(
   // 监听对象：表格内容
-  tableDataAoaRef,
-  // 回调函数：保存到localStorage
-  (newValue) => {
-    localStorage.setItem("SucroseHydrolysisTableDataAoa", JSON.stringify(newValue))
-  },
-  // 1层就够了
-  { deep: 1 }
+  rawDataAoaRef,
+  // 回调函数
+  (newRawDataAoa) => {
+    // 保存到localStorage
+    localStorage.setItem("SucroseHydrolysisTableDataAoa", JSON.stringify(newRawDataAoa))
+    // 临时的筐
+    const tableDataAoaTemp: [number, number][] = []
+    const tableRowMarkAoaTemp: [boolean][] = []
+    // 遍历赋值
+    for (const newRawDataArr of newRawDataAoa) {
+      // 数据
+      tableDataAoaTemp.push([newRawDataArr[0], newRawDataArr[1]])
+      // 标记
+      tableRowMarkAoaTemp.push([newRawDataArr[2] ?? true])
+    }
+    // 赋值
+    tableDataAoaRef.value = tableDataAoaTemp
+    tableRowMarkArrRef.value = tableRowMarkAoaTemp
+  }
 )
-
 
 /**
  * 读取示例数据的回调
  */
 function onReadExampleData() {
+  // 筐
+  const rawDataAoaTemp: [number, number, boolean][] = []
+  // 遍历赋值
+  for (const exampleDataArr of exampleDataAoa) {
+    rawDataAoaTemp.push([...exampleDataArr])
+  }
   // 直接无损覆盖数据
-  tableDataAoaRef.value = [...exampleDataAoa]
+  rawDataAoaRef.value = rawDataAoaTemp
 }
 
 /**
@@ -259,39 +304,58 @@ function onAddData() {
   // 读取inputDataRef中的数据
   const { tStr, alphaStr } = inputDataRef.value
   // 读取dataAoaRef的数据
-  const dataAoa = tableDataAoaRef.value
+  const rawDataAoa = rawDataAoaRef.value
   // 以数值格式插入数据
-  dataAoa.push([
+  rawDataAoa.push([
     Number(tStr),
-    Number(alphaStr)
+    Number(alphaStr),
+    // 行插入数据默认为true
+    true,
   ])
   // 按照t升序排序
-  dataAoa.sort((a, b) => a[0] - b[0])
+  rawDataAoa.sort((a, b) => a[0] - b[0])
   // 清空输入框
   inputDataRef.value.tStr = ""
   inputDataRef.value.alphaStr = ""
+  // 刷新ShallowRef
+  triggerRef(rawDataAoaRef)
 }
 
 /**
- * 从表格删除数据的回调
+ * 切换数据的激活属性的回调
  * @param rowIndex 行索引
+ * @param isActived 是否激活
  */
-function onDeleteData(rowIndex?: number) {
-  // 如果没传参，则执行清空表格功能
-  if (rowIndex === undefined) {
-    // 提醒一下
-    myDialog({
-      body: langRef.value.ClearConfirmContent,
-      onConfirmCallBack: () => {
-        // 清空表格
-        tableDataAoaRef.value = []
-      }
-    })
-  // 否则，删除指定行
-  } else {
-    // 直接从dataAoaRef中删除一行
-    tableDataAoaRef.value.splice(rowIndex, 1)
+function onSwitchDataActivation(rowIndex: number, isActived?: boolean) {
+  // 取值
+  const rawDataArr = rawDataAoaRef.value[rowIndex]
+  const realIsActived = rawDataArr?.[2]
+  // 验证
+  if (
+    isActived === undefined
+    || !rawDataArr
+    || realIsActived === undefined
+    || realIsActived !== isActived) {
+    throw new Error("传参错误")
   }
+  // 划去指定行
+  rawDataArr[2] = !realIsActived
+  // 刷新ShallowRef
+  triggerRef(rawDataAoaRef)
+}
+
+/**
+ * 删除表格中的全部数据的回调
+ */
+function onDeleteAllData() {
+  // 提醒一下
+  myDialog({
+    body: langRef.value.ClearConfirmContent,
+    onConfirmCallBack: () => {
+      // 清空表格
+      rawDataAoaRef.value = []
+    }
+  })
 }
 
 /**
@@ -299,8 +363,21 @@ function onDeleteData(rowIndex?: number) {
  * @note 有3个待拟合参数，因此必须得有至少4行数据才行
  */
 function onDataFitting() {
-  /** 数据 */
-  const dataAoa = [...tableDataAoaRef.value]
+  /** x[]数据 */
+  const tArr: number[] = []
+  /** y[]数据 */
+  const alphaArr: number[] = []
+  /** 作图数据集。 [x, y, y_fit] */
+  const chartDataAoa: [number, number, number?][] = []
+  // 遍历rawDataAoaShallowRef，把数据添加到dataAoa中
+  for (const rawDataArr of rawDataAoaRef.value) {
+    // 只有isActivated为true的数据才被添加到dataAoa中
+    if (rawDataArr[2]) {
+      tArr.push(rawDataArr[0])
+      alphaArr.push(rawDataArr[1])
+      chartDataAoa.push([rawDataArr[0], rawDataArr[1]])
+    }
+  }
   /** α_∞（字符串） */
   const alphaEquilibriumStr = inputDataRef.value.alphaEquilibriumStr
   /** α_∞ */
@@ -308,25 +385,16 @@ function onDataFitting() {
   // 检查 α_∞ 有效性
   if ((alphaEquilibriumStr !== "") && !isNaN(alphaEquilibrium)) {
     // α_∞ 有效，加入数组
-    dataAoa.push([Infinity, alphaEquilibrium])
+    tArr.push(Infinity)
+    alphaArr.push(alphaEquilibrium)
   }
   // 检查数据量是否足够
-  if (dataAoa.length < 4) {
+  if (tArr.length < 4) {
     myDialog(langRef.value.InsufficientDataContent)
     return
   }
-  // ================ 数据准备 ================
-  // 解构 AOA → x[] 和 y[]
-  /** x[] */
-  const tArr: number[] = []
-  /** y[] */
-  const alphaArr: number[] = []
-  // 遍历解构
-  for (const dataArr of dataAoa) {
-    tArr.push(dataArr[0]!)
-    alphaArr.push(dataArr[1]!)
-  }
-
+  // 验证数据有效性
+  if(!validateData(tArr, alphaArr)) return
   // ================ 拟合 ================
   /** 拟合结果原始对象 */
   const fitResultRaw = fitEquation(sucroseHydrolysis, tArr, alphaArr, {})
@@ -342,34 +410,32 @@ function onDataFitting() {
     predicted,
   } = fitResultRaw
   // ================ 作图 ================
-  /** 作图数据集 */
-  const chartDataAoa: [number, number, number?][] = []
-  // 深拷贝数据
-  for (const dataArr of tableDataAoaRef.value) {
-    chartDataAoa.push([...dataArr])
-  }
   /** 作图数据集长度 */
   const n = chartDataAoa.length
-  // 如果拟合值数量与数据集数量不一致，则说明存在α_0，需要加进去
+  // 数据集 chartDataAoa 含有 α_0，但是 α_0 作为公式参数，不参与拟合，在拟合处理的时候把 α_0 踢除了
+  // 所以 predicted 没有 α_0
+  // 如果拟合值 predicted 与数据集 chartDataAoa 长度不一致，则说明 chartDataAoa 存在 α_0，需要额外处理
   if (n !== predicted.length) {
+    // 给 predicted 数组添加 α_0，确保 predicted 与 chartDataAoa 长度一致
     predicted.unshift(params["alphaInitial"]!)
   }
   // 如果还不一致，则报错
   if (n !== predicted.length) {
     throw new Error("数据量与拟合值数量不一致，请检查数据")
   }
-  // 遍历添加数值
+  // 遍历赋值，合并 predicted 进 chartDataAoa
   for (let i = 0; i < n; i++) {
     chartDataAoa[i]!.push(predicted[i]!)
   }
+  // ======== 线性化数据 ========
   /** 线性化作图数据集 */
   const linearChartDataAoa: [number, number, number][] = []
   // 转换数据
-  for (const dataArr of chartDataAoa) {
+  for (const chartDataArr of chartDataAoa) {
     linearChartDataAoa.push([
-      dataArr[0],
-      Math.log(dataArr[1] - params["alphaEquilibrium"]!),
-      Math.log(dataArr[2]! - params["alphaEquilibrium"]!),
+      chartDataArr[0],
+      Math.log(chartDataArr[1] - params["alphaEquilibrium"]!),
+      Math.log(chartDataArr[2]! - params["alphaEquilibrium"]!),
     ])
   }
   // 赋值
@@ -381,9 +447,10 @@ function onDataFitting() {
    * 与语言无关，不进入语言包。
    */
   /** k */
-  const resultK = params["k"]
+  const resultK = params["k"] as number
   /** 半衰期 t(1/2) */
-  const resultTHalf = Math.log(2) / resultK!
+  const resultTHalf = Math.log(2) / resultK
+  // 赋值
   chartTableDataAoaRef.value = [
     ["R²", rSquared.toFixed(4)],
     ["α_0 (°)", params["alphaInitial"]!.toFixed(4)],
@@ -395,5 +462,47 @@ function onDataFitting() {
   isDrawerVisiableRef.value = true
 }
 
+/**
+ * 验证数据有效性
+ * @param tArr t[]数据
+ * @param alphaArr α[]数据
+ */
+function validateData(tArr: number[], alphaArr: number[]) {
+  const incorrectDataTArr = []
+  // 检查初始时刻数据：初始时刻数据必须大于后一位
+  // 如果居然没大于
+  if (alphaArr[0]! <= alphaArr[1]!) {
+    // 就把初始时刻数据添加到错误数组中
+    incorrectDataTArr.push(String(tArr[0]))
+  }
+  // 遍历数据
+  for (let i = 1; i < tArr.length - 1; i++) {
+    // 如果当前数据小于前一位数据，或者大于后一位数据，则把当前数据添加到错误数组中
+    if (
+      (alphaArr[i - 1]! <= alphaArr[i]!)
+      || (alphaArr[i]! <= alphaArr[i + 1]!)
+    ) {
+      incorrectDataTArr.push(String(tArr[i]))
+    }
+  }
+  // 检查最后一个数据
+  const lastIndex = tArr.length - 1
+  if (alphaArr[lastIndex - 1]! <= alphaArr[lastIndex]!) {
+    incorrectDataTArr.push("∞")
+  }
+  // 如果错误数组不为空，则说明数据无效
+  if (incorrectDataTArr.length > 0) {
+    // 提示用户
+    myDialog({
+      theme: "danger",
+      body: langRef.value.IncorrectDataContent(incorrectDataTArr),
+    })
+    // 返回false
+    return false
+  // 否则返回true
+  } else {
+    return true
+  }
+}
 
 </script>

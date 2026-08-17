@@ -23,6 +23,7 @@ declare global {
   const shallowRef: typeof import('vue').shallowRef
   const supportsWasmPthreads: typeof import('./composables/useOpenCV').supportsWasmPthreads
   const supportsWasmSimd: typeof import('./composables/useOpenCV').supportsWasmSimd
+  const triggerRef: typeof import('vue').triggerRef
   const useData: typeof import('vitepress').useData
   const useLang: typeof import('./composables/useLang').useLang
   const useOpenCV: typeof import('./composables/useOpenCV').useOpenCV

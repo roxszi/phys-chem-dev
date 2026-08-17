@@ -51,8 +51,14 @@ export default defineConfig({
           "@utils/myPlugin.ts": ["myLoading", "myDialog", "myMessage", "myError", "myWait"],
           // 自动引入vue方法
           "vue": [
-            "ref", "shallowRef", "onMounted", "onBeforeUnmount", "watch", "readonly", "useTemplateRef",
-            "computed", "nextTick"
+            // Ref及MVVM绑定相关
+            "ref", "shallowRef", "useTemplateRef",
+            // 生命周期钩子
+            "onMounted", "onBeforeUnmount",
+            // 响应式相关
+            "watch", "computed", "readonly",
+            // 刷新DOM
+            "nextTick", "triggerRef"
           ],
           // 自动引入vitepress运行时方法
           "vitepress": ["useData", "withBase", "useRouter"],

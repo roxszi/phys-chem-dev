@@ -18,12 +18,17 @@
   逻辑层
 -->
 <script setup lang="ts">
+
+/** 行标记内容：是否激活。未激活的数据将增加<del></del>删除号 */
+type IsActive = boolean
 /** 本组件的传参数据类型 */
 interface MyTableProps {
   /** 表格标题（数据列） */
   titleArr: (string | number)[]
   /** 表格数据内容（AOA二维数组） */
   dataAoa: (string | number)[][]
+  /** 表格行数据标记 */
+  rowMarkAoa?: [IsActive][]
 }
 /** 组件传参 */
 const props = defineProps<MyTableProps>()
@@ -33,8 +38,12 @@ interface MyTableSlots {
   /**
    * #actions 插槽
    * @prop rowIndex 当前行索引
+   * @prop rowMarkArr 当前行数据标记
    */
-  actions(props: { rowIndex: number }): void
+  actions(props: {
+    rowIndex: number
+    rowMarkArr?: [boolean]
+  }): void
 }
 
 /** slots透传 */
@@ -84,19 +93,28 @@ const isDataRef = computed(() => (props.dataAoa.length !== 0))
       <tbody v-if="isDataRef">
         <!-- 内容行 -->
         <tr v-for="(dataArr, dataArrIndex) in props.dataAoa" :key="dataArrIndex">
-          <!-- 序号列：组件内置，自增 -->
+          <!-- 序号：组件内置，自增 -->
           <td scope="row">
             {{ dataArrIndex + 1 }}
           </td>
-          <!-- 内容列 -->
-          <td v-for="(data, dataIndex) in dataArr" :key="dataIndex">
-            {{ data }}
-          </td>
-          <!-- 操作列：仅在传了 #actions slot 时渲染 -->
+          <!-- 内容：失活 -->
+          <template v-if="props.rowMarkAoa?.[dataArrIndex]?.[0] === false">
+            <td v-for="(data, dataIndex) in dataArr" :key="dataIndex">
+              <del>{{ data }}</del>
+            </td>
+          </template>
+          <!-- 内容：其它（激活） -->
+          <template v-else>
+            <td v-for="(data, dataIndex) in dataArr" :key="dataIndex">
+              {{ data }}
+            </td>
+          </template>
+          <!-- 操作：仅在传了 #actions slot 时渲染 -->
           <td v-if="isActionsSlotsRef">
             <slot
               name="actions"
               :rowIndex="dataArrIndex"
+              :rowMarkArr="props.rowMarkAoa?.[dataArrIndex]"
             />
           </td>
         </tr>
