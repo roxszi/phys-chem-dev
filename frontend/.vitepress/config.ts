@@ -105,19 +105,22 @@ export default defineConfig({
     // css样式处理：使用lightningcss
     // css: { transformer: "lightningcss" },
     // 构建设置
-    build: {
-      // css压缩：使用lightningcss
-      // cssMinify: "lightningcss",
-    },
+    // build: {
+    //   // css压缩：使用lightningcss
+    //   cssMinify: "lightningcss",
+    // },
     // 开发服务器配置
-    server: {
-      // 端口
-      // port: 3000,
-    },
+    // server: {
+    //   // 端口
+    //   port: 3000,
+    // },
     // 需要作为 raw asset 处理的文件
-    assetsInclude: [
-      // "**/opencv_js.wasm",
-    ],
+    // assetsInclude: [],
+    // Worker bundle 配置
+    worker: {
+      // 输出格式：es，匹配 OpenCV 模块
+      format: "es",
+    }
   },
 
   // 全局站点元数据

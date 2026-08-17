@@ -145,11 +145,10 @@ async function importFactory(profile: OpenCVProfile = "min", variant: OpenCVVari
     //     如果先 `const module = ...` 再 `return module.default`，会导致多 module 对象名冲突
     //     因此直接 return 即可
     switch (key) {
+      // pthreads 存在bug，先不用
       case "min-simd.pthreads":
         return (
-          // pthreads 存在bug，先不用
-          // (await import("@utils/opencv/min-simd.pthreads/opencv_js.js"))
-          (await import("@utils/opencv/min-simd/opencv_js.js"))
+          (await import("@utils/opencv/min-simd.pthreads/opencv_js.js"))
             .default
         )
       case "min-simd":
@@ -162,11 +161,10 @@ async function importFactory(profile: OpenCVProfile = "min", variant: OpenCVVari
           (await import("@utils/opencv/min-fallback/opencv_js.js"))
             .default
         )
+      //  pthreads 存在bug，先不用
       case "all-simd.pthreads":
         return (
-          // pthreads 存在bug，先不用
-          // (await import("@utils/opencv/all-simd.pthreads/opencv_js.js"))
-          (await import("@utils/opencv/all-simd/opencv_js.js"))
+          (await import("@utils/opencv/all-simd.pthreads/opencv_js.js"))
             .default
         )
       case "all-simd":
@@ -208,6 +206,7 @@ function getVariants(): OpenCVVariant[] {
     if (supportsWasmPthreads()) {
       // 加上 pthreads 候选
       variants.unshift("simd.pthreads")
+      console.log("OpenCV.js: Pthreads 加速可用")
     }
   }
   // 返回列表（包含 fallback）

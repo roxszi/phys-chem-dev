@@ -187,7 +187,7 @@ export const sucroseHydrolysis = defineEquationModel({
       k: { value: kValue }
     } = params
     // 检查参数是否初始化
-    if (!aZeroValue || !aMaxValue || !kValue) {
+    if (aZeroValue === undefined || aMaxValue === undefined || kValue === undefined) {
       throw new Error("公式参数没有初始化")
     }
     // 计算结果
