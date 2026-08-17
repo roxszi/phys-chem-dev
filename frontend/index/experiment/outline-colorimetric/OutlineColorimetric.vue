@@ -134,7 +134,7 @@
    -->
   <div
     v-else-if="taskStatusRef === 3"
-    class="my-column my-gap"
+    class="my-column"
   >
     <!-- 遍历3个滑轨参数 -->
     <MySlider
@@ -146,7 +146,6 @@
       :step="thresholdNumArr[2]"
       :onChange="onSlideChange"
     />
-
     <!-- 按钮：下载数据 -->
     <MyButton
       :block="true"

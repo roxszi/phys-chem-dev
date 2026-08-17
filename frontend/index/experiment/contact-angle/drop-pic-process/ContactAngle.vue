@@ -188,10 +188,11 @@
    -->
   <div
     v-else-if="taskStatusRef === 3"
+    class="my-column"
   >
     <!-- 滑轨：主参数 -->
-    {{ langRef.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef] }}
     <MySlider
+      :title="langRef.ContourSliderMainParameterLabelArr[contourAlgorithmRadioRef]"
       :onChange="onSliderChange"
       :onChangeEnd="onSliderChangeEnd"
       v-model:value="thresholdSliderAoaRef[0]![0]"
@@ -199,18 +200,14 @@
       :step="1"
     />
     <!-- 滑轨：辅助参数 -->
-    <div
+    <MySlider
       v-if="contourAlgorithmRadioRef === 0"
-      class="my-column my-gap"
-    >
-      {{ langRef.ContourSliderAuxiliaryParameterLabel }}
-      <MySlider
-        :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
-        v-model:value="thresholdSliderAoaRef[1]![0]"
-        :marks="thresholdSliderAoaRef[1]![1]"
-        :step="1"
-      />
-    </div>
+      :title="langRef.ContourSliderAuxiliaryParameterLabel"
+      :onChange="onSliderChange" :onChangeEnd="onSliderChangeEnd"
+      v-model:value="thresholdSliderAoaRef[1]![0]"
+      :marks="thresholdSliderAoaRef[1]![1]"
+      :step="1"
+    />
     <!-- 容器（按钮容器） -->
     <div class="my-row my-gap">
       <!-- 轮廓粗调/细调切换 -->
@@ -928,11 +925,11 @@ async function onPicChange(event: UploadFile[]) {
   myLoading(langRef.value.PicLoadingContent)
   // 接对象
   const uploadFile = event[0]
-  const { ctx, matGray } = contactAngleObj
-  const cv = OpenCVRef.value as OpenCV
+  const { ctx } = contactAngleObj
+  const cv = OpenCVRef.value
   const canvas = canvasRef.value
   // 验证对象
-  if (!uploadFile || !cv || !canvas || !ctx || !matGray) throw new Error("object is undefined")
+  if (!uploadFile || !cv || !canvas || !ctx ) throw new Error("object is undefined")
   // 接收文件名
   contactAngleObj.filename = uploadFile.name!
   // 从第一个对象获取文件url
@@ -950,7 +947,7 @@ async function onPicChange(event: UploadFile[]) {
   // 读取完毕，销毁图片元素以释放内存
   imgElement.remove()
   // 如果全局灰度图Mat对象存在且有成员对象delete方法，则先删除
-  matGray?.delete()
+  contactAngleObj.matGray?.delete()
   // 初始化全局灰度图Mat对象
   contactAngleObj.matGray = new cv.Mat()
   // 将原始图像Mat转为灰度Mat，赋值给全局灰度图Mat对象

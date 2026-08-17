@@ -78,7 +78,7 @@ const sliderMaxComputed = computed(() => props.marks[props.marks.length - 1])
  -->
 <template>
   <!-- 容器 -->
-  <div class="my-margin my-column my-gap my-slider">
+  <div class="my-column my-gap">
     <!-- 标题 -->
     <div v-if="props.title">
       <strong>{{ props.title }}</strong>
@@ -97,5 +97,7 @@ const sliderMaxComputed = computed(() => props.marks[props.marks.length - 1])
       :onChange="props.onChange"
       :onChangeEnd="props.onChangeEnd"
     />
+    <!-- 间隔开 -->
+    <t-divider />
   </div>
 </template>

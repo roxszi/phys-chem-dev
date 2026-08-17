@@ -2,9 +2,9 @@
 
 > [!warning] This business includes two WebApps:
 > 
-> 1.  [**Equipment vertical calibration**](vertical-calibration.md). It can meet the vertical calibration operation requirements of mobile phones before contact angle measurement.
+> 1.  [**Equipment vertical calibration**](vertical-calibration/). It can meet the vertical calibration operation requirements of mobile phones before contact angle measurement.
 > 
-> 2.  [**Droplet image processing**](drop-pic-process.md). It can meet all kinds of processing requirements for images after contact angle measurement and obtain the final contact angle data.
+> 2.  [**Droplet image processing**](drop-pic-process/). It can meet all kinds of processing requirements for images after contact angle measurement and obtain the final contact angle data.
 
 [[toc]]
 
@@ -36,7 +36,7 @@ Due to the universality and ease of use of contact angle measurement, it can be 
 
 ## 2.  Vertical calibration of equipment
 
-[**Link to the vertical calibration function of the equipment**](vertical-calibration.md)
+[**Link to the vertical calibration function of the equipment**](vertical-calibration/)
 
 This function is relatively simple. After clicking "Call Sensor", you can use the phone's own sensor to perform necessary vertical calibration operations on the phone.
 
@@ -52,7 +52,7 @@ After calibration is completed, you can return to the previous page or jump to a
 
 ## 3.  Droplet image processing
 
-[**Link to droplet photo processing function**](drop-pic-process.md)
+[**Link to droplet photo processing function**](drop-pic-process/)
 
 The droplet photo processing function mainly consists of the following steps:
 

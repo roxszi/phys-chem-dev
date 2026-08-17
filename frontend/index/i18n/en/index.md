@@ -29,6 +29,11 @@ hero:
 
 # 主页特性部分
 features:
+  - title: 蔗糖水解皂化反应助手
+    icon: ⌨️
+    details: 蔗糖水解皂化反应常数的测定实验的数据实时处理。
+    link: experiment/sucrose-hydrolysis/
+    linkText: Enter Application
   - title: Contact Angle Measurement Assistant
     icon: 📷
     details: The vertical calibration operation that the mobile phone needs to perform before the contact Angle measurement.

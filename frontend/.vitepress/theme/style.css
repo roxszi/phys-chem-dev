@@ -114,12 +114,6 @@
   font: var(--td-font-body-medium);
 }
 
-
-
-
-
-
-
 /* 抽屉按列方向实现滚动 */
 .my-drawer {
   /* 计算外边距时算上父元素边框 */
@@ -164,10 +158,7 @@ mjx-container {
 
 /* ==================== 组件样式 ==================== */
 
-/* 滑轨整体元素不占flex block，因此计算引用值 */
-.my-slider {
-  margin-bottom: calc(var(--my-slider) * 3);
-}
+
 
 /* 图表 */
 .my-chart {

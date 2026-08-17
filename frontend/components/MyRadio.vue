@@ -34,7 +34,7 @@ const valueModel = defineModel<number>("value", { default: 0 })
  -->
 <template>
   <!-- 子元素居中 -->
-  <!-- <div class="my-center"> -->
+  <div class="my-column my-center">
     <!-- 选框组 -->
     <t-radio-group
       v-model:value="valueModel"
@@ -49,5 +49,5 @@ const valueModel = defineModel<number>("value", { default: 0 })
         {{ radioContent }}
       </t-radio-button>
     </t-radio-group>
-  <!-- </div> -->
+  </div>
 </template>
