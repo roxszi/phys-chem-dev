@@ -762,6 +762,11 @@ function nextTickFocusOnCanvas() {
 onBeforeUnmount(() => {
   // 取消监听：用于阻止页面刷新和关闭
   window.removeEventListener("beforeunload", beforeunloadHandler)
+  // 删除资源
+  contactAngleObj.matGray?.delete()
+  contactAngleObj.matGray = null
+  contactAngleObj.ellipse = null
+  contactAngleObj.imageData = null
 })
 
 /**
@@ -946,6 +951,7 @@ async function onPicChange(event: UploadFile[]) {
   const matOrigin = cv.imread(imgElement)
   // 读取完毕，销毁图片元素以释放内存
   imgElement.remove()
+  URL.revokeObjectURL(fileURL)
   // 如果全局灰度图Mat对象存在且有成员对象delete方法，则先删除
   contactAngleObj.matGray?.delete()
   // 初始化全局灰度图Mat对象
@@ -1005,6 +1011,8 @@ function canvasFit() {
   const canvas = canvasRef.value!
   // 接canvas父元素的最大内宽，赋值给全局变量
   contactAngleObj.canvasStyleWidth = canvas.parentElement!.clientWidth
+  // 如果canvas的显示宽度为0，则报错
+  if (contactAngleObj.canvasStyleWidth === 0) { throw new Error("canvasStyleWidth is 0") }
   // 设置canvas的显示宽度
   canvas.style.width = canvas.parentElement!.clientWidth + "px"
   // 以canvas的真实宽度和显示宽度之比，赋值给全局对象的缩放比例变量
