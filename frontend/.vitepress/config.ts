@@ -5,8 +5,6 @@
 import { defineConfig } from "vitepress"
 // 导入tsconfig.json中的paths配置插件
 import TsconfigPaths from "vite-tsconfig-paths"
-// 导入vite的压缩插件
-import { compression } from "vite-plugin-compression2"
 // 导入组件库的按需引入插件
 import AutoImport from "unplugin-auto-import/vite"
 import Components from "unplugin-vue-components/vite"
@@ -98,17 +96,10 @@ export default defineConfig({
             // resolveIcons: true
           })
         ]
-      }),
-      // 开启Gzip压缩。压缩算法只要gzip即可
-      compression({ algorithms: ["gzip"] }),
+      })
     ],
     // css样式处理：使用lightningcss
     // css: { transformer: "lightningcss" },
-    // 构建设置
-    // build: {
-    //   // css压缩：使用lightningcss
-    //   cssMinify: "lightningcss",
-    // },
     // 开发服务器配置
     // server: {
     //   // 端口

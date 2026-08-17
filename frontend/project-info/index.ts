@@ -71,7 +71,6 @@ export const srcExclude = [
   ".vitepress/(.*)",
   "components/(.*)",
   "composables/(.*)",
-  "layouts/(.*)",
   "project-info/(.*)",
   "public/(.*)",
   "utils/(.*)",
