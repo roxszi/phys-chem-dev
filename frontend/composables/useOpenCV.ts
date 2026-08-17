@@ -147,32 +147,36 @@ async function importFactory(profile: OpenCVProfile = "min", variant: OpenCVVari
     switch (key) {
       case "min-simd.pthreads":
         return (
-          (await import("@utils/opencv/min-simd.pthreads/opencv.js"))
+          // pthreads 存在bug，先不用
+          // (await import("@utils/opencv/min-simd.pthreads/opencv_js.js"))
+          (await import("@utils/opencv/min-simd/opencv_js.js"))
             .default
         )
       case "min-simd":
         return (
-          (await import("@utils/opencv/min-simd/opencv.js"))
+          (await import("@utils/opencv/min-simd/opencv_js.js"))
             .default
         )
       case "min-fallback":
         return (
-          (await import("@utils/opencv/min-fallback/opencv.js"))
+          (await import("@utils/opencv/min-fallback/opencv_js.js"))
             .default
         )
       case "all-simd.pthreads":
         return (
-          (await import("@utils/opencv/all-simd.pthreads/opencv.js"))
+          // pthreads 存在bug，先不用
+          // (await import("@utils/opencv/all-simd.pthreads/opencv_js.js"))
+          (await import("@utils/opencv/all-simd/opencv_js.js"))
             .default
         )
       case "all-simd":
         return (
-          (await import("@utils/opencv/all-simd/opencv.js"))
+          (await import("@utils/opencv/all-simd/opencv_js.js"))
             .default
         )
       case "all-fallback":
         return (
-          (await import("@utils/opencv/all-fallback/opencv.js"))
+          (await import("@utils/opencv/all-fallback/opencv_js.js"))
             .default
         )
       default:

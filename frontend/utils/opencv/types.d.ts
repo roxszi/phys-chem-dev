@@ -32,7 +32,7 @@ type OpenCVFactory = (
  * OpenCV 的 ESM 模块
  * 内含 OpenCV 的 wasm 导入工厂函数等
  */
-declare module "@utils/opencv/*/opencv.js" {
+declare module "@utils/opencv/*/opencv_js.js" {
   const factory: OpenCVFactory
   export default factory
 }
