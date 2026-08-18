@@ -1,6 +1,6 @@
 {
   "name": "phys-chem",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "物化助手，助力物理化学理论与实验教学。",
   "keywords": [],
   "author": "SI_Cheng-Yun",
@@ -10,9 +10,13 @@
   "scripts": {
     "dev": "pnpm dev:frontend",
     "build": "pnpm build:frontend",
-    "dev-back": "pnpm dev:frontend && pnpm dev:backend",
     "dev:frontend": "vitepress dev frontend",
-    "build:frontend": "vitepress build frontend && node shared/gzip.js",
+    "build:frontend": "pnpm build:frontend:root && pnpm build:frontend:subpage",
+    "build:frontend:root": "set VITE_BUILD_KIND=root&& vitepress build frontend",
+    "build:frontend:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build frontend",
+    "build:frontend:gzip": "pnpm build:frontend:gzip:root && build:frontend:gzip:subpage",
+    "build:frontend:gzip:root": "set VITE_BUILD_KIND=root&& node shared/distFrontendGzip.ts",
+    "build:frontend:gzip:subpage": "set VITE_BUILD_KIND=subpage&& node shared/distFrontendGzip.ts",
     "preview:frontend": "vitepress preview frontend",
     "dev:backend": "tsx watch src/index.ts",
     "build:backend": "tsc",

@@ -79,7 +79,7 @@ export const srcExclude = [
 ]
 
 /** 构建输出目录 */
-export const outDir = `../dist/frontend-${ buildKind }`
+export const outDir = `../dist-frontend-${ buildKind }`
 
 /** 站点地图 */
 export const sitemap = {
