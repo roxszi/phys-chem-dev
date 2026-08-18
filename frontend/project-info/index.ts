@@ -84,7 +84,7 @@ export const outDir = `../dist-frontend-${ buildKind }`
 /** 站点地图 */
 export const sitemap = {
   hostname: (buildKind === "root")
-    ? "https://www.yaodasci.com/"
+    ? "https://phys-chem.top/"
     : `https://roxszi.github.io${ base }`
 }
 

@@ -109,7 +109,9 @@ export default defineConfig({
     // assetsInclude: [],
     // Worker bundle 配置
     worker: {
-      // 输出格式：es，匹配 OpenCV 模块
+      // 输出格式：es
+      // 让Vite把 worker chunk 输出为 module worker，浏览器以 module 方式加载
+      // 这样可以支持顶层 await 和 dynamic import，以兼容 OpenCV.js 模块的一些顶层 await
       format: "es",
     }
   },
