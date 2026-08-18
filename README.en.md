@@ -4,11 +4,11 @@
 
 ## [**简体中文**](./README.md) | **English**
 
-> 📦 Source code: [GitHub](https://github.com/roxszi/phys-chem-dev) · [AtomGit (China)](https://atomgit.com/roxszi/phys-chem-dev) · [GitCode (China)](https://gitcode.com/roxszi/phys-chem-dev)
+> 📦 Source code: [AtomGit (China)](https://atomgit.com/roxszi/phys-chem-dev) · [GitHub (overseas)](https://github.com/roxszi/phys-chem-dev)
 >
-> 🌐 Live site (CN): [https://www.yaodasci.com](https://www.yaodasci.com/)
+> 🌐 Project site (China): [https://phys-chem.top](https://phys-chem.top)
 >
-> 🌐 Live site (EN): [https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
+> 🌐 Project site (overseas): [https://roxszi.github.io/phys-chem/en/](https://roxszi.github.io/phys-chem/en/)
 
 ---
 
@@ -49,10 +49,25 @@
 
 | Layer | Choice |
 |---|---|
-| Static site generator | [VitePress 2.0 (alpha)](https://vitepress.dev/) — `2.0.0-alpha.19`, SSG + Vue runtime dual-layer |
+| Static site generator | [VitePress 2.0 (alpha)](https://vitepress.dev/) — `2.0.0-alpha.19`, **SSG + Vue runtime dual-layer architecture** |
+
+> **Why VitePress** (VitePress is not a plain SSG — it's a **dual-layer** architecture):
+>
+> | Layer | When | Responsibility |
+> |---|---|---|
+> | **SSG layer** | at build time | Markdown + Vue theme components → SSR → static HTML. Handles "fast first paint" |
+> | **Vue runtime layer** | browser load → after hydrate | The whole site activates as a SPA (Vue Router client-side routing). Handles "interaction & functionality" |
+>
+> Key facts:
+> - No matter which page you enter from, the browser automatically loads the Vue runtime; after hydrate the whole site is a standard SPA
+> - `onMounted` / event listeners / `window` APIs / `beforeunload` actually execute **in the browser** (the build-time `setup` only generates the initial HTML)
+> - This is also why `index/` pages can be either `.vue` or `.md`, not forced to `.md`
+>
+> **Why not the island approach**: each Vue island incurs an independent resource-load + hydrate cost; multi-island sites accumulate overhead. VitePress shares one Vue runtime + client-side router across the whole site — smoother navigation, no "per-island load" stutter.
+
 | View framework | [Vue 3.5+](https://vuejs.org/) — `<script setup>` + Composition API |
 | UI library | [TDesign vue-next](https://tdesign.tencent.com/vue-next/overview) — auto-imported on demand |
-| In-house base components | `frontend/components/My*.vue` — `MyBadge` / `MyButton` / `MyDrawer` / `MyFeatures` / `MyNoticeBar` / `MyPicHead` / `Radio` / `MySlider` / `MySymbolLineChart` / `MyTable` / `MyTeamMembers` / `MyUpload` |
+| In-house base components | `frontend/components/My*.vue` — `MyBadge` / `MyButton` / `MyDrawer` / `MyFeatures` / `MyNoticeBar` / `MyPicHead` / `MyRadio` / `MySlider` / `MySymbolLineChart` / `MyTable` / `MyTeamMembers` / `MyUpload` |
 | Utility kit | [VueUse](https://vueuse.org/) + in-house `frontend/utils/myPlugin.ts` (`myLoading` / `myDialog` / `myMessage` / `myError` / `myWait`) |
 | Auto-import | [unplugin-auto-import](https://github.com/unplugin/unplugin-auto-import) + [unplugin-vue-components](https://github.com/unplugin/unplugin-vue-components) |
 | Path resolution | [vite-tsconfig-paths](https://github.com/aleclarson/vite-tsconfig-paths) — reuses `tsconfig.paths` |
@@ -63,6 +78,9 @@
 |---|---|---|
 | Deep learning | [TensorFlow.js 4.22](https://www.tensorflow.org/js) + `tfjs-backend-webgpu` + `tfjs-backend-webgl` + `tfjs-backend-cpu` | Three backends loaded with priority `webgpu > webgl > cpu`; module-level singleton |
 | Computer vision | [OpenCV.js 5.0 (`@techstark/opencv-js`)](https://docs.opencv.org/5.0/js_tutorials/js_tutorials.html) | WASM multi-variant builds (`fallback` / `simd` / `simd.pthreads`), automatic fallback |
+
+> **OpenCV.js integration**: the actual load path goes through Vite 8's `worker: { format: "es" }` (see `.vitepress/config.ts`) — the OpenCV.js (incl. wasm) ESM build is inlined as a **Module Worker** into Vite 8's pipeline, driven by `frontend/composables/useOpenCV.ts` for concurrency dedup, automatic fallback, and a state machine. `frontend/utils/opencv/` only serves as a local reference for the multiple ESM build variants (min / all × fallback / simd / simd.pthreads) — sidestepping the legacy `public/` + hand-maintained wasm approach.
+
 | Math formulas | [markdown-it-mathjax3](https://github.com/oclero/markdown-it-mathjax3) | Math typesetting in VitePress |
 | Charts | [ECharts 6](https://echarts.apache.org/) + [vue-echarts 8](https://github.com/echarts/vue-echarts) | Data visualization |
 | Spreadsheets | [SheetJS xlsx](https://docs.sheetjs.com/) | `.xlsx` export |
@@ -93,8 +111,6 @@
 | Runtime | [Node.js 24+](https://nodejs.org/) + [`@hono/node-server`](https://github.com/honojs/node-server) |
 | Database | Not introduced yet (currently only a `Hello Hono!` route placeholder; will be picked per business need) |
 
-> 📌 The Prisma mention in earlier README revisions was a historical plan; it has been replaced by the pure-TS `shared/` fitting library, and is **not** in the current dependencies.
-
 ---
 
 ## 📁 Project Layout
@@ -102,38 +118,35 @@
 ```
 phys-chem/
 ├── frontend/                          # Frontend (VitePress 2.0 + Vue 3.5)
-│   ├── .vitepress/
-│   │   ├── project-info/              # Decoupled project meta (footer / nav / sidebar / social / i18n)
+│   ├── .vitepress/                    # VitePress config
 │   │   ├── theme/                     # VitePress theme styles (bridge.css / tdesign-theme.css)
 │   │   ├── layouts/                   # Custom BaseLayout
 │   │   └── config.ts                  # VitePress engineering config
 │   ├── components/                    # In-house base components (MyBadge / MyButton / MyTable ...)
-│   ├── composables/                   # Logic layer
+│   ├── composables/                   # Vue 3 composition functions
 │   │   ├── useLang.ts                 # i18n switch
 │   │   ├── useTFjs.ts                 # tfjs backend loader (webgpu > webgl > cpu, state machine)
 │   │   └── useOpenCV.ts               # OpenCV WASM multi-variant loader + auto fallback
-│   ├── index/                         # Site pages (Markdown + Vue islands)
+│   ├── index/                         # Site pages (Markdown + Vue Components)
 │   │   ├── about/                     # About
 │   │   ├── chemometrics/              # Chemometrics
 │   │   │   └── andor-raman/           # Andor Raman .sif → .xlsx
 │   │   ├── experiment/                # Experiments
 │   │   │   ├── sucrose-hydrolysis/    # First-order sucrose hydrolysis
 │   │   │   ├── contact-angle/         # Contact angle (ContactAngle + ContactAngleMulti)
-│   │   │   │   ├── vertical-calibration/
-│   │   │   │   └── drop-pic-process/
 │   │   │   └── outline-colorimetric/  # Outline-colorimetric method
 │   │   ├── i18n/en/                   # English site pages
 │   │   ├── test/                      # Internal test page
 │   │   └── index.md                   # Home
+│   ├── project-info/                  # Decoupled project meta (footer / nav / sidebar / social / i18n)
 │   ├── public/
 │   │   ├── LICENSES/                  # Third-party license texts
-│   │   ├── assets/                    # Static assets (incl. Andor `.pgm` script)
-│   │   └── opencv/                    # OpenCV.js WASM multi-variant build artifacts
+│   │   └── assets/                    # Static assets (incl. Andor `.pgm` script)
 │   └── utils/
 │       ├── myPlugin.ts                # In-house TDesign plugin (Loading / Dialog / Message)
 │       ├── xlsx.ts                    # SheetJS wrapper
 │       ├── file.ts                    # File utilities
-│       └── opencv/                    # Backup OpenCV builds (min / all × fallback / simd / simd.pthreads)
+│       └── opencv/                    # OpenCV ESM builds, local copy (min / all × fallback / simd / simd.pthreads)
 │
 ├── backend/                           # Backend (Hono)
 │   └── index.ts                       # Placeholder: Hello Hono! route (port 3000)
@@ -149,21 +162,16 @@ phys-chem/
 │   ├── distFrontendGzip.ts            # Build-output `.gz` incremental compression script
 │   └── README.md                      # Detailed `shared/` docs
 │
-├── backup/                            # Archived historical files
-├── .vitepress/cache/                  # VitePress build cache
-├── dist-frontend-root/                # Build output (root variant — for apex-domain deploy)
-├── dist-frontend-subpage/             # Build output (subpage variant — for Pages sub-path deploy)
-│
 ├── .npmrc                             # pnpm / npm config (incl. better-sqlite3 mirror etc.)
-├── .gitignore
+├── .gitignore                         # Files / directories excluded from git
 ├── pnpm-workspace.yaml                # pnpm workspace config (incl. `allowBuilds`)
 ├── tsconfig.json                      # Root tsconfig
 ├── tsconfig.base.json                 # Shared compile options
 ├── tsconfig.frontend.json             # Frontend tsconfig
 ├── tsconfig.backend.json              # Backend tsconfig
-├── globals.d.ts
+├── globals.d.ts                       # Global type declarations
 ├── package.json                       # Root package.json (scripts, deps)
-├── pnpm-lock.yaml
+├── pnpm-lock.yaml                     # pnpm lockfile
 └── license                            # MulanPSL-2.0 license text
 ```
 
@@ -191,7 +199,7 @@ phys-chem/
 ```bash
 git clone https://github.com/roxszi/phys-chem-dev.git
 # For China mainland access you may also use:
-# git clone https://gitcode.com/roxszi/phys-chem-dev.git
+# git clone https://atomgit.com/roxszi/phys-chem-dev.git
 cd phys-chem-dev
 pnpm install
 ```
@@ -210,7 +218,7 @@ pnpm dev:backend
 
 ```bash
 # === Frontend build ===
-# Chinese site (root variant — for apex-domain deploy, e.g. https://www.yaodasci.com/)
+# Chinese site (root variant — for apex-domain deploy, e.g. https://phys-chem.top/)
 pnpm build:frontend:root
 
 # English site (subpage variant — for Pages sub-path deploy, e.g. https://roxszi.github.io/phys-chem/)
@@ -289,7 +297,7 @@ Thanks to the following open-source projects (full license texts under [`fronten
 
 ## 📮 Contact
 
-- Open an [Issue](https://github.com/roxszi/phys-chem-dev/issues) (or on [AtomGit](https://atomgit.com/roxszi/phys-chem-dev/issues) for China)
+- Open an [Issue](https://atomgit.com/roxszi/phys-chem-dev/issues)
 - Email: [sichengyun@163.com](mailto:sichengyun@163.com)
 
 ---
