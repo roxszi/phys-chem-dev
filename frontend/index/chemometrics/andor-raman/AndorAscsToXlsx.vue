@@ -7,25 +7,25 @@
  -->
 <template>
 
-  <!--
-    读取数据文件夹按钮及容器
-    onChange：图片上传、删除时触发。
-   -->
-  <MyButton
+  <!-- 读取数据文件夹 / 下载的按钮 -->
+  <MyDownload
+    :buffer="xlsxArrayBufferRef"
+    name="andor-data.xlsx"
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     :loading="isBtnLoadingRef"
     size="large"
-    :theme="isGetFoldRef ? 'light' : 'primary'"
+    :theme="isGetFoldRef ? 'success' : 'primary'"
     @click="onButtonClicked"
   >
     {{ isGetFoldRef ? `一键导出${ fileCountsRef }个数据` : "挂载文件夹" }}
-  </MyButton>
+  </MyDownload>
 
 </template>
 
 <!-- 逻辑层 -->
 <script setup lang="ts">
 // 引入各类方法
-import { aoaTranspose, aoaMapToWorkbook, downloadXlsx } from "@utils/xlsx.js"
+import { aoaTranspose, aoaMapToXlsxArrayBuffer } from "@utils/xlsx.js"
 
 /** Andor数据文件合并业务的数据对象 */
 interface AndorAscsToXlsx {
@@ -43,30 +43,29 @@ const isGetFoldRef = ref(false)
 const fileCountsRef = ref(0)
 /** Ref状态：是否显示按钮加载圈 */
 const isBtnLoadingRef = ref(false)
-
+/** Ref状态：xlsx数据的ArrayBuffer对象 */
+const xlsxArrayBufferRef = ref<ArrayBuffer | null>(null)
 
 /**
  * 按钮被按下的回调
  * 根据是否读取到文件夹，决定调用哪个函数
  */
-function onButtonClicked() { try {
-  // 接参数
-  const isGetFold = isGetFoldRef.value
-  // 若读取到了文件夹，则调用“导出excel”函数
-  if (isGetFold) {
-    ascsToXlsx()
-  // 若没读取到文件夹，则调用“读取数据文件夹”函数
-  } else {
-    readDataDirectory()
+async function onButtonClicked() { try {
+  // 若还没读取到文件夹，则读取文件夹
+  if (!isGetFoldRef.value) {
+    await readDataDirectory()
   }
-} catch (error) {
-  console.error("onButtonClicked()报错: ", error)
+} catch (err) {
   // 关闭加载动画
   isBtnLoadingRef.value = false
-  // 直接对话框报错
+  // 如果错误是AbortError，直接返回即可
+  if ((err as Error).name === "AbortError") return
+  // 控制台打印错误信息
+  console.error("onButtonClicked()报错: ", err)
+  // 对话框报错
   myDialog({
-    title: "读取数据报错",
-    content: (error as Error).toString()
+    header: "读取数据报错",
+    body: (err as Error).toString()
   })
 }}
 
@@ -82,15 +81,18 @@ async function readDataDirectory() {
   andorAscsToXlsxObj.fileNameArr = null
   andorAscsToXlsxObj.fileHandleArr = null
   // 建个空数组，用来装文件名和句柄内容
-  const fileNameArr = []
-  const fileHandleArr = []
+  const fileNameArr: string[] = []
+  const fileHandleArr: FileSystemFileHandle[] = []
   // 打开文件夹，返回句柄。句柄成员对象：kind、name
-  // @ts-ignore
   const dirHandle = await window.showDirectoryPicker()
   // 处理句柄，得到异步迭代器
   const asyncIter = dirHandle.entries()
   // 异步迭代
   forEachFile: for await (const [fileName, fileHandle] of asyncIter) {
+    // 跳过文件夹
+    if (fileHandle.kind === "directory") {
+      continue forEachFile
+    }
     // 按“.”拆分，提取最后一个，即为文件扩展名
     const fileNameExt = fileName.split(".").slice(-1)[0]
     // 检查扩展名是否是"asc"
@@ -115,21 +117,20 @@ async function readDataDirectory() {
   if (fileNameArrLength === 0) {
     // 提示失败
     myDialog({
-      title: "读取失败",
-      content: "所选的文件夹里找不到有效的.asc数据文件。"
+      header: "读取失败",
+      body: "所选的文件夹里找不到有效的.asc数据文件。"
     })
   // 如果文件数量不为0，则提示用户成功读取
   } else {
-    // 把文件对象输出到项目全局对象
-    andorAscsToXlsxObj.fileNameArr = fileNameArr
-    andorAscsToXlsxObj.fileHandleArr = fileHandleArr
+    // 获得xlsx的ArrayBuffer对象
+    xlsxArrayBufferRef.value = await ascsToXlsxBuffer(fileNameArr, fileHandleArr)
     // 更新Ref状态
     fileCountsRef.value = fileNameArrLength
     isGetFoldRef.value = true
     // 提示成功
     myDialog({
-      title: "读取成功",
-      content: `获得有效数据文件 ${ fileNameArrLength } 个，可一键导出。`
+      header: "读取成功",
+      body: `获得有效数据文件 ${ fileNameArrLength } 个，可一键导出。`
     })
   }
   // 关闭加载动画
@@ -137,78 +138,97 @@ async function readDataDirectory() {
 }
 
 /**
- * 读取(.asc)数据文件夹
- * 内容为各类.asc文件，但是可能混有别的文件，所以要筛
+ * 读取(.asc)数据文件夹为xlsx Buffer
  */
-async function ascsToXlsx() {
-  // 显示按钮加载动画
-  isBtnLoadingRef.value = true
-  // 从项目全局接文件对象
-  const fileNameArr = andorAscsToXlsxObj.fileNameArr
-  const fileHandleArr = andorAscsToXlsxObj.fileHandleArr
+async function ascsToXlsxBuffer(fileNameArr:string[], fileHandleArr: FileSystemFileHandle[]) {
   // 检查文件是否存在
-  if (!fileNameArr || !fileHandleArr || fileNameArr.length === 0 || fileHandleArr.length === 0) {
+  if (
+    !fileNameArr
+    || !fileHandleArr
+    || fileNameArr.length === 0
+    || fileHandleArr.length === 0
+  ) {
+    // 文件读取Ref恢复
+    isGetFoldRef.value = false
     // 提示失败
     throw new Error("文件对象不存在，请重新挂载文件夹。")
   }
-  // 新建一个数组用来装数据
-  const fileDataAoa = []
-  // 遍历文件
-  for (let i = 0; i < fileNameArr.length; i++) {
-    // 从句柄获取文件
-    const file = await fileHandleArr[i]!.getFile()
-    // 从文件获取text数据
-    const fileText = await file.text()
-    // 按换行拆分成数组
-    const lineBreakReg = new RegExp(/\r?\n/)
-    const fileTextArr = fileText.split(lineBreakReg)
-    // 如果数组最后一个元素为空，则删掉
-    if (!fileTextArr.slice(-1)[0]) {
-      fileTextArr.splice(-1)
-    }
-    // 准备拆分数组内的tab空格
-    const tabReg = new RegExp(/\t/)
-    // 新建一个AOA数组用来装每个文件的数据
-    // 第一个Arr是X轴数据，先把X装进去
-    const fileDataUniAoa = []
-    // 这里需要注意，有的文件可能只有1列Y数据，还有的文件可能有多列Y数据
-    // 所以要判断一下，用第一行数据来判断
-    const fileDataFristLineArr = fileTextArr[0]!.split(tabReg)
-    // 如果数组最后一个元素为空，则删掉
-    if (!fileDataFristLineArr.slice(-1)[0]) {
-      fileDataFristLineArr.splice(-1)
-    }
-    // 装X
-    fileDataUniAoa[0] = ["X", fileDataFristLineArr[0]]
-    // 遍历装Y数据
-    for (let k = 1; k < fileDataFristLineArr.length; k++) {
-      // 装Y
-      fileDataUniAoa[k] = [fileNameArr[i], fileDataFristLineArr[k]]
-    }
-    // 第一行搞定，数据结构也搞定了，接下来继续处理
-    // 遍历文件Text化的字符串数组
-    for (let j = 1; j < fileTextArr.length; j++) {
-      // 按tab拆分成数组，内容就是X和Y数据
-      const fileDataUniArr = fileTextArr[j]!.split(tabReg)
-      // 遍历装X和Y数据
-      for (let k = 0; k < fileDataUniAoa.length; k++) {
-        // 装X和Y
-        fileDataUniAoa[k]!.push(fileDataUniArr[k])
-      }
-    }
-    // 数据数组装箱
-    fileDataAoa.push(...fileDataUniAoa)
-  }
+  // 以Promise.all遍历文件获取uniAOA数据数组
+  const fileDataAoaoa = await Promise.all(
+    // 遍历文件名数组
+    fileNameArr.map(async (name, i) => {
+      // 从句柄获取文件
+      const file = await fileHandleArr[i]!.getFile()
+      // 解析文件获取数据
+      const fileDataUniAoa = await parseAndorFile(file, name)
+      // 返回数据
+      return fileDataUniAoa
+    })
+  )
+  // 把数据展平一个维度，即获得数据AOA
+  const fileDataAoa = fileDataAoaoa.flat(1)
   // 处理完毕，构造AoaMap
   const fileDataAoaMap = new Map()
   // Key是“rawData”，Value是转置后的原始数据
-  fileDataAoaMap.set("rawData", aoaTranspose(fileDataAoa as string[][]))
-  // 构造Excel工作簿
-  const workbook = aoaMapToWorkbook(fileDataAoaMap)
-  // 关闭按钮加载动画
-  isBtnLoadingRef.value = false
-  // 下载Excel文件
-  downloadXlsx(workbook, "andor-data.xlsx")
+  fileDataAoaMap.set("rawData", aoaTranspose(fileDataAoa))
+  // 转为xlsx的ArrayBuffer对象
+  const dataArrayBuffer = aoaMapToXlsxArrayBuffer(fileDataAoaMap)
+  // 返回ArrayBuffer对象
+  return dataArrayBuffer
+}
+
+/**
+ * 解析Andor的.sif文件
+ * @returns 单个文件的AOA数组
+ */
+async function parseAndorFile(file: File, fileName: string) {
+  // 从文件获取text数据
+  const fileText = await file.text()
+  // 按换行拆分成数组
+  const lineBreakReg = new RegExp(/\r?\n/)
+  const fileTextArr = fileText.split(lineBreakReg)
+  // 如果数组最后一个元素为空，则删掉
+  if (!fileTextArr.slice(-1)[0]) {
+    fileTextArr.splice(-1)
+  }
+  // 准备拆分数组内的tab空格
+  const tabReg = new RegExp(/\t/)
+  // 新建一个AOA数组用来装每个文件的数据
+  // 第一个Arr是X轴数据，先把X装进去
+  const fileDataUniAoa = []
+  // 这里需要注意，除了必然存在的X数据外，有的文件可能只有1列Y数据，还有的文件可能有多列Y数据
+  // 所以要判断一下，用第一行数据来判断
+  const fileDataFristLineArr = fileTextArr[0]!.split(tabReg)
+  // 如果数组最后一个元素为空，则删掉
+  if (!fileDataFristLineArr.slice(-1)[0]) {
+    fileDataFristLineArr.splice(-1)
+  }
+  // 装X数据
+  fileDataUniAoa[0] = ["X", fileDataFristLineArr[0]]
+  // 装Y数据
+  // 如果只有1列Y数据
+  if (fileDataFristLineArr.length === 2) {
+    // 则直接装
+    fileDataUniAoa[1] = [fileName, fileDataFristLineArr[1]]
+  } else {
+    // 否则遍历装Y数据
+    for (let k = 1; k < fileDataFristLineArr.length; k++) {
+      fileDataUniAoa[k] = [`${ fileName }-${ k }`, fileDataFristLineArr[k]]
+    }
+  }
+  // 第一行搞定，数据结构也搞定了，接下来继续处理
+  // 遍历文件Text化的字符串数组
+  for (let j = 1; j < fileTextArr.length; j++) {
+    // 按tab拆分成数组，内容就是X和Y数据
+    const fileDataUniArr = fileTextArr[j]!.split(tabReg)
+    // 遍历装X和Y数据
+    for (let k = 0; k < fileDataUniAoa.length; k++) {
+      // 装X和Y
+      fileDataUniAoa[k]!.push(fileDataUniArr[k])
+    }
+  }
+  // 返回AOA
+  return fileDataUniAoa
 }
 
 </script>

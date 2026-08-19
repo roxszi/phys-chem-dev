@@ -6,6 +6,31 @@
 
 
 /**
+ * 触发浏览器下载（通用工具）
+ *   - 创建临时 <a>，设置 href 和 download 属性
+ *   - click() 后 revokeObjectURL 释放内存
+ */
+export function triggerDownload(blob: Blob, filename: string): void {
+  // 以Blob对象创建下载链接
+  const url = URL.createObjectURL(blob)
+  // 创建一个新的<a>下载链接元素块
+  const a = document.createElement("a")
+  // 赋值下载链接
+  a.href = url
+  // 设置该元素块下载功能赋值的文件名
+  a.download = filename
+  // 把<a>元素块挂载到DOM中
+  document.body.appendChild(a)
+  // 执行下载
+  a.click()
+  // 从文档中移除下载链接元素
+  document.body.removeChild(a)
+  // 延后释放，确保 click 已经处理
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+
+/**
  * downloadFile 下载文件
  * @param dataBuffer - Buffer格式的数据对象。
  * @param fileName - 文件名(含扩展名)。
@@ -16,11 +41,6 @@ export function downloadFile(
   fileName: string,
   fileType: string = "application/octet-stream"
 ) {
-  // // 将数据对象强转为ArrayBuffer格式
-  // const dataBuffer =
-  //   (dataBuffer instanceof ArrayBuffer)
-  //     ? dataBuffer
-  //     : await dataBuffer.arrayBuffer()
   // 将数据对象转换为Blob对象
   const dataBlob = new Blob([dataBuffer], { type: fileType })
   // 以Blob对象创建下载链接

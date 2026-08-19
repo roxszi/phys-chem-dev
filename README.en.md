@@ -49,28 +49,30 @@
 
 | Layer | Choice |
 |---|---|
-| Static site generator | [VitePress 2.0 (alpha)](https://vitepress.dev/) — `2.0.0-alpha.19`, **SSG + Vue runtime dual-layer architecture** |
-
-> **Why VitePress** (VitePress is not a plain SSG — it's a **dual-layer** architecture):
->
-> | Layer | When | Responsibility |
-> |---|---|---|
-> | **SSG layer** | at build time | Markdown + Vue theme components → SSR → static HTML. Handles "fast first paint" |
-> | **Vue runtime layer** | browser load → after hydrate | The whole site activates as a SPA (Vue Router client-side routing). Handles "interaction & functionality" |
->
-> Key facts:
-> - No matter which page you enter from, the browser automatically loads the Vue runtime; after hydrate the whole site is a standard SPA
-> - `onMounted` / event listeners / `window` APIs / `beforeunload` actually execute **in the browser** (the build-time `setup` only generates the initial HTML)
-> - This is also why `index/` pages can be either `.vue` or `.md`, not forced to `.md`
->
-> **Why not the island approach**: each Vue island incurs an independent resource-load + hydrate cost; multi-island sites accumulate overhead. VitePress shares one Vue runtime + client-side router across the whole site — smoother navigation, no "per-island load" stutter.
-
+| Static site generator | [VitePress 2.0 (alpha)](https://vitepress.dev/) — `2.0.0-alpha.19`, SSG + Vue runtime dual-layer architecture |
 | View framework | [Vue 3.5+](https://vuejs.org/) — `<script setup>` + Composition API |
 | UI library | [TDesign vue-next](https://tdesign.tencent.com/vue-next/overview) — auto-imported on demand |
 | In-house base components | `frontend/components/My*.vue` — `MyBadge` / `MyButton` / `MyDrawer` / `MyFeatures` / `MyNoticeBar` / `MyPicHead` / `MyRadio` / `MySlider` / `MySymbolLineChart` / `MyTable` / `MyTeamMembers` / `MyUpload` |
 | Utility kit | [VueUse](https://vueuse.org/) + in-house `frontend/utils/myPlugin.ts` (`myLoading` / `myDialog` / `myMessage` / `myError` / `myWait`) |
 | Auto-import | [unplugin-auto-import](https://github.com/unplugin/unplugin-auto-import) + [unplugin-vue-components](https://github.com/unplugin/unplugin-vue-components) |
 | Path resolution | [vite-tsconfig-paths](https://github.com/aleclarson/vite-tsconfig-paths) — reuses `tsconfig.paths` |
+
+#### Why VitePress
+
+VitePress is not a plain SSG — it's a **SSG + Vue runtime dual-layer** architecture:
+
+| Layer | When | Responsibility |
+|---|---|---|
+| **SSG layer** | at build time | Markdown + Vue theme components → SSR → static HTML. Handles "fast first paint" |
+| **Vue runtime layer** | browser load → after hydrate | The whole site activates as a SPA (Vue Router client-side routing). Handles "interaction & functionality" |
+
+Key facts:
+
+- No matter which page you enter from, the browser automatically loads the Vue runtime; after hydrate the whole site is a standard SPA
+- `onMounted` / event listeners / `window` APIs / `beforeunload` actually execute **in the browser** (the build-time `setup` only generates the initial HTML)
+- This is also why `index/` pages can be either `.vue` or `.md`, not forced to `.md`
+
+**Why not the island approach**: each Vue island incurs an independent resource-load + hydrate cost; multi-island sites accumulate overhead. VitePress shares one Vue runtime + client-side router across the whole site — smoother navigation, no "per-island load" stutter.
 
 ### In-browser Compute Engines
 

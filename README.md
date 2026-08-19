@@ -49,28 +49,30 @@
 
 | 类别 | 选型 |
 |---|---|
-| 静态站点生成 | [VitePress 2.0 (alpha)](https://vitepress.dev/zh/) — `2.0.0-alpha.19`，**SSG + Vue 运行时双层衔接架构** |
-
-> **为什么选 VitePress**（VitePress 不是单纯的 SSG，而是**双层衔接**架构）：
->
-> | 层 | 时机 | 职责 |
-> |---|---|---|
-> | **SSG 层** | build 时 | Markdown + Vue 主题组件 → SSR → 静态 HTML。负责"快速首屏加载" |
-> | **Vue 运行时层** | 浏览器加载 → hydrate 后 | 整站激活为 SPA（Vue Router 客户端路由）。负责"交互与功能" |
->
-> 关键事实：
-> - 无论从哪个页面入口进入，浏览器都会自动加载 Vue 运行时，整站 hydrate 后就是标准 SPA
-> - `onMounted` / 事件监听 / `window` API / `beforeunload` 在浏览器侧**真实执行**（build 阶段的 setup 仅负责生成初始 HTML）
-> - 这也是 `index/` 下页面可以是 `.vue` 或 `.md`、不强制 `.md` 的根本原因
->
-> **为什么不选 island 方案**：每个 Vue island 都是一次独立的资源加载与水合开销，多 island 站点累积成本显著。VitePress 整站共享一份 Vue 运行时 + 客户端路由，跳转平滑、无"逐 island 加载"的卡顿。
-
+| 静态站点生成 | [VitePress 2.0 (alpha)](https://vitepress.dev/zh/) — `2.0.0-alpha.19`，SSG + Vue 运行时双层衔接架构 |
 | 视图框架 | [Vue 3.5+](https://cn.vuejs.org/) — `<script setup>` + Composition API |
 | UI 组件库 | [TDesign vue-next](https://tdesign.tencent.com/vue-next/overview) — 按需自动引入 |
 | 自封装基础组件 | `frontend/components/My*.vue` — `MyBadge` / `MyButton` / `MyDrawer` / `MyFeatures` / `MyNoticeBar` / `MyPicHead` / `MyRadio` / `MySlider` / `MySymbolLineChart` / `MyTable` / `MyTeamMembers` / `MyUpload` |
 | 工具集 | [VueUse](https://vueuse.org/) + 自封装 `frontend/utils/myPlugin.ts`（`myLoading` / `myDialog` / `myMessage` / `myError` / `myWait`） |
 | 自动引入 | [unplugin-auto-import](https://github.com/unplugin/unplugin-auto-import) + [unplugin-vue-components](https://github.com/unplugin/unplugin-vue-components) |
 | 路径解析 | [vite-tsconfig-paths](https://github.com/aleclarson/vite-tsconfig-paths) — 复用 `tsconfig.paths` |
+
+#### 为什么选 VitePress
+
+VitePress 不是单纯的 SSG，而是 **SSG + Vue 运行时双层衔接**架构：
+
+| 层 | 时机 | 职责 |
+|---|---|---|
+| **SSG 层** | build 时 | Markdown + Vue 主题组件 → SSR → 静态 HTML。负责"快速首屏加载" |
+| **Vue 运行时层** | 浏览器加载 → hydrate 后 | 整站激活为 SPA（Vue Router 客户端路由）。负责"交互与功能" |
+
+关键事实：
+
+- 无论从哪个页面入口进入，浏览器都会自动加载 Vue 运行时，整站 hydrate 后就是标准 SPA
+- `onMounted` / 事件监听 / `window` API / `beforeunload` 在浏览器侧**真实执行**（build 阶段的 setup 仅负责生成初始 HTML）
+- 这也是 `index/` 下页面可以是 `.vue` 或 `.md`、不强制 `.md` 的根本原因
+
+**为什么不选 island 方案**：每个 Vue island 都是一次独立的资源加载与水合开销，多 island 站点累积成本显著。VitePress 整站共享一份 Vue 运行时 + 客户端路由，跳转平滑、无"逐 island 加载"的卡顿。
 
 ### 计算引擎（浏览器内本地推理）
 
