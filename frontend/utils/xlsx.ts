@@ -44,11 +44,20 @@ type XlsxContent = string | number | undefined
  * @param xlsxFile - XLSX文件对象
  * @returns 工作簿对象
  */
-export async function readXlsxFile(xlsxFile: File | Response): Promise<XLSXWorkBook> {
+export async function readXlsxFile(xlsxFile: File) {
   // file(File类)继承Blob类的arrayBuffer()方法，直接转ArrayBuffer格式
   const dataBuffer = await xlsxFile.arrayBuffer()
   // 将ArrayBuffer对象读取为工作簿
-  const workbook = XLSXRead(dataBuffer, { type: "file" })
+  const workbook = XLSXRead(dataBuffer, {
+    // 数据类型：ArrayBuffer
+    type: "array",
+    // 读取的行数，0为全部读取
+    sheetRows: 0,
+    // 是否只解析到表名，不解析表数据
+    bookSheets: false,
+    // 显式指定解析的表
+    sheets: undefined
+  })
   // 返回工作簿
   return workbook
 }
@@ -193,32 +202,4 @@ export function downloadXlsx(workbook: XLSXWorkBook, xlsxName: string) {
   const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   downloadFile(xlsxArrayBuffer, xlsxName, fileType)
 }
-
-/**
- * workbook转为url
- * @param workbook - 工作簿对象
- * @note url对象必须显式使用`URL.revokeObjectURL(url)`释放，否则会一直占用内存
- * @example
- * // 监听url变化，释放旧url
- * watch(workbookUrlRef, (newUrl, oldUrl) => {
- *   URL.revokeObjectURL(oldUrl)
- * })
- * // 销毁vue实例时，释放url
- * onBeforeUnmount(() => {
- *   URL.revokeObjectURL(workbookUrl.value)
- * })
- */
-export function workbookToUrl(workbook: XLSXWorkBook) {
-  /** 工作簿转为ArrayBufferView */
-  const xlsxArrayBuffer: ArrayBuffer = XLSXWrite(workbook, { type: "array", compression: true })
-  // 下载文件
-  const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  // 将数据对象转换为Blob对象
-  const dataBlob = new Blob([xlsxArrayBuffer], { type: fileType })
-  // 以Blob对象创建下载链接
-  const url = URL.createObjectURL(dataBlob)
-  // 返回url
-  return url
-}
-
 

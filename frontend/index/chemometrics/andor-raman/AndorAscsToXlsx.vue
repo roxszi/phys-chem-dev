@@ -27,33 +27,23 @@
 // 引入各类方法
 import { aoaTranspose, aoaMapToXlsxArrayBuffer } from "@utils/xlsx.js"
 
-/** Andor数据文件合并业务的数据对象 */
-interface AndorAscsToXlsx {
-  fileNameArr: string[] | null
-  fileHandleArr: FileSystemFileHandle[] | null
-}
-/** Andor数据文件合并业务的数据对象 */
-const andorAscsToXlsxObj: AndorAscsToXlsx = {
-  fileNameArr: null,
-  fileHandleArr: null
-}
 /** Ref状态：是否读取到文件夹 */
-const isGetFoldRef = ref(false)
+const isGetFoldRef = shallowRef(false)
 /** Ref状态：读取到的有效文件数量 */
-const fileCountsRef = ref(0)
+const fileCountsRef = shallowRef(0)
 /** Ref状态：是否显示按钮加载圈 */
-const isBtnLoadingRef = ref(false)
+const isBtnLoadingRef = shallowRef(false)
 /** Ref状态：xlsx数据的ArrayBuffer对象 */
-const xlsxArrayBufferRef = ref<ArrayBuffer | null>(null)
+const xlsxArrayBufferRef = shallowRef<ArrayBuffer | null>(null)
 
 /**
  * 按钮被按下的回调
  * 根据是否读取到文件夹，决定调用哪个函数
  */
 async function onButtonClicked() { try {
-  // 若还没读取到文件夹，则读取文件夹
+  // 若还没读取到文件夹，则读取文件夹开启主业务
   if (!isGetFoldRef.value) {
-    await readDataDirectory()
+    await main()
   }
 } catch (err) {
   // 关闭加载动画
@@ -70,16 +60,35 @@ async function onButtonClicked() { try {
 }}
 
 /**
- * 读取(.asc)数据文件夹
- * 内容为各类.asc文件，但是可能混有别的文件，所以要筛
- * @note 会读写projectObj的fileNameArr和fileHandleArr
+ * 主业务
  */
-async function readDataDirectory() {
+async function main() {
   // 显示按钮加载动画
   isBtnLoadingRef.value = true
-  // 先清零旧的file数据
-  andorAscsToXlsxObj.fileNameArr = null
-  andorAscsToXlsxObj.fileHandleArr = null
+  // 缓一缓，确保加载动画开始
+  await nextTick()
+  // 读取数据文件夹，获得文件名数组、句柄数组
+  const { fileNameArr, fileHandleArr, fileNameArrLength } = await readDataDirectory()
+  // 获得xlsx的ArrayBuffer对象，赋值给Ref状态
+  xlsxArrayBufferRef.value = await ascsToXlsxBuffer(fileNameArr, fileHandleArr)
+  // 更新Ref状态
+  fileCountsRef.value = fileNameArrLength
+  isGetFoldRef.value = true
+  // 提示成功
+  myDialog({
+    header: "读取成功",
+    body: `获得有效数据文件 ${ fileNameArrLength } 个，可一键导出。`
+  })
+  // 关闭加载动画
+  isBtnLoadingRef.value = false
+}
+
+
+/**
+ * 读取(.asc)数据文件夹
+ * @returns 文件名数组、句柄数组
+ */
+async function readDataDirectory() {
   // 建个空数组，用来装文件名和句柄内容
   const fileNameArr: string[] = []
   const fileHandleArr: FileSystemFileHandle[] = []
@@ -113,28 +122,12 @@ async function readDataDirectory() {
   }
   // 搞定，检查一下文件数量
   const fileNameArrLength = fileNameArr.length
-  // 如果文件数量为0，则提示用户重新选择文件夹
+  // 如果文件数量为0，则报错
   if (fileNameArrLength === 0) {
-    // 提示失败
-    myDialog({
-      header: "读取失败",
-      body: "所选的文件夹里找不到有效的.asc数据文件。"
-    })
-  // 如果文件数量不为0，则提示用户成功读取
-  } else {
-    // 获得xlsx的ArrayBuffer对象
-    xlsxArrayBufferRef.value = await ascsToXlsxBuffer(fileNameArr, fileHandleArr)
-    // 更新Ref状态
-    fileCountsRef.value = fileNameArrLength
-    isGetFoldRef.value = true
-    // 提示成功
-    myDialog({
-      header: "读取成功",
-      body: `获得有效数据文件 ${ fileNameArrLength } 个，可一键导出。`
-    })
+    throw new Error("文件夹里没有有效的.asc数据文件。")
   }
-  // 关闭加载动画
-  isBtnLoadingRef.value = false
+  // 返回文件名数组、句柄数组
+  return { fileNameArr, fileHandleArr, fileNameArrLength }
 }
 
 /**

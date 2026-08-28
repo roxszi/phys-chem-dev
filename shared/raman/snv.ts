@@ -15,10 +15,6 @@
  * - Barnes, R.J., Dhanoa, M.S., & Lister, S.J. (1989).
  * - Standard Normal Variate Transformation and De-Trending of Near-Infrared
  * - Diffuse Reflectance Spectra. Applied Spectroscopy, 43(5), 772-777.
- * ---
- * 实现说明：
- * - 同样不直接 import tfjs，由调用方注入
- * - SNV 没有矩阵运算，每条光谱独立，简单循环即可
  */
 
 // 导入类型
@@ -37,9 +33,14 @@ export interface SnvExtras {
   stds: number[]
 }
 
+/**
+ * 创建标准正态变量(Standard Normal Variate, SNV)预处理器
+ * @param tf - 张量后端接口，用于执行数值计算
+ * @returns 返回一个包含SNV预处理配置和实现的对象
+ */
 export function createSNV(tf: TensorBackend): Preprocessor {
   return {
-    name: 'SNV',
+    name: 'SNV', // 预处理器名称标识
 
     apply(dataset): PreprocessResult {
       // 参数校验：所有光谱必须等长
