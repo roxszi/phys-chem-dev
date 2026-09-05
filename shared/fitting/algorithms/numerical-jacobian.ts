@@ -23,9 +23,8 @@
  *   1. 解析偏导：在 EquationModel 增加 modelDerivativeX?: (x, p) => number[]
  *   2. tfjs 自动微分：用 tf.grads 替代数值差分
  */
-import type { PredictFnODR } from '../../types.js'
-import type { ODRJacobianProvider } from './types.js'
-import { centralDiff } from '../../../math/finite-difference.js'
+import type { PredictFnODR } from "../types.ts"
+import type { ODRJacobianProvider } from "./orthogonal-distance-regression.ts"
 
 export interface NumericalODRJacobianOptions {
   /**
@@ -67,7 +66,7 @@ export class NumericalODRJacobian implements ODRJacobianProvider {
     }
 
     const p = paramNames.length
-    if (p === 0) throw new Error('没有需要拟合的参数')
+    if (p === 0) throw new Error("没有需要拟合的参数")
 
     // ── 第 1 步：计算 J_β[i][j]（对参数的偏导） ──
     const jBeta: number[][] = Array.from({ length: n }, () =>
@@ -149,4 +148,30 @@ export function createNumericalODRJacobian(
   options?: NumericalODRJacobianOptions,
 ): ODRJacobianProvider {
   return new NumericalODRJacobian(options)
+}
+
+
+
+/**
+ * 中心差分：计算 (f(p+h) - f(p-h)) / (2h)
+ *
+ * @param yPlus f(p+h) 的查询结果
+ * @param yMinus f(p-h) 的查询结果
+ * @param h 步长（必须为正有限数）
+ * @returns 差分向量（与 yPlus/yMinus 等长）
+ */
+export function centralDiff(yPlus: number[], yMinus: number[], h: number): number[] {
+  if (h <= 0 || !Number.isFinite(h)) {
+    throw new Error(`h 必须为正有限数：${h}`)
+  }
+  const n = yPlus.length
+  if (yMinus.length !== n) {
+    throw new Error(`centralDiff: yPlus 长度 ${n} ≠ yMinus 长度 ${yMinus.length}`)
+  }
+  const result = new Array<number>(n)
+  const denom = 2 * h
+  for (let i = 0; i < n; i++) {
+    result[i] = (yPlus[i]! - yMinus[i]!) / denom
+  }
+  return result
 }

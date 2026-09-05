@@ -1,6 +1,6 @@
 {
   "name": "phys-chem",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "物化助手，助力物理化学理论与实验教学。",
   "keywords": [],
   "author": "SI_Cheng-Yun",
@@ -36,28 +36,29 @@
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "dotenv": "^17.4.2",
-    "hono": "^4.13.2"
+    "hono": "^4.13.5"
   },
   "devDependencies": {
-    "@tdesign-vue-next/auto-import-resolver": "^0.1.7",
+    "@tdesign-vue-next/auto-import-resolver": "^0.1.8",
     "@techstark/opencv-js": "5.0.0-release.1",
     "@tensorflow/tfjs-backend-cpu": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.1",
     "@vueuse/core": "^14.4.0",
     "echarts": "^6.1.0",
     "markdown-it-mathjax3": "^4.3.2",
-    "tdesign-vue-next": "^1.20.6",
-    "tsx": "^4.23.12",
+    "ml-matrix": "^6.15.0",
+    "tdesign-vue-next": "^1.20.7",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "unplugin-auto-import": "^21.1.0",
     "unplugin-vue-components": "^32.1.0",
     "vite-tsconfig-paths": "^6.1.1",
     "vitepress": "2.0.0-alpha.19",
-    "vue": "^3.5.41",
-    "vue-echarts": "^8.1.0",
+    "vue": "^3.5.42",
+    "vue-echarts": "^8.2.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

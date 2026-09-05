@@ -6,6 +6,11 @@
  * bindModel 把两者桥接起来。
  *
  * ODR 算法不需要 bind（直接用 model 即可，因为 ODR 的 x 在迭代中变化）。
+ * 
+ * 
+ * 与 fitting 层的接口：
+ *   - model 函数签名与 PredictFnODR 一致（x 显式传递）
+ *   - 用 bindModel(eq, x) 可以把 x 烘焙成 PredictFn（供 LM 调用）
  */
 
 import type { EquationModel } from "./types.js"

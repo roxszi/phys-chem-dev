@@ -28,5 +28,6 @@
     "temp.ts"
   ],
   // 编译处理过程中需被直接排除的文件/路径
-  "exclude": ["node_modules"]
+  //   shared/backup/ 为归档目录（旧手写 matrix 实现等），不参与编译
+  "exclude": ["node_modules", "shared/backup/**"]
 }

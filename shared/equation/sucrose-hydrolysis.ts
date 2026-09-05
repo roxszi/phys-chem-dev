@@ -22,7 +22,7 @@
 // 导入公式构建的工厂函数
 import { defineEquationModel } from "./types.js"
 // 导入基础公式
-import { mean } from "@/shared/math/index.js"
+import { getMean } from "@/shared/math/index.js"
 
 /** 公式参数 */
 const parameters = [
@@ -165,7 +165,7 @@ export const sucroseHydrolysis = defineEquationModel({
       kArr.push(k)
     }
     /** k均值 */
-    const kMean = mean(kArr)
+    const kMean = getMean(kArr)
     // 检查k均值是否有效（不能是NaN）
     if (isNaN(kMean)) {
       throw new Error("k初始化失败")

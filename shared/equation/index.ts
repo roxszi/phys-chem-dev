@@ -1,25 +1,11 @@
 /**
- * equation/ - 物化公式模型（EquationModel）
- *
- * 依赖：
- * - fitting/：PredictFn / PredictFnODR / levenbergMarquardt / orthogonalDistanceRegression
- * - 自有 types.ts：EquationModel schema
- *
- * 对外暴露：
- * - 标准公式模型schema及公式工厂函数
- * - 公式模型集合
- * - 一键拟合 fitEquation
- * 
- * 学生视角的极简入口：选择公式 → 录入数据 → fitEquation(eq, x, y) → 拿到结果。
+ * equation - 公式模块模型
+ * ---
+ * 1.  最核心的内容就是公式模型（EquationModel）
  */
 
-// 公式模型schema
-export type {
-  EquationModel,
-  Parameter,
-  LinearizationForm,
-  LinearizationTransformResult,
-} from "./types.ts"
+// 类型：公式模型schema
+export type { EquationModel, Parameter } from "./types.ts"
 // 公式模型工厂函数
 export { defineEquationModel } from "./types.ts"
 

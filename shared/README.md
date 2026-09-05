@@ -1,6 +1,11 @@
-# shared/ — 跨端共用工具
+# shared/ - 跨端共用工具
 
-> 设计原则：**通用层 + 数值方法层 + 业务层**三级结构；通用层零依赖、数值方法层依赖通用层、业务层依赖数值方法层。每个模块小到可以单独读懂，每个算法可独立扩展。
+> 设计原则：
+> 1.  node / web 均可使用，运行时通用
+> 2.  分为**基础层 + 业务层**二级结构：
+>     - 基础层无依赖，或依赖通用库
+>     - 业务层依赖基础层，是具体业务的更高级别的抽象与封装
+> 3.  每个模块以 index.ts 作为入口，所有内容均从 xxx/index.ts 导出
 
 ---
 
@@ -151,9 +156,3 @@ shared/fitting/
 shared/equation/           → fitting/{types,algorithms/lm,algorithms/odr}
 shared/tfjs/               → fitting/{types,algorithms/odr/types}
 ```
-
----
-
-## 四、迁移日志
-
-每次目录 / 依赖重构的细节都记录在 `backup/archive/MIGRATION_LOG.md`。

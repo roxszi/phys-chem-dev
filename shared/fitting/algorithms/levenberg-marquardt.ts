@@ -1,21 +1,8 @@
 /**
  * Levenberg-Marquardt 非线性最小二乘
  *
- * 本目录职责：拟合非线性模型，**只优化 y 残差**（假设 x 精确无误差）。
- * 架构位置：fitting/algorithms 层，与 linear / ODR 并列。
- *
- * 对外暴露：
- *   - levenbergMarquardt：主函数（接受 sigmaY / weights 实现加权 LM）
- *   - LevenbergMarquardtOptions / LevenbergMarquardtResult：配置与返回类型
- *
- * 适用：
- *   - (t, c) 动力学数据：t 精确（计时器），c 有误差
- *   - (1/T, ln k) Arrhenius：1/T 精确（温度可控），ln k 有误差
- *   - 一般的 (x, y) 数据中 x 误差 << y 误差
- *
  * 不适用：x 也有显著误差时改用 ODR（见 ../odr/）。
  */
-export type { LevenbergMarquardtOptions, LevenbergMarquardtResult } from "./types.js"
 
 /**
  * Levenberg-Marquardt 非线性最小二乘拟合
@@ -35,7 +22,6 @@ import type {
   DataArray,
   IterationState,
 } from "@shared/fitting/index.ts"
-import { residuals, sse } from "@shared/math/index.ts"
 import {
   validateInputs,
   buildWeightedNormalEquation,
@@ -45,11 +31,83 @@ import {
   createDefaultConvergence,
   computeStatistics
 } from "@shared/fitting/index.ts"
-import { createGaussianEliminationSolver } from "@shared/matrix/index.ts"
+import { getREArr, getSSE } from "@shared/math/index.ts"
+import { createGaussianEliminationSolver } from "../matrix-solve.ts"
+
+
+/**
+ * LM 算法配置与结果类型
+ */
+import type { LinearSolver } from "../matrix-solve.ts"
 import type {
-  LevenbergMarquardtOptions,
-  LevenbergMarquardtResult,
-} from "./types.ts"
+  FitResult,
+  JacobianProvider,
+  DampingStrategy, DampingOptions,
+  ConvergenceOptions
+} from "@shared/fitting/index.ts"
+
+/**
+ * Levenberg-Marquardt 算法配置
+ *
+ * 所有字段都是可选的——不传任何配置也能用默认值跑起来。
+ * 高级用户可以注入自定义的雅可比计算器、线性求解器、阻尼策略等。
+ */
+export interface LevenbergMarquardtOptions {
+  /** 最大外层迭代次数（默认 100） */
+  maxIterations?: number
+  /** 内层 λ 试探最大次数（默认 20） */
+  maxInnerIterations?: number
+
+  /**
+   * y 的标准差数组（与 weights 二选一）
+   * 
+   * 内部转换为 weights = 1/σ²，用于加权正规方程。
+   * 与 weights 同时给出时，weights 优先。
+   */
+  sigmaY?: number[]
+
+  /**
+   * 直接指定权重数组（与 sigmaY 二选一，优先级高于 sigmaY）
+   *
+   * 正比于 1/σ²。若你的权重已经是 1/σ² 形式，用此字段；
+   * 若是 σ 形式，用 sigmaY 字段（内部会转换）。
+   */
+  weights?: number[]
+
+  // ── 可替换模块（依赖注入） ──
+
+  /** 雅可比计算器（默认：数值中心差分） */
+  jacobian?: JacobianProvider
+
+  /** 线性方程组求解器（默认：高斯消元） */
+  solver?: LinearSolver
+
+  /**
+   * 阻尼策略（默认：Marquardt 1963）
+   *
+   * 同时提供 damping 和 dampingOptions 时，damping 优先。
+   */
+  damping?: DampingStrategy
+
+  // ── 子模块的配置 ──
+
+  /** 收敛判据配置 */
+  convergence?: ConvergenceOptions
+
+  /** 默认阻尼策略的配置（仅当未提供 damping 时生效） */
+  dampingOptions?: DampingOptions
+}
+
+/**
+ * LM 拟合结果（在通用 FitResult 基础上增加 LM 特有诊断字段）
+ */
+export interface LevenbergMarquardtResult extends FitResult {
+  /** 最终阻尼因子 λ（LM 独有诊断） */
+  finalLambda: number
+}
+
+
+
 
 /**
  * Levenberg-Marquardt算法实现
@@ -121,8 +179,8 @@ export function levenbergMarquardt(
 
   // 3. 状态初始化
   let currentParams: Record<string, number> = { ...initialParams }
-  let currentResiduals = residuals(yData, fn(currentParams))
-  let currentSSE = sse(currentResiduals, weightArr)
+  let currentResiduals = getREArr(yData, fn(currentParams))
+  let currentSSE = getSSE(currentResiduals, weightArr)
 
   let converged = false
   let iterationsUsed = 0
@@ -171,8 +229,8 @@ export function levenbergMarquardt(
       }
 
       // 4.3.4 评估试探结果（加权 SSE）
-      const trialResiduals = residuals(yData, fn(trialParams))
-      const trialSSE = sse(trialResiduals, weightArr)
+      const trialResiduals = getREArr(yData, fn(trialParams))
+      const trialSSE = getSSE(trialResiduals, weightArr)
 
       // 4.3.5 接受 / 拒绝
       if (trialSSE < currentSSE) {

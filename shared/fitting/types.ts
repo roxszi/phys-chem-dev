@@ -2,12 +2,15 @@
  * 拟合模块的核心类型定义
  */
 
+// 导入 ml-matrix 的 Matrix 类型
+import type { Matrix } from "ml-matrix"
+
 /**
  * 预测函数（用户的模型）
  * 
  * 接受参数字典，返回每个数据点的预测值。
  * x 数据通过闭包绑定（见 equation/bindModel.ts），所以不在签名中。
- *
+ * 
  * @example
  * // 模型 y = A·exp(-k·t) + C
  * const fn: PredictFn = (p) => tData.map(t => p.A * Math.exp(-p.k * t) + p.C)
@@ -74,8 +77,8 @@ export interface FitResult {
   residuals: number[]
   /** 最终预测值 */
   predicted: number[]
-  /** 协方差矩阵（若 JᵀJ 奇异则返回空数组） */
-  covariance: number[][]
+  /** 协方差矩阵 Cov = σ²·(JᵀWJ)⁻¹（若正规方程矩阵奇异 / 近奇异则为 null） */
+  covariance: Matrix | null
   /** 是否真正收敛 */
   converged: boolean
   /** 实际迭代次数（对线性最小二乘等闭式解算法为 1） */

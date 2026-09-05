@@ -1,6 +1,6 @@
 /**
- * 拟合输入校验（统一入口）
- *
+ * 拟合输入校验
+ * ---
  * 在拟合开始前校验所有输入，提前抛错避免迭代中数值异常。
  *
  * 校验项（一次性合并检查，避免薄函数与重复遍历）：
@@ -10,10 +10,11 @@
  *   4. initialParams 齐全且有限
  *   5. fn(initialParams) 长度正确
  *
- * 元素级有限性校验（xData / yData / pred）由下游算法在自己的循环里
- * 顺便做——避免单独的"批量校验"遍历。
+ * 元素级有限性校验（xData / yData / pred）由下游算法在自己的循环里顺便做，避免单独的"批量校验"遍历。
  */
-import type { PredictFn, DataArray, ParamNames } from './types.js'
+
+
+import type { PredictFn, DataArray, ParamNames } from './types.ts'
 
 
 /**

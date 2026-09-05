@@ -39,6 +39,8 @@
     "node_modules",
     "cache",
     // shared/equation/backup/ 内的演示文件，业务迭代用，不参与类型检查
-    "shared/equation/backup/**"
+    "shared/equation/backup/**",
+    // shared/backup/ 归档目录（旧手写 matrix 实现等），不参与类型检查
+    "shared/backup/**"
   ]
 }

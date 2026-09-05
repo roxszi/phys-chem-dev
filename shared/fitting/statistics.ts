@@ -12,18 +12,20 @@
  *
  * 依赖方向：
  *   - numeric/：标量聚合（不反向依赖 matrix）
- *   - matrix/：矩阵运算（含基于矩阵的高阶函数，如 covarianceFromM）
+ *   - ml-matrix/：矩阵运算（含基于 ml-matrix 的语义封装 covarianceFromM）
  *   - fitting/：拼装层
  */
+import { Matrix } from "ml-matrix"
 import type { PredictFn, ParamNames } from "./types.ts"
 import { buildWeightedNormalEquation } from "./normal-equation.ts"
 import {
-  rSquared,
-  rmse,
+  getRSquared,
+  getRMSE,
   sigma2,
   gradientNorm,
+  getInvertMatrix,
 } from "@shared/math/index.ts"
-import { covarianceFromM } from "@shared/matrix/index.ts"
+
 
 export interface StatisticsInput {
   /** 预测函数 */
@@ -53,8 +55,8 @@ export interface StatisticsResult {
   rmse: number
   /** 残差方差估计 σ² = SSE / (n - p) */
   sigma2: number
-  /** 协方差矩阵 Cov = σ² × (JᵀWJ)⁻¹（若 JᵀWJ 奇异则返回空数组） */
-  covariance: number[][]
+  /** 协方差矩阵 Cov = σ² × (JᵀWJ)⁻¹（若 JᵀWJ 奇异 / 近奇异则为 null） */
+  covariance: Matrix | null
   /** 参数标准误 SE(pⱼ) = √Cov[j][j] */
   paramErrors: Record<string, number>
   /** 梯度无穷范数（最终一阶条件诊断） */
@@ -87,8 +89,8 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
   const predicted = fn(params)
 
   // R² / RMSE（直接调用 numeric/ 原语）
-  const r2 = rSquared(yData, predicted)
-  const rmseVal = rmse(yData, predicted)
+  const r2 = getRSquared(yData, predicted)
+  const rmseVal = getRMSE(yData, predicted)
 
   // 自由度 & σ²
   const dofVal = n - p
@@ -103,13 +105,12 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
         residuals,
         new Array(n).fill(1),
       )
-  const covInv = covarianceFromM(jtj, sig2)
-  const covariance: number[][] = covInv ?? []
+  const covariance = covarianceFromM(jtj, sig2)
 
   // 参数标准误 = √Cov[j][j]
   const paramErrors: Record<string, number> = {}
   for (let j = 0; j < p; j++) {
-    const variance = covariance.length > 0 ? (covariance[j]?.[j] ?? 0) : 0
+    const variance = covariance !== null ? covariance.get(j, j) : 0
     paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
   }
 
@@ -126,4 +127,18 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
     gradientNorm: gradNorm,
     dof: dofVal,
   }
+}
+
+/**
+ * 协方差矩阵
+ * - Cov = σ² × M⁻¹
+ * 
+ * @param m p×p 矩阵（拟合场景通常为 JᵀWJ，Gauss-Newton 近似 Hessian）
+ * @param sseSigmaSquared 残差方差估计sseSigmaSquared
+ * @returns 协方差矩阵（新 Matrix）；M 奇异 / 近奇异返回 null
+ */
+export function covarianceFromM(m: Matrix, sseSigmaSquared: number): Matrix | null {
+  const mInv = getInvertMatrix(m)
+  if (!mInv) return null
+  return Matrix.mul(mInv, sseSigmaSquared)
 }

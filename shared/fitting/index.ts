@@ -4,7 +4,7 @@
  * 依赖：
  * - base/：数组校验（validate.ts）
  * - numeric/：残差/SSE、中心差分原语、回归统计
- * - matrix/：线性方程组求解器、矩阵求逆
+ * - ml-matrix/：线性方程组求解器、矩阵求逆（ml-matrix 库语义封装，奇异返回 null）
  * 
  * 对外暴露：与"模型"完全解耦的拟合算法入口；接收纯函数（PredictFn）作为模型。
  * 适用于任何最小二乘问题（线性 / 非线性 / ODR / errors-in-variables）。
@@ -27,7 +27,7 @@ export type {
   IterationState,
   FitResult,
   FitFailureReason,
-} from './types.js'
+} from "./types.ts"
 
 // 算法入口（通过 algorithms/ 集合入口 re-export，避免越级跳访问）
 // 算法集合入口（algorithms/ 子目录聚合）
@@ -37,7 +37,7 @@ export {
   orthogonalDistanceRegression,
   NumericalODRJacobian,
   createNumericalODRJacobian,
-} from './algorithms/index.js'
+} from "./algorithms/index.ts"
 export type {
   LinearLeastSquaresOptions,
   LinearLeastSquaresResult,
@@ -47,39 +47,38 @@ export type {
   ODRResult,
   ODRJacobianProvider,
   NumericalODRJacobianOptions,
-} from './algorithms/index.js'
+} from "./algorithms/index.ts"
 
 // 拟合输入校验
-export { validateInputs } from './validate.js'
+export { validateInputs } from "./validate.ts"
 
 // 正规方程构建 + 阻尼
 export {
   buildWeightedNormalEquation,
   applyDamping,
-} from './normal-equation.js'
+} from "./normal-equation.ts"
 
 // 最终统计量拼装
-export { computeStatistics } from './statistics.js'
-export type { StatisticsInput, StatisticsResult } from './statistics.js'
+export { computeStatistics } from "./statistics.ts"
+export type { StatisticsInput, StatisticsResult } from "./statistics.ts"
 
 // 可替换模块：雅可比
-export type { JacobianProvider } from './jacobian/types.js'
+export type { JacobianProvider, NumericalJacobianOptions } from "./jacobian.ts"
 export {
   NumericalJacobian,
   createNumericalJacobian,
-} from './jacobian/numerical.js'
-export type { NumericalJacobianOptions } from './jacobian/numerical.js'
+} from "./jacobian.ts"
 
 // 可替换模块：收敛判据
-export type { ConvergenceCheck, ConvergenceOptions } from './convergence/types.js'
+export type { ConvergenceCheck, ConvergenceOptions } from "./convergence.ts"
 export {
   DefaultConvergence,
   createDefaultConvergence,
-} from './convergence/default.js'
+} from "./convergence.ts"
 
 // 可替换模块：阻尼策略
-export type { DampingStrategy, DampingOptions } from './damping/types.js'
+export type { DampingStrategy, DampingOptions } from "./damping.ts"
 export {
   MarquardtDamping,
   createMarquardtDamping,
-} from './damping/marquardt.js'
+} from "./damping.ts"
