@@ -25,6 +25,7 @@
   "include": [
     "backend/**/*",
     "shared/**/*",
+    "scripts/**/*",
     "temp.ts"
   ],
   // 编译处理过程中需被直接排除的文件/路径

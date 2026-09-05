@@ -39,33 +39,3 @@ export {
   isFiniteNonNegative
 } from "./validate.ts"
 
-
-
-/**
- * 残差方差估计 σ² = SSE / max(dof, 1)
- *
- * 注：dof 计算 `n - p` 直接写在这里——不值得为单行减法做函数。
- * @param sse SSE
- * @param n 观测数
- * @param p 参数数
- */
-export function sigma2(sse: number, n: number, p: number): number {
-  return sse / Math.max(Math.max(n - p, 0), 1)
-}
-
-
-/**
- * 梯度无穷范数 = max_j |grad[j]|
- * @param grad 梯度向量
- */
-export function gradientNorm(grad: number[]): number {
-  let n = 0
-  for (let j = 0; j < grad.length; j++) {
-    const absV = Math.abs(grad[j]!)
-    if (absV > n) n = absV
-  }
-  return n
-}
-
-
-

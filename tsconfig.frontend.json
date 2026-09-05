@@ -30,7 +30,7 @@
     // 对于“.”开头的“.vitepress”目录，需显式添加
     "frontend/.vitepress/**/*",
     // 公共文件
-    "shared/**/*",
+    "shared/**/*", "scripts/**/*",
     // 临时测试用文件
     "temp.ts"
   ],

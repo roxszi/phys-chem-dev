@@ -21,8 +21,7 @@ import { buildWeightedNormalEquation } from "./normal-equation.ts"
 import {
   getRSquared,
   getRMSE,
-  sigma2,
-  gradientNorm,
+  getSSESigmaSquared,
   getInvertMatrix,
 } from "@shared/math/index.ts"
 
@@ -94,7 +93,7 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
 
   // 自由度 & σ²
   const dofVal = n - p
-  const sig2 = sigma2(sse, n, p)
+  const sig2 = getSSESigmaSquared(sse, n, p)
 
   // 协方差 = σ² × (JᵀWJ)⁻¹
   // 重建 JᵀWJ（与权重一致）
@@ -141,4 +140,17 @@ export function covarianceFromM(m: Matrix, sseSigmaSquared: number): Matrix | nu
   const mInv = getInvertMatrix(m)
   if (!mInv) return null
   return Matrix.mul(mInv, sseSigmaSquared)
+}
+
+/**
+ * 梯度无穷范数 = max_j |grad[j]|
+ * @param grad 梯度向量
+ */
+export function gradientNorm(grad: number[]): number {
+  let n = 0
+  for (let j = 0; j < grad.length; j++) {
+    const absV = Math.abs(grad[j]!)
+    if (absV > n) n = absV
+  }
+  return n
 }
