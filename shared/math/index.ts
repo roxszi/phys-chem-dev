@@ -31,7 +31,13 @@ export {
 export {
   getInvertMatrix,
   getCovarianceMatrix,
+  getLuChecked,
 } from "./matrix.ts"
+
+// 导出向量相关函数
+export {
+  getInfNorm,
+} from "./vector.ts"
 
 // 导出数值校验函数
 export {

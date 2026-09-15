@@ -3,34 +3,22 @@
  * ---
  * 设计哲学：
  * - 公式与拟合算法解耦，同一个公式可以用多种算法拟合
- * - 公式的参数自带“经验”：
- *   - typicalRange - 典型范围（用于初值估计 + UI限制）
- *   - linearization - 提供“非线性 → 线性化”的呈现变换，此处方便框死固定的某种线性化形式
- * - UI元信息：
- *   - description - 介绍
- *   - formulaTex - Tex 格式的公式
- *   - units - 单位
+ * - 运行时参数形状统一为扁平 Record<id, number>（fitting 层唯一契约）
+ * - isFixed 是"拟合编排"语义（参不参与迭代），不属于模型函数签名；
+ *   它的默认值由公式定义者经 Parameter.defaultFixed 给出，
+ *   用户/UI 覆盖值经 ParameterInputs 传入，在编排层（bind/fitEquation）合流
+ * - 数据清洗（验证 / 排序 / 锚点识别 / 踢点）与初值估计合并为 preprocess
+ *   一个纯函数：原始数据只读，踢点进 excluded 记录，索引经 indices 保留
  */
+
+// 导入tfjs数据类型
+type TF = typeof import("@tensorflow/tfjs-core")
 
 
 /**
  * 模型公式参数的元信息
  * - 用于描述公式内的各参数，视图层、逻辑层皆可用
  * - 把 id 专门独立为一个 string 泛型，用于与模型参数值耦合
- * @example
- * ```ts
- * // 1.  先导入 Parameter 数据类型
- * import { Parameter } from "equation/index.ts"
- * // 2.  声明数据，【务必记得】
- * const k: Parameter = {
- *   ...
- * }
- * // 3.  在【最后写上 `as const`】并删除数据类型
- * const k = {
- *   ...
- * } as const
- * // 4.  删除数据类型导入。现在 k 的类型是 `readonly Parameter<"k">`，一个以 "k" 为名的唯一的只读元组
- * ```
  */
 export interface Parameter<P extends string = string> {
   /** 参数 ID，用于快速索引及程序内部使用，一般是符号symbol的简化 */
@@ -41,6 +29,13 @@ export interface Parameter<P extends string = string> {
   name: string
   /** 单位 */
   unit: string
+  /**
+   * 是否默认固定（公式定义者建议的默认状态）
+   * - true：典型使用场景下为给定条件常量（如实验温度 T），默认锁定不参与迭代
+   * - 缺省 false：待拟合参数
+   * - UI 层生成参数表单时以此铺底勾选态，用户可改
+   */
+  defaultFixed?: boolean
   /** 典型范围（初值估计及交互时约束用户填入初始值用） */
   typicalRange?: [number, number]
   /** 描述 */
@@ -49,28 +44,40 @@ export interface Parameter<P extends string = string> {
 
 
 /**
- * 拟合用的模型参数数组
- * - 用 Parameter 的 id 来构造耦合：
- * - 泛型属性 P 继承 Parameter[] 约束，并作为具体的只读元组，这样可以将 Parameter.id 作为键集合，
- *   从而让 model 的 params 拥有精确的匹配耦合
+ * 拟合前处理的输出数据包
+ * - preprocess 的唯一产物：拟合流程后续全部使用此包内的数据
+ * - 索引不丢失：x[i] 来自原始数据的第 indices[i] 行
+ * - 被剔除的点（锚点观测 / 非法点）进 excluded 并带原因，UI 可据此展示
  */
-type FittingParameters<P extends readonly Parameter[]> =
-  Record<
-    /** 键：绑定 Parameter 的 id */
-    P[number]["id"],
-    {
-      /** 参数值 */
-      value: number,
-      /** 是否定值，默认 false */
-      isFixed: boolean
-    }
-  >
+export interface PreprocessResult<P extends readonly Parameter[]> {
+  /** 进拟合的 x（已排序、已剔除锚点与非法点） */
+  x: number[]
+  /** 进拟合的 y（与 x 一一对应） */
+  y: number[]
+  /** 原始索引映射：x[i] 来自原始数据的第 indices[i] 行 */
+  indices: number[]
+  /** 未参与拟合的点（锚点观测、非法点），带原因 */
+  excluded: { index: number; x: number; y: number; reason: string }[]
+  /** 初始参数值（键集合与 parameters 的 id 一一对应） */
+  initialParams: Record<P[number]["id"], number>
+}
+
+
+/**
+ * 公式模型函数（Equation Function）
+ */
+export type EquationFunction<P extends readonly Parameter[]> = (
+  /** 自变量 X[] */
+  x: number[],
+  /** 扁平参数字典（键与 parameters 的 id 一一对应） */
+  params: Record<P[number]["id"], number>
+) => number[]
 
 
 /**
  * 公式模型（Equation Model）
- * - 泛型属性 P 继承 Parameter[] 约束，并作为具体的只读元组，这样可以将 Parameter.id 作为键集合，
- *   从而让 model 的 params 拥有精确的匹配耦合
+ * - 泛型属性 P 继承 Parameter[] 约束，并作为具体的只读元组，
+ *   使 model 的 params 拥有精确的键耦合（Record<P[id], number>）
  */
 export interface EquationModel<P extends readonly Parameter[]> {
   /** 唯一 ID（程序标识，如 "first-order"） */
@@ -84,37 +91,30 @@ export interface EquationModel<P extends readonly Parameter[]> {
   /** 参数定义 */
   parameters: P
   /**
-   * 数据验证
-   * 1.  验证数据合法性
-   * 2.  必要的数据过滤
-   * 3.  数据排序（可选）
-   * 4.  其他操作
-   * @returns [x, y, i][]，其中 i 为数据原始索引（若重新排序或踢除数据了，则 i 相当重要）
+   * 拟合前处理（纯函数，禁止修改入参数组）
+   *   - 验证 → 排序 → 识别锚点 / 非法点 → 估初值 → 分流
+   *   - 锚点（如蔗糖水解的 t=0 → α₀、t=∞ → α∞）先消费为初值再进 excluded，
+   *     特殊“哨兵值”（Infinity 等）不得进入返回的 x
+   *   - fitEquation 保证调用本方法；后续拟合只用返回的数据包
    */
-  validateData: (
-    x: number[],
-    y: number[]
-  ) => [number, number, number][],
+  preprocess: (rawX: number[], rawY: number[]) => PreprocessResult<P>
   /**
-   * 参数初始化
-   * - 由 X[] 和 Y[] 估算出参数的初始值
-   * @returns 参数列表。 params 的键集合与 parameters 中的 id 一一对应
+   * 模型函数（纯函数）
+   * - 非线性形式：x[] 经扁平 params 变换到 y[]
+   * - params 形状与 fitting 层一致（扁平数值字典），键精确耦合
    */
-  initialParameters?: (
-    x: number[],
-    y: number[]
-  ) => FittingParameters<P>
+  model: EquationFunction<P>
   /**
-   * 模型函数
-   * - 非线性形式，本质就是由 x[] 经 params[] 变换到 y[] 的函数
-   * @returns 因变量 Y[]，为数组
-   * @note 必须是纯函数（无副作用）
+   * tf张量化的模型函数
+   * - 用于自动微分 auto-diff 实现
    */
-  model: (
-    /** 自变量 X[]，需为数组 */
+  tfModel?: (
+    /** TensorFlow 运行环境 */
+    tf: TF,
+    /** 自变量 X[] */
     x: number[],
-    /** 参数列表。 params 的键集合与 parameters 中的 id 一一对应 */
-    params: FittingParameters<P>
+    /** 扁平参数字典（键与 parameters 的 id 一一对应） */
+    params: Record<P[number]["id"], number>
   ) => number[]
   /**
    * 线性化
@@ -122,7 +122,7 @@ export interface EquationModel<P extends readonly Parameter[]> {
   linearization?: (
     x: number[],
     y: number[],
-    params: FittingParameters<P>,
+    params: Record<P[number]["id"], number>,
   ) => {
     /** 线性空间的X轴标签 */
     xLabel: string
@@ -139,10 +139,21 @@ export interface EquationModel<P extends readonly Parameter[]> {
   }
 }
 
+/**
+ * 用户 / UI 层的参数输入态
+ * - isFixed 语义在此层表达（"这个参数参与不参与迭代"），不进 model 签名
+ * - 编排层（bindFitTask）将其拆分为：自由参数（进 paramNames 参与迭代）
+ *   与固定参数（闭包常量，fitting 层零感知）
+ */
+export type ParameterInputs<P extends readonly Parameter[]> = Record<
+  P[number]["id"],
+  { value: number; isFixed: boolean }
+>
+
 
 /**
  * 工厂函数：构造公式模型
- * 
+ *
  * 因为涉及到泛型，重写泛型类型以实现类型约束太过于冗余，因此以工厂函数进行封装，实现泛型复用
  * @param config 公式模型配置，类型与 EquationModel 完全一致
  * @returns 配置好的公式模型实例
@@ -150,7 +161,8 @@ export interface EquationModel<P extends readonly Parameter[]> {
  * const model = defineEquationModel({
  *   id: 'first-order',
  *   parameters: [...] as const,
- *   model: (x, p) => x.map(t => p.k.value * t)
+ *   preprocess: (x, y) => ({ x, y, indices: [], excluded: [], initialParams: { k: 0.1 } }),
+ *   model: (x, p) => x.map(t => p.k * t)
  * })
  */
 export function defineEquationModel<const P extends readonly Parameter<string>[]>(
@@ -159,4 +171,3 @@ export function defineEquationModel<const P extends readonly Parameter<string>[]
   // 运行时直接返回配置对象
   return config as EquationModel<P>
 }
-

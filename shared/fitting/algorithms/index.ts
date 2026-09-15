@@ -21,12 +21,4 @@ export { orthogonalDistanceRegression } from "./orthogonal-distance-regression.t
 export type {
   ODROptions,
   ODRResult,
-  ODRJacobianProvider,
 } from "./orthogonal-distance-regression.ts"
-export type {
-  NumericalODRJacobianOptions,
-} from "./numerical-jacobian.ts"
-export {
-  NumericalODRJacobian,
-  createNumericalODRJacobian,
-} from "./numerical-jacobian.ts"

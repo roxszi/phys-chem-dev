@@ -54,6 +54,8 @@
     "removeComments": true,
     // 开启JSON模块的类型推断支持
     "resolveJsonModule": true,
+    // 源码统一用“.ts”后缀导入；编译输出时自动重写为“.js”（解决前后端模块解析策略冲突）
+    "rewriteRelativeImportExtensions": true,
     // 跳过库的类型检查
     "skipLibCheck": true,
     // 编译JS时，用ESM模块语法剔出类型导入

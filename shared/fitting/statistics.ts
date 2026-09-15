@@ -1,29 +1,22 @@
 /**
  * 拟合统计层
- * 
- * 拼装 math/ + matrix/ 原语 + 拟合专属字段
- * 
- * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
- * 
- * 这里的逻辑是"业务拼装"：
- *   - R² / RMSE 调 numeric/regression.ts（标量）
- *   - 协方差调 matrix/covariance.ts（涉及矩阵类型——不再由 numeric 提供）
- *   - 参数标准误 dict、Final Lambda 等"拟合专属字段"在此组装
  *
- * 依赖方向：
- *   - numeric/：标量聚合（不反向依赖 matrix）
- *   - ml-matrix/：矩阵运算（含基于 ml-matrix 的语义封装 covarianceFromM）
- *   - fitting/：拼装层
+ * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
+ * 属"业务拼装"层——标量统计（R² / RMSE / σ²）调 math/statistics.ts 原语，
+ * 矩阵运算（求逆 / 协方差）调 math/matrix.ts 原语，本文件只负责组装拟合专属字段。
+ *
+ * 依赖方向：math/（标量与矩阵原语）← fitting/statistics.ts（拼装），不反向依赖。
  */
-import { Matrix } from "ml-matrix"
+import type { Matrix } from "ml-matrix"
 import type { PredictFn, ParamNames } from "./types.ts"
-import { buildWeightedNormalEquation } from "./normal-equation.ts"
+import { buildWeightedNormalEquation } from "./linear-solver/normal-equation.ts"
 import {
   getRSquared,
   getRMSE,
   getSSESigmaSquared,
-  getInvertMatrix,
-} from "@shared/math/index.ts"
+  getCovarianceMatrix,
+  getInfNorm,
+} from "../math/index.ts"
 
 
 export interface StatisticsInput {
@@ -65,6 +58,24 @@ export interface StatisticsResult {
 }
 
 /**
+ * 从协方差矩阵提取参数标准误（LM / ODR 共用）
+ * - SE(pⱼ) = √Cov[j][j]；协方差不可得（null）时为 0
+ * @param covariance 协方差矩阵（可为 null）
+ * @param paramNames 参数名（顺序与协方差对角元索引对应）
+ */
+export function computeParamErrors(
+  covariance: Matrix | null,
+  paramNames: ParamNames,
+): Record<string, number> {
+  const paramErrors: Record<string, number> = {}
+  for (let j = 0; j < paramNames.length; j++) {
+    const variance = covariance !== null ? covariance.get(j, j) : 0
+    paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
+  }
+  return paramErrors
+}
+
+/**
  * 计算拟合统计量
  *
  * 协方差矩阵公式：Cov = σ² × (JᵀWJ)⁻¹
@@ -87,7 +98,7 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
   // 预测值
   const predicted = fn(params)
 
-  // R² / RMSE（直接调用 numeric/ 原语）
+  // R² / RMSE（math/statistics.ts 原语）
   const r2 = getRSquared(yData, predicted)
   const rmseVal = getRMSE(yData, predicted)
 
@@ -95,26 +106,16 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
   const dofVal = n - p
   const sig2 = getSSESigmaSquared(sse, n, p)
 
-  // 协方差 = σ² × (JᵀWJ)⁻¹
-  // 重建 JᵀWJ（与权重一致）
-  const { jtj, jtr } = weights
-    ? buildWeightedNormalEquation(jacobian, residuals, weights)
-    : buildWeightedNormalEquation(
-        jacobian,
-        residuals,
-        new Array(n).fill(1),
-      )
-  const covariance = covarianceFromM(jtj, sig2)
+  // 协方差 = σ² × (JᵀWJ)⁻¹（math/matrix.ts 原语；无权重场景等权 1）
+  const w = weights ?? new Array<number>(n).fill(1)
+  const { jtj, jtr } = buildWeightedNormalEquation(jacobian, residuals, w)
+  const covariance = getCovarianceMatrix(jtj, sig2)
 
-  // 参数标准误 = √Cov[j][j]
-  const paramErrors: Record<string, number> = {}
-  for (let j = 0; j < p; j++) {
-    const variance = covariance !== null ? covariance.get(j, j) : 0
-    paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
-  }
+  // 参数标准误 = √Cov[j][j]（共享原语）
+  const paramErrors = computeParamErrors(covariance, paramNames)
 
-  // 梯度无穷范数
-  const gradNorm = gradientNorm(jtr)
+  // 梯度无穷范数（math/vector.ts 原语）
+  const gradNorm = getInfNorm(jtr)
 
   return {
     predicted,
@@ -126,31 +127,4 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
     gradientNorm: gradNorm,
     dof: dofVal,
   }
-}
-
-/**
- * 协方差矩阵
- * - Cov = σ² × M⁻¹
- * 
- * @param m p×p 矩阵（拟合场景通常为 JᵀWJ，Gauss-Newton 近似 Hessian）
- * @param sseSigmaSquared 残差方差估计sseSigmaSquared
- * @returns 协方差矩阵（新 Matrix）；M 奇异 / 近奇异返回 null
- */
-export function covarianceFromM(m: Matrix, sseSigmaSquared: number): Matrix | null {
-  const mInv = getInvertMatrix(m)
-  if (!mInv) return null
-  return Matrix.mul(mInv, sseSigmaSquared)
-}
-
-/**
- * 梯度无穷范数 = max_j |grad[j]|
- * @param grad 梯度向量
- */
-export function gradientNorm(grad: number[]): number {
-  let n = 0
-  for (let j = 0; j < grad.length; j++) {
-    const absV = Math.abs(grad[j]!)
-    if (absV > n) n = absV
-  }
-  return n
 }

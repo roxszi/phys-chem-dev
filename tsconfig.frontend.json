@@ -15,6 +15,8 @@
     "noEmit": true,
     // 配合"noEmit"，允许import语法的“.ts”写法
     "allowImportingTsExtensions": true,
+    // 前端 noEmit（Vite 打包），不参与后端 tsc emit 重写，覆盖关闭
+    "rewriteRelativeImportExtensions": false,
     // 前端项目需要加载的内置全局对象/方法
     "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
     // 前端项目需要加载的外置类型模块

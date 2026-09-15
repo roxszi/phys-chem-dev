@@ -27,23 +27,20 @@
  *   - 线性模型 + σx > 0：退化为 York 回归
  *
  */
-import { Matrix } from "ml-matrix"
-import type {
-  PredictFnODR,
-  DataArray,
-  IterationState,
-  FitResult,
-} from "../types.js"
-import type { LinearSolver } from "../matrix-solve.ts"
+import type { Matrix } from "ml-matrix"
+import type { PredictFnODR, DataArray, IterationState, FitResult } from "../types.ts"
+import type { LinearSolver } from "../linear-solver.ts"
 import type { DampingStrategy, DampingOptions } from "../damping.ts"
 import type { ConvergenceOptions } from "../convergence.ts"
+import type { ODRJacobianProvider } from "../jacobian.ts"
 
-import { applyDamping } from "../normal-equation.ts"
-import { createNumericalODRJacobian } from "./numerical-jacobian.ts"
+import { applyDamping, buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
+import { createNumericalODRJacobian } from "../jacobian.ts"
 import { createMarquardtDamping } from "../damping.ts"
 import { createDefaultConvergence } from "../convergence.ts"
-import { createGaussianEliminationSolver } from "../matrix-solve.ts"
-import { isFinitePositive, isFiniteNonNegative, getInvertMatrix } from "@shared/math/index.ts"
+import { computeParamErrors } from "../statistics.ts"
+import { createGaussianEliminationSolver } from "../linear-solver.ts"
+import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovarianceMatrix, getInfNorm } from "../../math/index.ts"
 
 
 /**
@@ -63,34 +60,6 @@ import { isFinitePositive, isFiniteNonNegative, getInvertMatrix } from "@shared/
  *   - 模型线性 + σx > 0 时退化为 York 回归
  */
 
-
-/**
- * ODR 雅可比计算器接口
- *
- * 与 LM 的 JacobianProvider 不同，ODR 需要同时计算：
- *   - 对参数 β 的雅可比 J_β[i][j] = ∂f/∂βⱼ
- *   - 对自变量 x 的偏导 d[i] = ∂f/∂x
- *
- * 用户可以实现解析版（最快）或自动微分版（tfjs.grads）。
- */
-export interface ODRJacobianProvider {
-  /**
-   * 同时计算 J_β 和 d
-   *
-   * @param fn 预测函数（ODR 形式，x 和 params 都显式传递）
-   * @param xCorrected 修正后的 x（= x + δ）
-   * @param params 当前参数
-   * @param paramNames 参数名
-   * @param n 数据点数
-   */
-  compute(
-    fn: PredictFnODR,
-    xCorrected: number[],
-    params: Record<string, number>,
-    paramNames: string[],
-    n: number,
-  ): { jBeta: number[][]; d: number[] }
-}
 
 /**
  * ODR 算法配置
@@ -297,50 +266,17 @@ export function orthogonalDistanceRegression(
       rEff[i] = dy + di * deltaI
     }
 
-    // 5.2.1 一阶最优性预检查（与 LM 一致）
+    // 5.3 构建等效正规方程（p × p）——gram 库路线：一次得 J_βᵀW_effJ_β 与 J_βᵀW_effr_eff
+    const { jtj: S, jtr: b } = buildWeightedNormalEquation(jBeta, rEff, wEff)
+
+    // 5.3.1 一阶最优性预检查（与 LM 一致，带权梯度范数）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
-    let preCheckGradNorm = 0
-    for (let j = 0; j < p; j++) {
-      let g = 0
-      for (let i = 0; i < n; i++) {
-        g += jBeta[i]![j]! * (currentResidualsY[i]! + d[i]! * currentDelta[i]!)
-      }
-      if (Math.abs(g) > preCheckGradNorm) preCheckGradNorm = Math.abs(g)
-    }
-    if (preCheckGradNorm < (convOptions?.gradientTolerance ?? 1e-8)) {
+    //   预检查用的梯度正是 b（J_βᵀW_effr_eff），与内层收敛判据、LM 语义完全一致。
+    if (getInfNorm(b) < (convOptions?.gradientTolerance ?? 1e-8)) {
       converged = true
       break
     }
-
-    // 5.3 构建等效正规方程（p × p）
-    //   S[j][k] = Σ w_eff J_β[i][j] J_β[i][k]
-    //   b[j]    = Σ w_eff J_β[i][j] r_eff[i]
-    // 内部用普通二维数组累加（对称半三角），构建完一次性包装成 Matrix
-    const sBuf: number[][] = Array.from({ length: p }, () =>
-      new Array<number>(p).fill(0),
-    )
-    const b = new Array<number>(p).fill(0)
-
-    for (let i = 0; i < n; i++) {
-      const w = wEff[i]!
-      const J_i = jBeta[i]!
-      const r = rEff[i]!
-      for (let j = 0; j < p; j++) {
-        const J_ij = J_i[j]!
-        b[j]! += w * J_ij * r
-        for (let k = 0; k <= j; k++) {
-          sBuf[j]![k]! += w * J_ij * J_i[k]!
-        }
-      }
-    }
-    // 对称填充
-    for (let j = 0; j < p; j++) {
-      for (let k = j + 1; k < p; k++) {
-        sBuf[j]![k] = sBuf[k]![j]!
-      }
-    }
-    const S = new Matrix(sBuf)
 
     // 5.4 内层循环：λ 试探
     let accepted = false
@@ -434,53 +370,26 @@ export function orthogonalDistanceRegression(
     n,
   )
 
-  // 用等效权重计算统计量
-  // 注意：等效权重融合了 x 和 y 误差，用于协方差矩阵估计
+  // 等效权重（融合 x / y 误差，用于协方差估计；σx=0 → wx=∞ 退化为 wy）
   const finalW: number[] = new Array(n)
   for (let i = 0; i < n; i++) {
     const wy = wY[i]!
     const wx = wX[i]!
     const di = _finalD[i] ?? 0
-    if (wx === Infinity) {
-      finalW[i] = wy
-    } else {
-      finalW[i] = (wy * wx) / (wy * di * di + wx)
-    }
+    finalW[i] = wx === Infinity ? wy : (wy * wx) / (wy * di * di + wx)
+  }
+  // 等效残差 r_eff = r_y + d·δ
+  const rEffFinal = new Array<number>(n)
+  for (let i = 0; i < n; i++) {
+    rEffFinal[i] = currentResidualsY[i]! + (_finalD[i] ?? 0) * currentDelta[i]!
   }
 
-  // 加权 J_βᵀ W J_β
-  const jtjBuf: number[][] = Array.from({ length: p }, () =>
-    new Array<number>(p).fill(0),
-  )
-  for (let i = 0; i < n; i++) {
-    const w = finalW[i]!
-    const J_i = finalJBeta[i]!
-    for (let j = 0; j < p; j++) {
-      const J_ij = J_i[j]!
-      for (let k = 0; k <= j; k++) {
-        jtjBuf[j]![k]! += w * J_ij * J_i[k]!
-      }
-    }
-  }
-  for (let j = 0; j < p; j++) {
-    for (let k = j + 1; k < p; k++) {
-      jtjBuf[j]![k] = jtjBuf[k]![j]!
-    }
-  }
+  // J_βᵀ W_eff J_β 与 J_βᵀ W_eff r_eff（gram 库路线）
+  const { jtj, jtr } = buildWeightedNormalEquation(finalJBeta, rEffFinal, finalW)
 
-  // R² / RMSE（不加权版本，与 Origin 一致）
-  let yMean = 0
-  for (let i = 0; i < n; i++) yMean += yData[i]!
-  yMean /= n
-  let ssTot = 0
-  let unweightedSSE = 0
-  for (let i = 0; i < n; i++) {
-    const dy = yData[i]! - yMean
-    ssTot += dy * dy
-    unweightedSSE += currentResidualsY[i]! * currentResidualsY[i]!
-  }
-  const rSquared = ssTot === 0 ? 1 : 1 - unweightedSSE / ssTot
-  const rmse = Math.sqrt(unweightedSSE / n)
+  // R² / RMSE（不加权版本，与 Origin 一致；math/statistics.ts 原语）
+  const rSquared = getRSquared(yData, currentPredicted)
+  const rmse = getRMSE(yData, currentPredicted)
 
   // 自由度 = 2n（观测：xᵢ 和 yᵢ 各 n 个）− (p + n)（参数：β p 个 + δ n 个）= n - p
   // 注：虽然数值上与 LM 相同，但 ODR 的参数空间与观测空间都更大；
@@ -488,27 +397,14 @@ export function orthogonalDistanceRegression(
   const dof = n - p
   const sigma2 = currentSSE / Math.max(dof, 1)
 
-  // 协方差 = σ² × (J_βᵀ W_eff J_β)⁻¹
-  const jtjInv = getInvertMatrix(new Matrix(jtjBuf))
-  const covariance: Matrix | null = jtjInv ? Matrix.mul(jtjInv, sigma2) : null
+  // 协方差 = σ² × (J_βᵀ W_eff J_β)⁻¹（math/matrix.ts 原语）
+  const covariance: Matrix | null = getCovarianceMatrix(jtj, sigma2)
 
-  // 参数标准误
-  const paramErrors: Record<string, number> = {}
-  for (let j = 0; j < p; j++) {
-    const variance = covariance !== null ? covariance.get(j, j) : 0
-    paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
-  }
+  // 参数标准误（共享原语）
+  const paramErrors = computeParamErrors(covariance, paramNames)
 
   // 梯度无穷范数
-  let gradientNorm = 0
-  for (let j = 0; j < p; j++) {
-    // 重算 J_βᵀ r_eff（已在最后一次迭代用过，这里简化）
-    let g = 0
-    for (let i = 0; i < n; i++) {
-      g += finalW[i]! * finalJBeta[i]![j]! * (currentResidualsY[i]! + (_finalD[i] ?? 0) * currentDelta[i]!)
-    }
-    if (Math.abs(g) > gradientNorm) gradientNorm = Math.abs(g)
-  }
+  const gradientNorm = getInfNorm(jtr)
 
   return {
     params: currentParams,

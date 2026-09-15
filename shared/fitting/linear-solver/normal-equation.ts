@@ -1,26 +1,23 @@
 /**
  * 正规方程（Normal Equation）构建
- * 
+ * ---
  * 这是 Gauss-Newton / Levenberg-Marquardt 类算法的核心数学结构：
- *
  *   (JᵀWJ) · Δp = JᵀWr
- *
  * 其中：
  *   JᵀWJ：p × p 矩阵，Hessian 的 Gauss-Newton 近似
  *   JᵀWr：p 维向量，负梯度的一半（∇S = -2·JᵀWr）
- *
+ * 
  * LM 在 JᵀWJ 上加阻尼项：
  *   (JᵀWJ + λ·diag(JᵀWJ)) · Δp = JᵀWr    （Marquardt 改进形式）
  *
- * ODR 的正规方程不同（见 algorithms/odr/orthogonal-distance-regression.ts 内部），
+ * ODR 的正规方程不同（见 algorithms/orthogonal-distance-regression.ts 内部），
  * 因为参数空间包含 (β, δ) 两部分。
- *
+ * 
  * 设计原则：
- *   - 只保留 `buildWeightedNormalEquation` 单一版本（最常用），内部走
- *     ml-matrix：√W 行缩放 + 增广 gram，(√W·J)ᵀ(√W·J) = JᵀWJ
+ *   - 只保留 `buildWeightedNormalEquation` 单一版本（最常用），内部走 ml-matrix：
+ *     √W 行缩放 + 增广 gram，(√W·J)ᵀ(√W·J) = JᵀWJ
  *   - 无权重场景：调用方传 `new Array(n).fill(1)` 即可，无需额外"无权重版"
- *   - JᵀJ 和 Jᵀr 的单独版本（buildJtj / buildJtr 等）已删除——单一版本
- *     把它们打包返回，分开调用反而要走两遍
+ *   - JᵀJ 和 Jᵀr 的单独版本（buildJtj / buildJtr 等）已删除——单一版本把它们打包返回，分开调用反而要走两遍
  *   - 雅可比入参保持 number[][]（依赖注入接口，tfjs 实现不绑定 ml-matrix）；
  *     产出的 jtj 用 ml-matrix Matrix（后续参与求逆 / 阻尼等库运算）
  */
@@ -36,9 +33,10 @@ export interface NormalEquation {
   jtr: number[]
 }
 
+
 /**
  * 同时构建加权 JᵀWJ 和 JᵀWr（ml-matrix 库路线）
- *
+ * 
  * 数学公式：
  *   (JᵀWJ)[j][k] = Σᵢ wᵢ · J[i][j] · J[i][k]
  *   (JᵀWr)[j]   = Σᵢ wᵢ · J[i][j] · rᵢ

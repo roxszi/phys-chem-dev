@@ -204,7 +204,7 @@ export function getREArr(yArr: number[], yPredArr: number[]): number[] {
     throw new Error(`[getREArr]: 长度不匹配：yArr = ${ yArr.length }, yPredArr = ${ yPredArr.length }`)
   }
   /** 残差数组 */
-  const reArr = new Array<number>(n)
+  const reArr = new Array<number>(n).fill(0)
   for (let i = 0; i < n; i++) {
     reArr[i] = yArr[i]! - yPredArr[i]!
   }

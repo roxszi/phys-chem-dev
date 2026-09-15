@@ -406,26 +406,21 @@ function onDataFitting() {
     params,
     // R²
     rSquared,
-    // 拟合值
+    // 拟合值（仅含参与拟合的点）
     predicted,
+    // 原始索引映射：predicted[i] 对应激活数据第 indices[i] 行
+    indices,
   } = fitResultRaw
   // ================ 作图 ================
   /** 作图数据集长度 */
   const n = chartDataAoa.length
-  // 数据集 chartDataAoa 含有 α_0，但是 α_0 作为公式参数，不参与拟合，在拟合处理的时候把 α_0 踢除了
-  // 所以 predicted 没有 α_0
-  // 如果拟合值 predicted 与数据集 chartDataAoa 长度不一致，则说明 chartDataAoa 存在 α_0，需要额外处理
-  if (n !== predicted.length) {
-    // 给 predicted 数组添加 α_0，确保 predicted 与 chartDataAoa 长度一致
-    predicted.unshift(params["alphaInitial"]!)
+  // 拟合点：按 indices 显式对齐（t=0 / t=∞ 锚点已被 preprocess 分流，不在 predicted 内）
+  for (let i = 0; i < predicted.length; i++) {
+    chartDataAoa[indices[i]!]!.push(predicted[i]!)
   }
-  // 如果还不一致，则报错
-  if (n !== predicted.length) {
-    throw new Error("数据量与拟合值数量不一致，请检查数据")
-  }
-  // 遍历赋值，合并 predicted 进 chartDataAoa
-  for (let i = 0; i < n; i++) {
-    chartDataAoa[i]!.push(predicted[i]!)
+  // 锚点行补齐：t=0 锚点行的模型预测值 = α_0（t=∞ 行不在 chartDataAoa 内，无需处理）
+  for (const row of chartDataAoa) {
+    if (row[2] === undefined) row[2] = params["alphaInitial"]!
   }
   // ======== 线性化数据 ========
   /** 线性化作图数据集 */

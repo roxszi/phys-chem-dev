@@ -25,12 +25,13 @@
  *     - LM / ODR 内部每次都新建实例（默认安全）
  *     - 高级用户复用实例前必须调 `reset()`
  */
-import type { IterationState } from "./types.js"
+import type { IterationState } from "./types.ts"
+import { getInfNorm } from "../math/index.ts"
 
 /**
  * 收敛判据接口
  *
- * 可替换模块。默认实现见 default.ts（三判据 OR 组合）。
+ * 可替换模块。默认实现 DefaultConvergence 见本文件下方。
  *
  * 实现可以是无状态的（仅基于当前 state 判断），
  * 也可以是有状态的（如 DefaultConvergence 缓存 sseInitial 做相对判据）。
@@ -119,13 +120,8 @@ export class DefaultConvergence implements ConvergenceCheck {
       return true
     }
 
-    // 判据 3：梯度无穷范数足够小
-    let gradNorm = 0
-    for (let j = 0; j < state.gradient.length; j++) {
-      const absG = Math.abs(state.gradient[j]!)
-      if (absG > gradNorm) gradNorm = absG
-    }
-    if (gradNorm < this.gradTol) return true
+    // 判据 3：梯度无穷范数足够小（math/vector.ts 原语）
+    if (getInfNorm(state.gradient) < this.gradTol) return true
 
     return false
   }

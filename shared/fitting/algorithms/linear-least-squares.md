@@ -1,4 +1,4 @@
-# algorithms/linear/ — 加权线性最小二乘（WLS）
+# 加权线性最小二乘（WLS）
 
 **适用**：模型是线性 `y = slope·x + intercept` 的场景。
 

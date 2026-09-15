@@ -17,7 +17,9 @@
 
 
 import { Matrix } from "ml-matrix"
-import { isFinitePositive, getInvertMatrix } from "@/shared/math/index.ts"
+import { getInvertMatrix } from "../../math/index.ts"
+import { buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
+import { sigmaToWeights } from "../validate.ts"
 
 /**
  * 线性最小二乘的额外传参
@@ -88,97 +90,22 @@ export function linearLeastSquares(
   }
   
   // ---------------- 权重 ----------------
-  // sigmaY → weights = 1/σ²（单次循环同时校验 + 转换）
-  const sigmaYArr = options.sigmaY
-  /** 权重数组 */
-  let weights: number[] | undefined
-  // 若存在 sigmaY
-  if (sigmaYArr) {
-    // 长度校验
-    if (sigmaYArr.length !== n) {
-      throw new Error(`[linearLeastSquares]：sigmaY 长度 ${ sigmaYArr.length } ≠ 数据点数 ${ n }`)
-    }
-    // 通过校验，则将 sigmaY 转为权重
-    weights = new Array<number>(n)
-    for (let i = 0; i < n; i++) {
-      /** sigmaY */
-      const sigmaY = sigmaYArr[i]!
-      // 校验：sigmaY 必须是正数
-      isFinitePositive(sigmaY, `sigmaY[${ i }]`)
-      // 通过校验，赋值权重 = 1/σ²
-      weights[i] = 1 / (sigmaY * sigmaY)
-    }
-  }
+  // sigmaY → weights = 1/σ²（共享原语，含长度与正性校验）
+  const weights = options.sigmaY
+    ? sigmaToWeights(options.sigmaY, n, "[linearLeastSquares]：sigmaY")
+    : undefined
 
   // ---------------- 正规方程 ----------------
-  // 构造正规方程 (Xᵀ W X) · β = Xᵀ W y
-  // 设计矩阵列：[1, x]
-  // XᵀWX 是 2×2 矩阵：
-  //   [Σwᵢ,     Σwᵢxᵢ   ]
-  //   [Σwᵢxᵢ,   Σwᵢxᵢ²  ]
-  // XᵀWy：
-  //   [Σwᵢyᵢ, Σwᵢxᵢyᵢ]ᵀ
+  // 构造正规方程 (Xᵀ W X) · β = Xᵀ W y，设计矩阵 X = [1, x]
+  // gram 库路线：把 X 视作"雅可比"、y 视作"残差"，一次得 XᵀWX 与 XᵀWy
+  const designX = xData.map(x => [1, x])
+  const { jtj: XtWX, jtr: XtWy } = buildWeightedNormalEquation(
+    designX,
+    yData,
+    weights ?? new Array<number>(n).fill(1),
+  )
 
-  // 初始化累加变量
-  /** 权重w总和 sum of weight */
-  let sw = 0
-  /** w*x的加和 */
-  let swx = 0
-  /** w*x*x的加和 */
-  let swxx = 0
-  /** w*y的加和 */
-  let swy = 0
-  /** w*x*y的加和 */
-  let swxy = 0
-  // 循环累加
-  // 若 weights 不存在
-  if (!weights) {
-    // 以权重为1，进行累加
-    for (let i = 0; i < n; i++) {
-      const x = xData[i]!
-      const y = yData[i]!
-      sw += 1
-      swx += x
-      swxx += x * x
-      swy += y
-      swxy += x * y
-    }
-  // 若 weights 存在
-  } else {
-    // 以权重进行累加
-    for (let i = 0; i < n; i++) {
-      const w = weights[i]!
-      const x = xData[i]!
-      const y = yData[i]!
-      sw += w
-      swx += w * x
-      swxx += w * x * x
-      swy += w * y
-      swxy += w * x * y
-    }
-  }
-
-
-  // 解正规方程
-  /**
-   * XᵀWX
-   * - 2×2 矩阵：
-   *   ```
-   *   [Σwᵢ,   Σwᵢxᵢ ]
-   *   [Σwᵢxᵢ, Σwᵢxᵢ²]
-   *   ```
-   */
-  const XtWX = new Matrix([
-    [sw, swx],
-    [swx, swxx],
-  ])
-  /**
-   * XᵀWy
-   * ```
-   * [Σwᵢyᵢ, Σwᵢxᵢyᵢ]ᵀ
-   * ```
-   */
-  const XtWy: number[] = [swy, swxy]
+  // 解正规方程：β = (XᵀWX)⁻¹ · XᵀWy（显式求逆：协方差复用同一个逆）
   /** XᵀWX 的逆矩阵 */
   const XtWXInv = getInvertMatrix(XtWX)
   if (!XtWXInv) {
@@ -195,8 +122,8 @@ export function linearLeastSquares(
   let sse = 0
   let totalSS = 0
 
-  // 加权均值（用于 R²）
-  const yMean = swy / sw
+  // 加权均值（用于 R²）：sw = Σw = XᵀWX[0][0]，swy = Σw·y = XᵀWy[0]
+  const yMean = XtWy[0]! / XtWX.get(0, 0)
 
   for (let i = 0; i < n; i++) {
     const pred = intercept + slope * xData[i]!

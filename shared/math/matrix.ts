@@ -12,6 +12,32 @@ const SINGULAR_TOLERANCE = 1e-14
 
 
 /**
+ * LU 分解 + 奇异检查（共享原语）
+ * ---
+ * 求逆（getInvertMatrix）与线性方程组求解（fitting/linear-solver）共用的奇异性判定：
+ * 精确奇异（isSingular）或近奇异（任一 U 主元绝对值 < SINGULAR_TOLERANCE）返回 null。
+ * 奇异阈值 SINGULAR_TOLERANCE 全项目只此一处定义。
+ * @param matrix 待分解方阵（调用方先自行处理空矩阵 / 非方阵）
+ * @returns LU 分解实例；奇异 / 近奇异返回 null
+ */
+export function getLuChecked(matrix: Matrix): LuDecomposition | null {
+  /** LU分解实例 */
+  const lu = new LuDecomposition(matrix)
+  // 精确奇异检查（主元为 0）
+  if (lu.isSingular()) {
+    return null
+  }
+  // 近奇异检查（主元绝对值过小）
+  for (const pivot of lu.upperTriangularMatrix.diag()) {
+    if (Math.abs(pivot) < SINGULAR_TOLERANCE) {
+      return null
+    }
+  }
+  return lu
+}
+
+
+/**
  * 矩阵求逆
  * - 依赖 ml-matrix 库的 LuDecomposition 方法（LU分解），并做了奇异 / 近奇异检查
  * @param matrix 待求逆方阵
@@ -28,18 +54,11 @@ export function getInvertMatrix(matrix: Matrix): Matrix | null {
     // 则报错
     throw new Error(`[invertMatrix]：仅支持方阵，当前 ${ matrix.rows } × ${ matrix.columns }`)
   }
-  // 以LU分解方法处理矩阵
+  // 复用共享 LU 检查（奇异 / 近奇异 → null）
   /** LU分解实例 */
-  const lu = new LuDecomposition(matrix)
-  // 精确奇异检查（主元为 0）
-  if (lu.isSingular()) {
+  const lu = getLuChecked(matrix)
+  if (!lu) {
     return null
-  }
-  // 近奇异检查（主元绝对值过小）
-  for (const pivot of lu.upperTriangularMatrix.diag()) {
-    if (Math.abs(pivot) < SINGULAR_TOLERANCE) {
-      return null
-    }
   }
   // 解 A·X = I，复用同一次分解（库的 inverse(A) 内部会再做一次 LU）
   /** 逆矩阵 */

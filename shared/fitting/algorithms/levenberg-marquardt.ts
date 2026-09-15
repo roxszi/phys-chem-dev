@@ -1,7 +1,7 @@
 /**
  * Levenberg-Marquardt 非线性最小二乘
  *
- * 不适用：x 也有显著误差时改用 ODR（见 ../odr/）。
+ * 不适用：x 也有显著误差时改用 ODR（见 algorithms/orthogonal-distance-regression.ts）。
  */
 
 /**
@@ -21,30 +21,25 @@ import type {
   PredictFn,
   DataArray,
   IterationState,
-} from "@shared/fitting/index.ts"
-import {
-  validateInputs,
-  buildWeightedNormalEquation,
-  applyDamping,
-  createNumericalJacobian,
-  createMarquardtDamping,
-  createDefaultConvergence,
-  computeStatistics
-} from "@shared/fitting/index.ts"
-import { getREArr, getSSE } from "@shared/math/index.ts"
-import { createGaussianEliminationSolver } from "../matrix-solve.ts"
+  FitResult,
+} from "../types.ts"
+import type { JacobianProvider } from "../jacobian.ts"
+import type { DampingStrategy, DampingOptions } from "../damping.ts"
+import type { ConvergenceOptions } from "../convergence.ts"
+import type { LinearSolver } from "../linear-solver.ts"
+import { validateInputs, sigmaToWeights } from "../validate.ts"
+import { buildWeightedNormalEquation, applyDamping } from "../linear-solver/normal-equation.ts"
+import { createNumericalJacobian } from "../jacobian.ts"
+import { createMarquardtDamping } from "../damping.ts"
+import { createDefaultConvergence } from "../convergence.ts"
+import { computeStatistics } from "../statistics.ts"
+import { getREArr, getSSE, getInfNorm } from "../../math/index.ts"
+import { createGaussianEliminationSolver } from "../linear-solver.ts"
 
 
 /**
  * LM 算法配置与结果类型
  */
-import type { LinearSolver } from "../matrix-solve.ts"
-import type {
-  FitResult,
-  JacobianProvider,
-  DampingStrategy, DampingOptions,
-  ConvergenceOptions
-} from "@shared/fitting/index.ts"
 
 /**
  * Levenberg-Marquardt 算法配置
@@ -156,7 +151,7 @@ export function levenbergMarquardt(
   const n = validateInputs(xData, yData, paramNames, initialParams, fn)
   const p = paramNames.length
 
-  // 2.1 权重预处理：weights 优先；sigmaY → weights = 1/σ²；都不传则等权（=1）
+  // 2.1 权重预处理：weights 优先；sigmaY → weights = 1/σ²（共享原语）；都不传则等权（=1）
   let weightArr: number[]
   if (weights) {
     if (weights.length !== n) {
@@ -164,15 +159,7 @@ export function levenbergMarquardt(
     }
     weightArr = weights
   } else if (sigmaY) {
-    if (sigmaY.length !== n) {
-      throw new Error(`sigmaY 长度 ${sigmaY.length} ≠ n ${n}`)
-    }
-    weightArr = sigmaY.map((s) => {
-      if (s <= 0 || !Number.isFinite(s)) {
-        throw new Error(`sigmaY 含非正或非有限值：${s}`)
-      }
-      return 1 / (s * s)
-    })
+    weightArr = sigmaToWeights(sigmaY, n)
   } else {
     weightArr = new Array<number>(n).fill(1)
   }
@@ -198,11 +185,7 @@ export function levenbergMarquardt(
     // 4.2.1 一阶最优性预检查（Nocedal & Wright 标准做法）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
-    let preCheckGradNorm = 0
-    for (let j = 0; j < p; j++) {
-      const absG = Math.abs(jtr[j]!)
-      if (absG > preCheckGradNorm) preCheckGradNorm = absG
-    }
+    const preCheckGradNorm = getInfNorm(jtr)
     if (preCheckGradNorm < (convOptions?.gradientTolerance ?? 1e-8)) {
       converged = true
       break

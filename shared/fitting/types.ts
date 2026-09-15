@@ -5,40 +5,42 @@
 // 导入 ml-matrix 的 Matrix 类型
 import type { Matrix } from "ml-matrix"
 
-/**
- * 预测函数（用户的模型）
- * 
- * 接受参数字典，返回每个数据点的预测值。
- * x 数据通过闭包绑定（见 equation/bindModel.ts），所以不在签名中。
- * 
- * @example
- * // 模型 y = A·exp(-k·t) + C
- * const fn: PredictFn = (p) => tData.map(t => p.A * Math.exp(-p.k * t) + p.C)
- */
-export type PredictFn = (params: Record<string, number>) => number[]
+
 
 /**
- * 同时对 x 和 y 建模的预测函数（ODR 专用）
- *
- * 与 PredictFn 的区别：x 也可以作为参数被修正。
- * 这样 ODR 既能拟合原始非线性公式，又能在线性时退化为 York。
+ * 数据数组
+ * 语义标记，等价于 number[]
  */
-export type PredictFnODR = (
-  xCorrected: number[],
-  params: Record<string, number>,
-) => number[]
-
-/** 数据数组别名（语义标记，等价于 number[]） */
 export type DataArray = number[]
 
-/** 参数名列表（顺序固定，与 deltaP 的索引对应） */
+
+/**
+ * 函数公式
+ * - 原则上适用于任何显式公式
+ * - 接受自变量X[]数组、参数字典，返回每个数据点的预测值。
+ * @example
+ * // 模型 y = A·exp(-k·t) + C
+ * const fn: EquationFunction = (tArr, p) => tArr.map(t => p.A * Math.exp(-p.k * t) + p.C)
+ */
+export type EquationFunction = (
+  /** 自变量 X[] */
+  x: number[],
+  /** 扁平参数字典（键与 parameters 的 id 一一对应） */
+  params: Record<string, number>
+) => number[]
+
+
+/**
+ * 参数名列表
+ * - 顺序固定，与 deltaP 的索引对应
+ */
 export type ParamNames = string[]
+
 
 /**
  * 单次迭代的状态快照
- *
- * 用于收敛判据、日志、调试。所有基于梯度的拟合算法
- * （LM / ODR 等）都能产出这种结构。
+ * - 用于收敛判据、日志、调试。所有基于梯度的拟合算法
+ * - LM / ODR 等都应产出这种结构
  */
 export interface IterationState {
   /** 当前迭代次数（从 0 开始） */
@@ -57,8 +59,10 @@ export interface IterationState {
   gradient: number[]
 }
 
+
 /**
- * 拟合结果（所有最小二乘算法的统一返回结构）
+ * 拟合结果
+ * - 所有拟合算法的统一返回结构
  */
 export interface FitResult {
   /** 最终参数值 */
@@ -80,18 +84,9 @@ export interface FitResult {
   /** 协方差矩阵 Cov = σ²·(JᵀWJ)⁻¹（若正规方程矩阵奇异 / 近奇异则为 null） */
   covariance: Matrix | null
   /** 是否真正收敛 */
-  converged: boolean
+  isConverged: boolean
   /** 实际迭代次数（对线性最小二乘等闭式解算法为 1） */
   iterations: number
   /** 最终梯度无穷范数 */
   gradientNorm: number
 }
-
-/**
- * 拟合失败的原因分类
- */
-export type FitFailureReason =
-  | "max_iterations"     // 达到最大迭代次数未收敛
-  | "no_accepted_step"   // 内层试探全部失败
-  | "singular_matrix"    // 正规方程矩阵奇异
-  | "invalid_input"      // 输入校验失败
