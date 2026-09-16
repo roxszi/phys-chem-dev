@@ -56,7 +56,12 @@ const yExp = tExp.map((t, i) =>
 )
 const fnExp = (xData: number[][], p: Record<string, number>) => {
   const { A, k, C } = p
-  return xData.map(row => A! * Math.exp(-k! * row[0]!) + C!)
+  // ys 返回 Float64Array（ModelFunction 契约）
+  const ys = new Float64Array(xData.length)
+  for (let i = 0; i < xData.length; i++) {
+    ys[i] = A! * Math.exp(-k! * xData[i]![0]!) + C!
+  }
+  return ys
 }
 const xRows = singleXToRows(tExp)
 

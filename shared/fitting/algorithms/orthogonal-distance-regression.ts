@@ -30,7 +30,7 @@
  * 数学推导详见同目录 orthogonal-distance-regression.md。
  */
 
-import type { Matrix } from "ml-matrix"
+import type { Matrix, Vector } from "@shared/math/index.ts"
 import type {
   ModelFunction,
   ParamValues,
@@ -51,12 +51,12 @@ import { odrNumericalJacobian } from "../jacobian/index.ts"
 import { createNielsenDamping, predictedReduction, gainRatio } from "../trust-region/index.ts"
 // 收敛判据（默认三判据 OR）
 import { createDefaultConvergence } from "../post/convergence.ts"
-// 参数标准误（后置处理共享原语）
-import { computeParamErrors } from "../post/statistics.ts"
+// 参数标准误 + 协方差组装（后置处理业务工具）
+import { computeParamErrors, getCovarianceMatrix } from "../post/statistics.ts"
 // 线性求解器（默认高斯消元）
 import { createGaussianEliminationSolver } from "../linear-solver/index.ts"
 // math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
-import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovarianceMatrix, getInfNorm } from "@shared/math/index.ts"
+import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getInfNorm } from "@shared/math/index.ts"
 
 
 /**
@@ -115,7 +115,7 @@ export interface ODROptions {
  */
 export interface ODRResult extends FitResult {
   /** 每个数据点的 x 修正量 δ_i（单自变量：每点一个标量） */
-  xCorrection: number[]
+  xCorrection: Vector
   /** 修正后的 x（= xData + δ；行主序，与 xData 同形状） */
   xCorrected: number[][]
   /** 最终阻尼因子 λ */
@@ -167,10 +167,11 @@ export function orthogonalDistanceRegression<
   convergenceCheck.reset?.()
 
   // ── 2. 输入校验 ─────────────────────────────────
-  // x、y 长度匹配（单行检查）
+  // x、y 长度匹配（单行检查）；yData 入口宽容（number[]）→ 内部统一 Vector
   if (yData.length !== xData.length) {
     throw new Error(`xData 与 yData 长度不匹配：${xData.length} vs ${yData.length}`)
   }
+  const yVec = Float64Array.from(yData)
   const n = xData.length
   if (n <= paramNames.length) {
     throw new Error(
@@ -183,9 +184,9 @@ export function orthogonalDistanceRegression<
     throw new Error("ODR 当前仅支持单自变量：xData 每行必须恰有 1 个自变量分量")
   }
 
-  // σ 校验（单次循环同时检查长度 + 元素级条件）
-  const sigmaXY = new Array<number>(n)
-  const sigmaYY = new Array<number>(n)
+  // σ 校验（单次循环同时检查长度 + 元素级条件；σ 表内部统一 Vector）
+  const sigmaXY = new Float64Array(n)
+  const sigmaYY = new Float64Array(n)
   for (let i = 0; i < n; i++) {
     // σ_x：默认 0（表示 x 精确）；非负有限数
     sigmaXY[i] = sigmaX?.[i] ?? 0
@@ -197,7 +198,13 @@ export function orthogonalDistanceRegression<
   }
 
   // 判断模式：sigmaX 全为 0 时退化为 LM
-  const hasXError = sigmaXY.some((s) => s > 0)
+  let hasXError = false
+  for (let i = 0; i < n; i++) {
+    if (sigmaXY[i]! > 0) {
+      hasXError = true
+      break
+    }
+  }
   const mode: "lm" | "odr" = hasXError ? "odr" : "lm"
 
   // 自由参数名校验（子集约束 / 有限性已由 validateInputs 统一做，这里补运行时参数名检查）
@@ -207,25 +214,29 @@ export function orthogonalDistanceRegression<
 
   // ── 3. 权重预处理 ───────────────────────────────
   // w_y = 1/σ_y²（每点权重）
-  // w_x = 1/σ_x²（σ_x = 0 时 w_x = +∞，标记为特殊值）
-  const wY = sigmaYY.map((s) => 1 / (s * s))
-  // wX 用 number | Infinity 表示；∞ 表示"x 完全精确"
-  // 实际计算时单独处理 ∞ 情况
-  const wX: number[] = sigmaXY.map((s) => (s > 0 ? 1 / (s * s) : Infinity))
+  // w_x = 1/σ_x²（σ_x = 0 时 w_x = +∞，标记为特殊值；Float64Array 可存 Infinity）
+  const wY = new Float64Array(n)
+  const wX = new Float64Array(n)
+  for (let i = 0; i < n; i++) {
+    const sy = sigmaYY[i]!
+    const sx = sigmaXY[i]!
+    wY[i] = 1 / (sy * sy)
+    wX[i] = sx > 0 ? 1 / (sx * sx) : Infinity
+  }
 
   // ── 4. 状态初始化（全参数字典 + δ 修正量） ──────────
   /** 当前全参数值（固定参数在其中保持不变） */
   let currentParams: ParamValues = { ...initialParams }
   /** 每个 x 观测值的修正量 δ，初值为 0 */
-  let currentDelta = new Array<number>(n).fill(0)
+  const currentDelta = new Float64Array(n)
   /** 当前修正后的 x（= xData + δ；行主序，行拷贝防共享引用） */
   let currentXCorrected = xData.map(row => row.slice())
   /** 当前预测值 */
   let currentPredicted = fn(currentXCorrected, currentParams)
   /** 当前 y 残差 r_y = y − f(x+δ; β) */
-  let currentResidualsY = new Array<number>(n)
+  const currentResidualsY = new Float64Array(n)
   for (let i = 0; i < n; i++) {
-    currentResidualsY[i] = yData[i]! - currentPredicted[i]!
+    currentResidualsY[i] = yVec[i]! - currentPredicted[i]!
   }
   /** 当前 ODR 加权 SSE（含 y 残差项与 δ 惩罚项） */
   let currentSSE = computeODRSSE(currentResidualsY, currentDelta, wY, wX)
@@ -253,10 +264,10 @@ export function orthogonalDistanceRegression<
     //   当 w_x = ∞ 时（σx = 0）：w_eff = w_y
     //   当 d = 0 时：w_eff = w_y
     //   r_eff_i = r_y_i + d_i δ_i
-    const wEff = new Array<number>(n)
-    const rEff = new Array<number>(n)
-    const wYdOverC = new Array<number>(n) // w_y d / c（Δδ 回代系数 1）
-    const wXOverC = new Array<number>(n) // w_x / c（Δδ 回代系数 2）
+    const wEff = new Float64Array(n)
+    const rEff = new Float64Array(n)
+    const wYdOverC = new Float64Array(n) // w_y d / c（Δδ 回代系数 1）
+    const wXOverC = new Float64Array(n) // w_x / c（Δδ 回代系数 2）
 
     for (let i = 0; i < n; i++) {
       const wy = wY[i]!
@@ -284,15 +295,6 @@ export function orthogonalDistanceRegression<
     // 5.3 构建等效正规方程（p × p）——gram 库路线：一次得 J_βᵀW_effJ_β 与 J_βᵀW_effr_eff
     const { jtj: S, jtr: b } = buildWeightedNormalEquation(JB, rEff, wEff)
 
-    // 5.3.0 S → 行主序扁平 Float64Array（predictedReduction 的消费布局）
-    //   每外层轮只扁平化一次；p 阶小矩阵（物化场景 p ≤ 5），开销可忽略
-    const sFlat = new Float64Array(p * p)
-    for (let i = 0; i < p; i++) {
-      for (let j = 0; j < p; j++) {
-        sFlat[i * p + j] = S.get(i, j)
-      }
-    }
-
     // 5.3.1 一阶最优性预检查（与 LM 一致，带权梯度范数）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
@@ -319,13 +321,13 @@ export function orthogonalDistanceRegression<
 
       // 回代求 Δδ（Schur 补的回代步骤）
       //   Δδ_i = (w_y d / c) (r_y − J_β · Δβ) − (w_x / c) δ
-      const trialDeltaDelta = new Array<number>(n)
+      const trialDeltaDelta = new Float64Array(n)
       for (let i = 0; i < n; i++) {
-        const J_i = JB[i]!
-        // J_β[i] · Δβ（行向量点积）
+        // J_β[i] · Δβ（行向量点积；Matrix 行主序扁平，第 i 行起始 = i × p）
+        const base = i * p
         let jDotDeltaBeta = 0
         for (let j = 0; j < p; j++) {
-          jDotDeltaBeta += J_i[j]! * trialDeltaBeta[j]!
+          jDotDeltaBeta += JB.data[base + j]! * trialDeltaBeta[j]!
         }
         trialDeltaDelta[i] =
           wYdOverC[i]! * (currentResidualsY[i]! - jDotDeltaBeta) -
@@ -339,7 +341,7 @@ export function orthogonalDistanceRegression<
         trialParams[name] = currentParams[name]! + trialDeltaBeta[j]!
       }
       // 试探新的 δ 与修正后 x（单自变量：每行取 row[0] 加 δ，再包装回行主序）
-      const trialDelta = new Array<number>(n)
+      const trialDelta = new Float64Array(n)
       const trialXCorrected = new Array<number[]>(n)
       for (let i = 0; i < n; i++) {
         trialDelta[i] = currentDelta[i]! + trialDeltaDelta[i]!
@@ -348,9 +350,9 @@ export function orthogonalDistanceRegression<
 
       // 评估试探结果
       const trialPredicted = fn(trialXCorrected, trialParams)
-      const trialResidualsY = new Array<number>(n)
+      const trialResidualsY = new Float64Array(n)
       for (let i = 0; i < n; i++) {
-        trialResidualsY[i] = yData[i]! - trialPredicted[i]!
+        trialResidualsY[i] = yVec[i]! - trialPredicted[i]!
       }
       const trialSSE = computeODRSSE(trialResidualsY, trialDelta, wY, wX)
 
@@ -359,12 +361,7 @@ export function orthogonalDistanceRegression<
       //   只物化了 β 空间曲率（Schur 降维后 δ 空间曲率未物化）。
       //   ρ 在此的作用是“方向性判断”（单调反映步质量，驱动 λ 升降），
       //   该近似足够；ODRPACK 亦用同类简化。
-      const predRed = predictedReduction(
-        Float64Array.from(trialDeltaBeta),
-        Float64Array.from(b),
-        sFlat,
-        p,
-      )
+      const predRed = predictedReduction(trialDeltaBeta, b, S.data, p)
       const rho = gainRatio(currentSSE, trialSSE, predRed)
 
       // 策略决策（ρ > 0 蕴含 SSE 真实下降；predRed ≤ 0 时 ρ = -1 必然拒绝）
@@ -373,12 +370,12 @@ export function orthogonalDistanceRegression<
       lambda = decision.lambda
 
       if (decision.accept) {
-        // 接受：提交新状态
+        // 接受：提交新状态（Vector 状态为 const 数组，用 set 原地拷贝提交）
         currentParams = trialParams
-        currentDelta = trialDelta
+        currentDelta.set(trialDelta)
+        currentResidualsY.set(trialResidualsY)
         currentXCorrected = trialXCorrected
         currentPredicted = trialPredicted
-        currentResidualsY = trialResidualsY
         currentSSE = trialSSE
         accepted = true
 
@@ -416,7 +413,7 @@ export function orthogonalDistanceRegression<
   })
 
   // 等效权重（融合 x / y 误差，用于协方差估计；σx=0 → wx=∞ 退化为 wy）
-  const finalW: number[] = new Array(n)
+  const finalW = new Float64Array(n)
   for (let i = 0; i < n; i++) {
     const wy = wY[i]!
     const wx = wX[i]!
@@ -424,7 +421,7 @@ export function orthogonalDistanceRegression<
     finalW[i] = wx === Infinity ? wy : (wy * wx) / (wy * di * di + wx)
   }
   // 等效残差 r_eff = r_y + d·δ
-  const rEffFinal = new Array<number>(n)
+  const rEffFinal = new Float64Array(n)
   for (let i = 0; i < n; i++) {
     rEffFinal[i] = currentResidualsY[i]! + (finalD[i] ?? 0) * currentDelta[i]!
   }
@@ -433,8 +430,8 @@ export function orthogonalDistanceRegression<
   const { jtj, jtr } = buildWeightedNormalEquation(finalJBeta, rEffFinal, finalW)
 
   // R² / RMSE（不加权版本，与 Origin 一致；math/statistics.ts 原语）
-  const rSquared = getRSquared(yData, currentPredicted)
-  const rmse = getRMSE(yData, currentPredicted)
+  const rSquared = getRSquared(yVec, currentPredicted)
+  const rmse = getRMSE(yVec, currentPredicted)
 
   // 自由度 = 2n（观测：xᵢ 和 yᵢ 各 n 个）− (p + n)（参数：β p 个 + δ n 个）= n - p
   // 注：虽然数值上与 LM 相同，但 ODR 的参数空间与观测空间都更大；
@@ -442,7 +439,7 @@ export function orthogonalDistanceRegression<
   const dof = n - p
   const sigma2 = currentSSE / Math.max(dof, 1)
 
-  // 协方差 = σ² × (J_βᵀ W_eff J_β)⁻¹（math/matrix.ts 原语）
+  // 协方差 = σ² × (J_βᵀ W_eff J_β)⁻¹（post/statistics 业务工具）
   const covariance: Matrix | null = getCovarianceMatrix(jtj, sigma2)
 
   // 参数标准误（共享原语）
@@ -481,10 +478,10 @@ export function orthogonalDistanceRegression<
  * 为安全起见，若发现 wX = ∞ 且 δ ≠ 0，抛错。
  */
 function computeODRSSE(
-  residualsY: number[],
-  delta: number[],
-  wY: number[],
-  wX: number[],
+  residualsY: Vector,
+  delta: Vector,
+  wY: Vector,
+  wX: Vector,
 ): number {
   const n = residualsY.length
   let sse = 0

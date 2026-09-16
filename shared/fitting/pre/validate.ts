@@ -19,6 +19,8 @@
 
 // 导入数值校验方法（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import { isFinitePositive } from "@shared/math/index.ts"
+// 向量契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { Vector } from "@shared/math/index.ts"
 // 导入数据类型（本模块内部文件，相对路径）
 import type { ParamValues, ParamNames, ModelFunction } from "../types.ts"
 
@@ -31,13 +33,13 @@ import type { ParamValues, ParamNames, ModelFunction } from "../types.ts"
  * @param n 数据点数（长度校验基准）
  * @param label 报错文案里的参数名前缀，默认 "sigmaY"
  */
-export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): number[] {
+export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): Vector {
   // 长度校验
   if (sigmaY.length !== n) {
     throw new Error(`${ label } 长度 ${ sigmaY.length } ≠ 数据点数 ${ n }`)
   }
   /** 权重数组 */
-  const weights = []
+  const weights = new Float64Array(n)
   // 遍历
   for (let i = 0; i < n; i++) {
     /** 标准差 */
@@ -45,8 +47,7 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): n
     // 标准差校验
     isFinitePositive(sigma, `${ label }[${ i }]`)
     // 计算权重
-    const weight = 1 / (sigma * sigma)
-    weights.push(weight)
+    weights[i] = 1 / (sigma * sigma)
   }
   // 返回权重数组
   return weights
@@ -64,7 +65,7 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): n
  */
 export function validateInputs(
   xData: number[][],
-  yData: number[],
+  yData: Vector,
   paramNames: ParamNames,
   initialParams: ParamValues,
   fn: ModelFunction,

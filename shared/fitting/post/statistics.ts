@@ -3,11 +3,12 @@
  * ---
  * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
  * 属"业务拼装"层——标量统计（R² / RMSE / σ²）调 math/statistics.ts 原语，
- * 矩阵运算（求逆 / 协方差）调 math/matrix.ts 原语，本文件只负责组装拟合专属字段。
+ * 矩阵基础操作调 math/matrix 原语，本文件只负责组装拟合专属字段
+ * （协方差组装 Cov = σ²·M⁻¹ 是拟合专属语义，作业务工具函数留在本文件底部）。
  * ---
  * 依赖方向：math/（标量与矩阵原语）← fitting/post/statistics.ts（拼装），不反向依赖。
  */
-import type { Matrix } from "ml-matrix"
+import type { Matrix, Vector } from "@shared/math/index.ts"
 // 数据类型（本模块内部文件，相对路径）
 import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
 // 正规方程构建（模块内部子目录，相对路径）
@@ -17,7 +18,9 @@ import {
   getRSquared,
   getRMSE,
   getSSESigmaSquared,
-  getCovarianceMatrix,
+  matrixInvert,
+  matrixScalarMul,
+  matrixGet,
   getInfNorm,
 } from "@shared/math/index.ts"
 
@@ -32,20 +35,20 @@ export interface StatisticsInput {
   /** 自由参数名列表（协方差矩阵的行列顺序与之对应） */
   paramNames: ParamNames
   /** 因变量数据 */
-  yData: number[]
+  yData: Vector
   /** 最终残差向量 */
-  residuals: number[]
+  residuals: Vector
   /** 最终加权 SSE */
   sse: number
   /** 最终参数处的雅可比矩阵（n × p，p 为自由参数数） */
-  jacobian: number[][]
+  jacobian: Matrix
   /** 权重（可选；不传按等权 1 处理） */
-  weights?: number[]
+  weights?: Vector
 }
 
 export interface StatisticsResult {
   /** 预测值 y_pred = fn(xData, params) */
-  predicted: number[]
+  predicted: Vector
   /** 决定系数 R² = 1 - SS_res / SS_tot */
   rSquared: number
   /** 均方根误差 RMSE = √(SSE/n) */
@@ -74,7 +77,7 @@ export function computeParamErrors(
 ): ParamValues {
   const paramErrors: ParamValues = {}
   for (let j = 0; j < paramNames.length; j++) {
-    const variance = covariance !== null ? covariance.get(j, j) : 0
+    const variance = covariance !== null ? matrixGet(covariance, j, j) : 0
     paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
   }
   return paramErrors
@@ -111,8 +114,8 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
   const dofVal = n - p
   const sig2 = getSSESigmaSquared(sse, n, p)
 
-  // 协方差 = σ² × (JᵀWJ)⁻¹（math/matrix.ts 原语；无权重场景等权 1）
-  const w = weights ?? new Array<number>(n).fill(1)
+  // 协方差 = σ² × (JᵀWJ)⁻¹（本文件底部业务工具；无权重场景等权 1）
+  const w = weights ?? new Float64Array(n).fill(1)
   const { jtj, jtr } = buildWeightedNormalEquation(jacobian, residuals, w)
   const covariance = getCovarianceMatrix(jtj, sig2)
 
@@ -132,4 +135,28 @@ export function computeStatistics(input: StatisticsInput): StatisticsResult {
     gradientNorm: gradNorm,
     dof: dofVal,
   }
+}
+
+// ==================== 拟合业务工具（仅本模块与 ODR 消费） ====================
+
+/**
+ * 拟合参数的协方差矩阵：Cov = σ² × M⁻¹（拟合专属语义，业务工具函数）
+ * - M 通常为 JᵀWJ（Gauss-Newton 近似 Hessian）
+ * - 注意：ml-matrix 库自带的 covariance() 是"数据列间统计协方差"，与此完全不同
+ *   （该库已移除，此注释保留语义澄清）
+ * @param matrix p×p 矩阵（拟合场景通常为 JᵀWJ）
+ * @param sseSigmaSquared 残差的方差估计
+ * @returns 协方差矩阵（新 Matrix）；M 奇异 / 近奇异返回 null
+ */
+export function getCovarianceMatrix(
+  matrix: Matrix,
+  sseSigmaSquared: number,
+): Matrix | null {
+  // 求逆（奇异 / 近奇异 → null 透传）
+  const invertMatrix = matrixInvert(matrix)
+  if (!invertMatrix) {
+    return null
+  }
+  // Cov = σ² × M⁻¹（标量乘新矩阵）
+  return matrixScalarMul(invertMatrix, sseSigmaSquared)
 }

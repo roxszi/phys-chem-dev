@@ -1,4 +1,4 @@
-/**
+﻿/**
  * fitting 数值回归基线
  * ---
  * 设计思路：fitting/ 重构期间用"同一组固定用例的完整输出"作为数值防线——
@@ -57,7 +57,12 @@ const yExp = tExp.map((t, i) =>
 )
 const fnExp = (xData: number[][], p: Record<string, number>) => {
   const { A, k, C } = p
-  return xData.map(row => A! * Math.exp(-k! * row[0]!) + C!)
+  // ys 返回 Float64Array（ModelFunction 契约）
+  const ys = new Float64Array(xData.length)
+  for (let i = 0; i < xData.length; i++) {
+    ys[i] = A! * Math.exp(-k! * xData[i]![0]!) + C!
+  }
+  return ys
 }
 const initExp = { A: 1.5, k: 0.3, C: 0 }
 const namesExp = ["A", "k", "C"]
@@ -96,8 +101,8 @@ const aAnchorBoth = tAnchorBoth.map((t, i) => {
 // ==================== 结果摘要与序列化 ====================
 
 /** Matrix 转一维数组（JSON 可序列化） */
-function matToArray(m: { to1DArray(): number[] } | null | undefined): number[] | null {
-  return m ? m.to1DArray() : null
+function matToArray(m: { data: Float64Array } | null | undefined): number[] | null {
+  return m ? Array.from(m.data) : null
 }
 
 /** 单个用例的完整输出摘要（重构前后应逐字段可对比） */
@@ -147,7 +152,7 @@ function summarizeODR(r: ReturnType<typeof orthogonalDistanceRegression>): CaseS
       extra: {
         finalLambda: r.finalLambda,
         mode: r.mode,
-        xCorrection: r.xCorrection,
+        xCorrection: Array.from(r.xCorrection),
         xCorrected: r.xCorrected,
       },
     }
@@ -169,8 +174,14 @@ function runAllCases(): Record<string, CaseSummary> {
   const llsTwoPoints = linearLeastSquares([cBeer[0]!, cBeer[1]!], [aBeer[0]!, aBeer[1]!])
   // 5. ODR（sigmaX 非零）
   const odrLinear = orthogonalDistanceRegression(
-    (xData: number[][], p: Record<string, number>) =>
-      xData.map(row => p["slope"]! * row[0]! + p["b"]!),
+    (xData: number[][], p: Record<string, number>) => {
+      // ys 返回 Float64Array（ModelFunction 契约）
+      const ys = new Float64Array(xData.length)
+      for (let i = 0; i < xData.length; i++) {
+        ys[i] = p["slope"]! * xData[i]![0]! + p["b"]!
+      }
+      return ys
+    },
     { slope: 0.5, b: 0 },
     ["slope", "b"],
     singleXToRows(cBeer),
@@ -215,7 +226,7 @@ function runAllCases(): Record<string, CaseSummary> {
       iterations: 1,
       gradientNorm: Number.NaN,
       covariance: matToArray(llsWeighted.covariance),
-      extra: { residuals: llsWeighted.residuals, predicted: llsWeighted.predicted },
+      extra: { residuals: Array.from(llsWeighted.residuals), predicted: Array.from(llsWeighted.predicted) },
     },
     "lls-two-points": {
       params: { slope: llsTwoPoints.slope, intercept: llsTwoPoints.intercept },

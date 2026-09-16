@@ -187,6 +187,7 @@ export const sucroseHydrolysis = defineEquation({
 
   // ==================== 模型公式（纯函数，扁平参数） ====================
   // xData 行主序：单自变量，每行唯一分量是时间 t
+  // ys 返回 Float64Array（ModelFunction 契约）：预分配填充，热路径零转换
   model: (xData, params) => {
     // 接参数（扁平字典）
     const { alphaInitial, alphaEquilibrium, k } = params
@@ -194,13 +195,15 @@ export const sucroseHydrolysis = defineEquation({
     if (alphaInitial === undefined || alphaEquilibrium === undefined || k === undefined) {
       throw new Error("公式参数没有初始化")
     }
-    // 计算结果（逐行取自变量分量 t）
-    const atArr = xData.map((row) => (
+    // 预分配结果向量
+    const atArr = new Float64Array(xData.length)
+    // 逐行计算（取自变量分量 t）
+    for (let i = 0; i < xData.length; i++) {
       // 公式本体：
       // (α_0 - α_∞) / (α_t - α_∞) = exp(kt)
       // =>  α_t = ((α_0 - α_∞) / exp(kt)) + α_∞
-      ((alphaInitial - alphaEquilibrium) / Math.exp(k * row[0]!)) + alphaEquilibrium
-    ))
+      atArr[i] = ((alphaInitial - alphaEquilibrium) / Math.exp(k * xData[i]![0]!)) + alphaEquilibrium
+    }
     // 返回结果
     return atArr
   },

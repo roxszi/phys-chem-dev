@@ -22,6 +22,9 @@
 
 // 数据类型（本模块内部文件，相对路径）
 import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
+// 矩阵契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { Matrix, Vector } from "@shared/math/index.ts"
+import { createMatrix } from "@shared/math/index.ts"
 
 // ================================ 数据类型/接口 ================================
 
@@ -45,11 +48,12 @@ export interface NumericalJacobianInput {
 /**
  * LM 雅可比计算器（函数式注入点）
  * - 计算雅可比矩阵 J[i][j] = ∂fᵢ/∂pⱼ，形状 [n × p]（n 数据点数 × p 自由参数数）
+ * - 返回 Matrix（行主序扁平 Float64Array）：正规方程归约与 ODR 行点积直接消费扁平 data
  */
 export type JacobianProvider = (
   /** 统一传参对象 */
   input: NumericalJacobianInput,
-) => { jacobianBeta: number[][] }
+) => { jacobianBeta: Matrix }
 
 /**
  * ODR 雅可比计算器（函数式注入点）
@@ -58,7 +62,7 @@ export type JacobianProvider = (
 export type ODRJacobianProvider = (
   /** 统一传参对象 */
   input: NumericalJacobianInput,
-) => { jacobianBeta: number[][]; jacobianX: number[] }
+) => { jacobianBeta: Matrix; jacobianX: Vector }
 
 /**
  * 数值雅可比方法的可选配置
@@ -122,7 +126,7 @@ function checkOptions(options: NumericalJacobianOptions): void {
  */
 export function lmNumericalJacobian(
   input: NumericalJacobianInput,
-): { jacobianBeta: number[][] } {
+): { jacobianBeta: Matrix } {
   // 解构传参对象（命名字段，顺序无关）
   const { fn, xData, params, paramNames, options = {} } = input
   // 配置校验
@@ -154,7 +158,7 @@ export function lmNumericalJacobian(
  */
 export function odrNumericalJacobian(
   input: NumericalJacobianInput,
-): { jacobianBeta: number[][]; jacobianX: number[] } {
+): { jacobianBeta: Matrix; jacobianX: Vector } {
   // 解构传参对象（命名字段，顺序无关）
   const { fn, xData, params, paramNames, options = {} } = input
   // 配置校验
@@ -200,7 +204,7 @@ export function odrNumericalJacobian(
  * @param paramNames 自由参数名数组
  * @param relativeStepBeta 参数相对步长
  * @param typicalValues 参数典型尺度表
- * @returns ∂fᵢ/∂pⱼ（[n × p]）
+ * @returns ∂fᵢ/∂pⱼ（[n × p] Matrix，行主序扁平）
  */
 export function diffOverParams(
   fn: ModelFunction,
@@ -210,17 +214,12 @@ export function diffOverParams(
   paramNames: ParamNames,
   relativeStepBeta: number,
   typicalValues: Record<string, number>,
-): number[][] {
+): Matrix {
   /** 待拟合的参数数量 */
   const p = paramNames.length
-  // 初始化雅可比矩阵 [n × p]
+  // 初始化雅可比矩阵 [n × p]（行主序扁平 Float64Array）
   /** 雅可比矩阵 [n × p] */
-  const jacobianBeta: number[][] = Array.from(
-    // 初始化 n 行
-    { length: n },
-    // 每行初始化 p 个 0
-    () => new Array<number>(p).fill(0),
-  )
+  const jacobianBeta = createMatrix(n, p)
   /**
    * 参数试验值
    * 浅拷贝，不影响传入的 params
@@ -253,9 +252,9 @@ export function diffOverParams(
     paramsTrial[paramName] = paramValue
     // 第 j 列差分
     const diffs = centralDiff(yPlus, yMinus, h)
-    // 遍历赋值
+    // 遍历赋值（行主序扁平：第 i 行第 j 列 = data[i × p + j]）
     for (let i = 0; i < n; i++) {
-      jacobianBeta[i]![j] = diffs[i]!
+      jacobianBeta.data[i * p + j] = diffs[i]!
     }
   }
   // 返回结果
@@ -293,7 +292,7 @@ export function diffOverXData(
   xData: number[][],
   params: ParamValues,
   relativeStepX: number,
-): number[] {
+): Vector {
   /** 逐行步长表（hᵢ 各点独立，差分时分母必须用各自的 hᵢ） */
   const steps = new Array<number>(n).fill(0)
   /** 前向扰动整表：第 i 行 = [xᵢ + hᵢ] */
@@ -320,7 +319,7 @@ export function diffOverXData(
     )
   }
   /** 差分结果 ∂f/∂x（[n]） */
-  const jacobianX = new Array<number>(n).fill(0)
+  const jacobianX = new Float64Array(n)
   // 逐点中心差分（分母用各自的 hᵢ）
   for (let i = 0; i < n; i++) {
     jacobianX[i] = (yPlus[i]! - yMinus[i]!) / (2 * steps[i]!)
@@ -337,7 +336,7 @@ export function diffOverXData(
  * @param h 步长（必须为正有限数）
  * @returns 差分向量（与 yPlus/yMinus 等长）
  */
-export function centralDiff(yPlus: number[], yMinus: number[], h: number): number[] {
+export function centralDiff(yPlus: Vector, yMinus: Vector, h: number): Vector {
   // 参数校验
   if (h <= 0 || !Number.isFinite(h)) {
     throw new Error(`h 必须为正有限数：${ h }`)
@@ -349,7 +348,7 @@ export function centralDiff(yPlus: number[], yMinus: number[], h: number): numbe
     throw new Error(`centralDiff: yPlus 长度 ${ n } ≠ yMinus 长度 ${ yMinus.length }`)
   }
   /** 差分向量 */
-  const diffs = new Array<number>(n).fill(0)
+  const diffs = new Float64Array(n)
   /** 差分步长：2h */
   const denom = 2 * h
   // 遍历计算

@@ -1,3 +1,5 @@
+// 数据类型（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { Vector } from "./matrix/types.ts"
 /**
  * 统计分析相关方法
  * ---
@@ -8,8 +10,9 @@
 
 /**
  * 数组加和
+ * - 入参宽容：number[] 与 Float64Array（Vector）皆可（只读遍历）
  */
-export function getSum(arr: number[]): number {
+export function getSum(arr: number[] | Vector): number {
   /** 数组长度 */
   const n = arr.length
   // 数组长度校验
@@ -30,8 +33,9 @@ export function getSum(arr: number[]): number {
 /**
  * 数组均值
  * - 有说法称average包含mean（算术平均）、median（中位数）、mode（众数）等具体方法。所以这里直接用mean表示均值
+ * - 入参宽容：number[] 与 Float64Array（Vector）皆可（只读遍历）
  */
-export function getMean(arr: number[]): number {
+export function getMean(arr: number[] | Vector): number {
   /** 数组长度 */
   const n = arr.length
   // 数组长度校验
@@ -138,7 +142,7 @@ export function getPercentile(sortedArr: number[], percentage: number): number {
  * @param yArr 观测值，即实际值
  * @param yPredArr 预测值，即拟合值
  */
-export function getRSquared(yArr: number[], yPredArr: number[]): number {
+export function getRSquared(yArr: Vector, yPredArr: Vector): number {
   /** 观测值数组长度 */
   const n = yArr.length
   if (yPredArr.length !== n) {
@@ -175,7 +179,7 @@ export function getRSquared(yArr: number[], yPredArr: number[]): number {
  * @param yArr 观测值
  * @param yPredArr 预测值
  */
-export function getRMSE(yArr: number[], yPredArr: number[]): number {
+export function getRMSE(yArr: Vector, yPredArr: Vector): number {
   const n = yArr.length
   if (yPredArr.length !== n) {
     throw new Error(`[getRMSE]: 长度不匹配：yArr=${ n }, yPredArr=${ yPredArr.length }`)
@@ -196,7 +200,7 @@ export function getRMSE(yArr: number[], yPredArr: number[]): number {
  * @param yArr 观测值
  * @param yPredArr 预测值
  */
-export function getREArr(yArr: number[], yPredArr: number[]): number[] {
+export function getREArr(yArr: Vector, yPredArr: Vector): Vector {
   /** 数组长度 */
   const n = yArr.length
   // 长度验证
@@ -204,7 +208,7 @@ export function getREArr(yArr: number[], yPredArr: number[]): number[] {
     throw new Error(`[getREArr]: 长度不匹配：yArr = ${ yArr.length }, yPredArr = ${ yPredArr.length }`)
   }
   /** 残差数组 */
-  const reArr = new Array<number>(n).fill(0)
+  const reArr = new Float64Array(n)
   for (let i = 0; i < n; i++) {
     reArr[i] = yArr[i]! - yPredArr[i]!
   }
@@ -220,7 +224,7 @@ export function getREArr(yArr: number[], yPredArr: number[]): number[] {
  * @param reArr 残差数组
  * @param weightArr 权重数组（与 reArr 等长）
  */
-export function getSSE(reArr: number[], weightArr?: number[]): number {
+export function getSSE(reArr: Vector, weightArr?: Vector): number {
   /** 数组长度 */
   const n = reArr.length
   /** SSE */

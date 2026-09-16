@@ -13,11 +13,11 @@
  *   - 自由参数：paramNames 列出的子集，迭代中唯一被更新的部分；
  *     自由度 dof = n − paramNames.length，固定参数不消耗自由度
  * ---
- * 依赖：ml-matrix（仅 covariance 字段的 Matrix 类型；自研矩阵落地后移除）
+ * 依赖：@shared/math（仅 covariance 字段的 Matrix 类型；自研矩阵）
  */
 
-// 导入 ml-matrix 的 Matrix 类型（仅作 covariance 字段类型）
-import type { Matrix } from "ml-matrix"
+// 导入自研稠密矩阵类型（covariance 字段类型 + 向量契约）
+import type { Matrix, Vector } from "@shared/math/index.ts"
 
 /**
  * 参数值字典（桥梁契约）
@@ -33,13 +33,14 @@ export type ParamValues<P extends string = string> = Record<P, number>
  * - 与 equation 层的公式函数同构：equation.model 可直接作为本类型传入
  * - 纯函数约定：不修改入参，同一输入必得同一输出
  * - 多自变量天然支持：xData 每行是一个样本的自变量向量，模型内部自行取用各分量
+ * - ys 为 Float64Array（Vector 契约）：实现时预分配填充，或 Float64Array.from(map 结果) 一次转换
  */
 export type ModelFunction<P extends string = string> = (
   /** 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量） */
   xData: number[][],
   /** 全参数值字典（键与公式参数 id 一致，含固定参数） */
   params: ParamValues<P>,
-) => number[]
+) => Vector
 
 /**
  * 自由参数名列表
@@ -69,13 +70,13 @@ export interface IterationState {
   /** 自由参数名列表（与 deltaP 的索引一一对应） */
   paramNames: ParamNames
   /** 当前残差向量 r = y − f(p) */
-  residuals: number[]
+  residuals: Vector
   /** 当前加权 SSE */
   sse: number
   /** 本次迭代的自由参数更新量 Δp（与 paramNames 的索引一一对应） */
-  deltaP: number[]
+  deltaP: Vector
   /** 负梯度方向（LM / Gauss-Newton 里是 JᵀWr） */
-  gradient: number[]
+  gradient: Vector
 }
 
 /**
@@ -98,9 +99,9 @@ export interface FitResult {
   /** 自由度 = n − 自由参数数 */
   dof: number
   /** 最终残差向量 */
-  residuals: number[]
+  residuals: Vector
   /** 最终预测值 */
-  predicted: number[]
+  predicted: Vector
   /**
    * 协方差矩阵 Cov = σ²·(JᵀWJ)⁻¹
    * - p×p（p 为自由参数数），行 / 列顺序与自由参数 paramNames 一一对应

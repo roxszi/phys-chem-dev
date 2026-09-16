@@ -18,8 +18,7 @@
  * 约定：predRed ≤ 0 时直接返回 -1——"连预测都不降"本身就是坏步的信号，
  * 交由策略函数（classic / nielsen）按拒绝处理。
  * ---
- * 数据布局：A 为行主序扁平存储的 Float64Array（与 linear-solver/normal-equation-new.ts
- * 的 GPU 就绪布局一致）；n 为参数个数。
+ * 数据布局：A 为行主序扁平存储的 Float64Array（与 Matrix.data / Vector 同源布局，GPU 就绪）；n 为参数个数。
  */
 
 /**

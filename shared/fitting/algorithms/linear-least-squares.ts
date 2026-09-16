@@ -21,13 +21,21 @@
  */
 
 
-import { Matrix } from "ml-matrix"
-// 矩阵求逆原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
-import { getInvertMatrix } from "@shared/math/index.ts"
+// 矩阵基础操作（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import {
+  matrixInvert,
+  matrixVecMul,
+  matrixScalarMul,
+  matrixGet,
+  matrixFrom2D,
+} from "@shared/math/index.ts"
+import type { Matrix } from "@shared/math/index.ts"
 // 正规方程构建（模块内部子目录，相对路径）
 import { buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
 // σ→weights 预处理（前置处理子目录，相对路径）
 import { sigmaToWeights } from "../pre/validate.ts"
+// 向量契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { Vector } from "@shared/math/index.ts"
 
 /**
  * 线性最小二乘的额外传参
@@ -57,16 +65,15 @@ export interface LinearLeastSquaresResult {
   interceptStdErr: number
   /** R² */
   rSquared: number
-  /** 残差 */
-  residuals: number[]
-  /** 预测值 */
-  predicted: number[]
+  /** 残差（Float64Array） */
+  residuals: Vector
+  /** 预测值（Float64Array） */
+  predicted: Vector
   /**
-   * 协方差矩阵 2×2（ml-matrix Matrix）
-   * - 元素访问：
-   *   - `covariance.get(0, 0)` = var(slope)
-   *   - `covariance.get(1, 1)` = var(intercept)
-   *   - `covariance.get(0, 1)` = `covariance.get(1, 0)` = cov(slope, intercept)
+   * 协方差矩阵 2×2（自研 Matrix，行主序；matrixGet 取元素）
+   * - 元素访问：matrixGet(covariance, 0, 0) = var(slope)
+   *   matrixGet(covariance, 1, 1) = var(intercept)
+   *   matrixGet(covariance, 0, 1) = matrixGet(covariance, 1, 0) = cov(slope, intercept)
    * - 注：n=2 时 dof = 0 → sigma² = NaN → covariance 全为 NaN。
    *   数学含义：两点定线，参数本身能算但方差"不可估计"。
    */
@@ -98,7 +105,8 @@ export function linearLeastSquares(
   }
   
   // ---------------- 权重 ----------------
-  // sigmaY → weights = 1/σ²（共享原语，含长度与正性校验）
+  // sigmaY → weights = 1/σ²（共享原语，含长度与正性校验）；y 入口宽容 → 内部 Vector
+  const yVec = Float64Array.from(yData)
   const weights = options.sigmaY
     ? sigmaToWeights(options.sigmaY, n, "[linearLeastSquares]：sigmaY")
     : undefined
@@ -106,32 +114,32 @@ export function linearLeastSquares(
   // ---------------- 正规方程 ----------------
   // 构造正规方程 (Xᵀ W X) · β = Xᵀ W y，设计矩阵 X = [1, x]
   // gram 库路线：把 X 视作"雅可比"、y 视作"残差"，一次得 XᵀWX 与 XᵀWy
-  const designX = xData.map(x => [1, x])
+  const designX = matrixFrom2D(xData.map(x => [1, x]))
   const { jtj: XtWX, jtr: XtWy } = buildWeightedNormalEquation(
     designX,
-    yData,
-    weights ?? new Array<number>(n).fill(1),
+    yVec,
+    weights ?? new Float64Array(n).fill(1),
   )
 
   // 解正规方程：β = (XᵀWX)⁻¹ · XᵀWy（显式求逆：协方差复用同一个逆）
   /** XᵀWX 的逆矩阵 */
-  const XtWXInv = getInvertMatrix(XtWX)
+  const XtWXInv = matrixInvert(XtWX)
   if (!XtWXInv) {
     throw new Error('设计矩阵奇异（所有 x 相同？）')
   }
 
-  const beta = XtWXInv.mmul(Matrix.columnVector(XtWy)).to1DArray()
+  const beta = matrixVecMul(XtWXInv, XtWy)
   const intercept = beta[0]!
   const slope = beta[1]!
 
   // 残差与 SSE
-  const predicted = new Array<number>(n)
-  const residuals = new Array<number>(n)
+  const predicted = new Float64Array(n)
+  const residuals = new Float64Array(n)
   let sse = 0
   let totalSS = 0
 
   // 加权均值（用于 R²）：sw = Σw = XᵀWX[0][0]，swy = Σw·y = XᵀWy[0]
-  const yMean = XtWy[0]! / XtWX.get(0, 0)
+  const yMean = XtWy[0]! / matrixGet(XtWX, 0, 0)
 
   for (let i = 0; i < n; i++) {
     const pred = intercept + slope * xData[i]!
@@ -152,9 +160,9 @@ export function linearLeastSquares(
 
   // 协方差矩阵 = σ² × (XᵀWX)⁻¹
   // n=2 时 sigma²=NaN → covariance / stdErr 全为 NaN
-  const covariance = Matrix.mul(XtWXInv, sigma2)
-  const interceptStdErr = Math.sqrt(Math.max(covariance.get(0, 0), 0))
-  const slopeStdErr = Math.sqrt(Math.max(covariance.get(1, 1), 0))
+  const covariance = matrixScalarMul(XtWXInv, sigma2)
+  const interceptStdErr = Math.sqrt(Math.max(matrixGet(covariance, 0, 0), 0))
+  const slopeStdErr = Math.sqrt(Math.max(matrixGet(covariance, 1, 1), 0))
 
   // R²：n=2 时两点必在线上，sse=0、totalSS>0，R²=1
   // 若 totalSS=0（所有 y 相等）则约定 R²=1

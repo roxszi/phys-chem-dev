@@ -44,6 +44,7 @@ import { computeStatistics } from "../post/statistics.ts"
 import { createGaussianEliminationSolver } from "../linear-solver/index.ts"
 // math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import { getREArr, getSSE, getInfNorm } from "@shared/math/index.ts"
+import type { Vector } from "@shared/math/index.ts"
 
 
 /**
@@ -163,27 +164,29 @@ export function levenbergMarquardt<
   convergenceCheck.reset?.()
 
   // 2. 输入校验（paramNames 子集约束 / 全字典有限性 / n > 自由参数数）
-  const n = validateInputs(xData, yData, paramNames, initialParams, fn)
+  // yData 入口宽容（number[]）→ 内部统一 Vector（Float64Array），后续全链零转换
+  const yVec = Float64Array.from(yData)
+  const n = validateInputs(xData, yVec, paramNames, initialParams, fn)
   const p = paramNames.length
 
   // 2.1 权重预处理：weights 优先；sigmaY → weights = 1/σ²（共享原语）；都不传则等权（=1）
-  let weightArr: number[]
+  let weightArr: Vector
   if (weights) {
     if (weights.length !== n) {
       throw new Error(`weights 长度 ${weights.length} ≠ n ${n}`)
     }
-    weightArr = weights
+    weightArr = Float64Array.from(weights)
   } else if (sigmaY) {
     weightArr = sigmaToWeights(sigmaY, n)
   } else {
-    weightArr = new Array<number>(n).fill(1)
+    weightArr = new Float64Array(n).fill(1)
   }
 
   // 3. 状态初始化（全参数字典：固定参数值在其中保持不变）
   /** 当前全参数值 */
   let currentParams: ParamValues = { ...initialParams }
   /** 当前残差向量 r = y − f(p) */
-  let currentResiduals = getREArr(yData, fn(xData, currentParams))
+  let currentResiduals = getREArr(yVec, fn(xData, currentParams))
   /** 当前加权 SSE */
   let currentSSE = getSSE(currentResiduals, weightArr)
 
@@ -207,15 +210,6 @@ export function levenbergMarquardt<
 
     // 4.2 构建加权正规方程 (JᵀWJ, JᵀWr)
     const { jtj, jtr } = buildWeightedNormalEquation(J, currentResiduals, weightArr)
-
-    // 4.2.0 jtj → 行主序扁平 Float64Array（predictedReduction 的消费布局）
-    //   每外层轮只扁平化一次；p 阶小矩阵（物化场景 p ≤ 5），开销可忽略
-    const jtjFlat = new Float64Array(p * p)
-    for (let i = 0; i < p; i++) {
-      for (let j = 0; j < p; j++) {
-        jtjFlat[i * p + j] = jtj.get(i, j)
-      }
-    }
 
     // 4.2.1 一阶最优性预检查（Nocedal & Wright 标准做法）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
@@ -248,18 +242,13 @@ export function levenbergMarquardt<
       }
 
       // 4.3.4 评估试探结果（加权 SSE）
-      const trialResiduals = getREArr(yData, fn(xData, trialParams))
+      const trialResiduals = getREArr(yVec, fn(xData, trialParams))
       const trialSSE = getSSE(trialResiduals, weightArr)
 
       // 4.3.5 增益比 ρ = 实际 SSE 下降 / 预测 SSE 下降（信赖域判据）
-      //   预测下降量 predRed = 2Δᵀg − ΔᵀAΔ（Gauss-Newton 近似；g = jtr，A = jtj 扁平化）；
+      //   预测下降量 predRed = 2Δᵀg − ΔᵀAΔ（Gauss-Newton 近似；g = jtr，A = jtj.data 扁平行主序）；
       //   predRed ≤ 0 时 gainRatio 返回 -1，必然拒绝
-      const predRed = predictedReduction(
-        Float64Array.from(deltaP),
-        Float64Array.from(jtr),
-        jtjFlat,
-        p,
-      )
+      const predRed = predictedReduction(deltaP, jtr, jtj.data, p)
       const rho = gainRatio(currentSSE, trialSSE, predRed)
 
       // 4.3.6 策略决策（ρ > 0 蕴含 SSE 真实下降，语义兼容旧判据且更严：
@@ -306,7 +295,7 @@ export function levenbergMarquardt<
     xData,
     params: currentParams,
     paramNames,
-    yData,
+    yData: yVec,
     residuals: currentResiduals,
     sse: currentSSE,
     jacobian: finalJacobian,

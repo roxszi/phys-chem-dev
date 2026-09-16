@@ -3,7 +3,7 @@
  * ---
  * 主要包括：
  * - array - 各类数组方法
- * - matrix - 矩阵相关方法（继承自ml-matrix库的二次封装）
+ * - matrix - 基础稠密矩阵（自研，Float64Array 行主序；构造/访问/算术/LU/Cholesky）
  * - validate - 各类数值有效性校验
  * @note 出于性能与耦合冗余考虑，该模块不应涉及数据验证，默认均为有效number类型
  */
@@ -27,17 +27,32 @@ export {
   getSSESigmaSquared,
 } from "./statistics.ts"
 
-// 导出矩阵相关函数
+// 导出矩阵相关函数（基础稠密矩阵子模块，自研实现）
 export {
-  getInvertMatrix,
-  getCovarianceMatrix,
-  getLuChecked,
-} from "./matrix.ts"
+  createMatrix,
+  matrixFrom2D,
+  matrixGet,
+  matrixSet,
+  matrixIsSquare,
+  matrixIsEmpty,
+  matrixTo2D,
+  matrixScalarMul,
+  matrixVecMul,
+  luDecomposeChecked,
+  luSolve,
+  matrixInvert,
+  choleskyDecomposeInPlace,
+  choleskySolve,
+  DIAGONAL_FLOOR,
+  SINGULAR_TOLERANCE,
+} from "./matrix/index.ts"
+export type { Matrix, LuFactorization } from "./matrix/index.ts"
 
-// 导出向量相关函数
+// 导出向量相关函数（归拢进矩阵子模块，线性代数统一出口）
 export {
   getInfNorm,
-} from "./vector.ts"
+} from "./matrix/index.ts"
+export type { Vector } from "./matrix/index.ts"
 
 // 导出数值校验函数
 export {

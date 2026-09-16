@@ -171,9 +171,6 @@ importers:
       markdown-it-mathjax3:
         specifier: ^4.3.2
         version: 4.3.2(@types/node@26.4.1)
-      ml-matrix:
-        specifier: ^6.15.0
-        version: 6.15.0
       tdesign-vue-next:
         specifier: ^1.20.7
         version: 1.20.7(vue@3.5.42(typescript@6.0.3))
@@ -1125,9 +1122,6 @@ packages:
   htmlparser2@6.1.0:
     resolution: {integrity: sha512-gyyPk6rgonLFEDGoeRgQNaEUvdJ4ktTmmUh/h2t7s+M8oPpIPxgNACWa+6ESR57kXstwqPiCut0V8NRpcwgU7A==}
 
-  is-any-array@3.0.0:
-    resolution: {integrity: sha512-o4h+tylWykC4BD1vaejp6gDxoM13bwW8FGuNs4yIKpj8xbBJcRxJx8vZpq0dCr7ZDEfeKjmsi/euolKhX6f/ww==}
-
   is-binary-path@2.1.0:
     resolution: {integrity: sha512-ZMERYes6pDydyuGidse7OsHxtbI7WVeUEozgR/g7rd0xUimYNlvZRE/K2MgZTjWy725IfelLeVcEM97mmtRGXw==}
     engines: {node: '>=8'}
@@ -1289,18 +1283,6 @@ packages:
 
   mj-context-menu@0.6.1:
     resolution: {integrity: sha512-7NO5s6n10TIV96d4g2uDpG7ZDpIhMh0QNfGdJw/W47JswFcosz457wqz/b5sAKvl12sxINGFCn80NZHKwxQEXA==}
-
-  ml-array-max@2.0.0:
-    resolution: {integrity: sha512-QQZ4kENwpWmyNb98UXRDFXrmtIXuXtt1+bSbda/2KA85+F+rrJP8hZk6QOkCQXM2Th9mUDYdq/PNByPdT9ID4A==}
-
-  ml-array-min@2.0.0:
-    resolution: {integrity: sha512-GRj6Ky6sW9vGL6yIjgsHmXZ9YgrdmcQ8nCxPqEGeKc6dkfYg1XDYxGFxADUjNuZyoCd5PUscWAS4N+cFaX6hFg==}
-
-  ml-array-rescale@2.0.0:
-    resolution: {integrity: sha512-2GGtKfSno94/kIloWGvpp/U5Q5vLvLrza+SAaGsLeo6Xj4mEbA6Gqx+oTfZFkxnd1grT2X007HfJNs3T5BsiVg==}
-
-  ml-matrix@6.15.0:
-    resolution: {integrity: sha512-wFa1v6KP8bKp+fj0nYmRs1Pb5K4zRkXGKsOvLinvILENFIADncm4XlOI+S1M7yuACMGfI6cfk0IifDgd4j5xmw==}
 
   mlly@1.8.2:
     resolution: {integrity: sha512-d+ObxMQFmbt10sretNDytwt85VrbkhhUA/JBGm1MPaWJ65Cl4wOgLaB1NYvJSZ0Ef03MMEU/0xpPMXUIQ29UfA==}
@@ -2526,8 +2508,6 @@ snapshots:
       domutils: 2.5.2
       entities: 2.0.0
 
-  is-any-array@3.0.0: {}
-
   is-binary-path@2.1.0:
     dependencies:
       binary-extensions: 2.3.0
@@ -2677,25 +2657,6 @@ snapshots:
   mitt@3.0.1: {}
 
   mj-context-menu@0.6.1: {}
-
-  ml-array-max@2.0.0:
-    dependencies:
-      is-any-array: 3.0.0
-
-  ml-array-min@2.0.0:
-    dependencies:
-      is-any-array: 3.0.0
-
-  ml-array-rescale@2.0.0:
-    dependencies:
-      is-any-array: 3.0.0
-      ml-array-max: 2.0.0
-      ml-array-min: 2.0.0
-
-  ml-matrix@6.15.0:
-    dependencies:
-      is-any-array: 3.0.0
-      ml-array-rescale: 2.0.0
 
   mlly@1.8.2:
     dependencies:
