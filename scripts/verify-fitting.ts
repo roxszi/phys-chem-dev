@@ -52,9 +52,9 @@ const tExp = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8]
 const yExp = tExp.map((t, i) =>
   2 * Math.exp(-0.5 * t) + 0.3 + seededNoise(42, tExp.length, 0.01)[i]!,
 )
-const fnExp = (p: Record<string, number>) => {
+const fnExp = (xs: number[], p: Record<string, number>) => {
   const { A, k, C } = p
-  return tExp.map(t => A! * Math.exp(-k! * t) + C!)
+  return xs.map(t => A! * Math.exp(-k! * t) + C!)
 }
 const fnExpODR = (x: number[], p: Record<string, number>) => {
   const { A, k, C } = p
@@ -125,7 +125,7 @@ function summarizeLM(r: LevenbergMarquardtResult): CaseSummary {
     rmse: r.rmse,
     sse: r.sse,
     dof: r.dof,
-    converged: r.converged,
+    converged: r.isConverged,
     iterations: r.iterations,
     gradientNorm: r.gradientNorm,
     covariance: matToArray(r.covariance),
@@ -141,20 +141,20 @@ function summarizeODR(r: ReturnType<typeof orthogonalDistanceRegression>): CaseS
     rmse: r.rmse,
     sse: r.sse,
     dof: r.dof,
-    converged: r.converged,
+    converged: r.isConverged,
     iterations: r.iterations,
     gradientNorm: r.gradientNorm,
-    covariance: matToArray(r.covariance),
-    extra: {
-      finalLambda: r.finalLambda,
-      mode: r.mode,
-      xCorrection: r.xCorrection,
-      xCorrected: r.xCorrected,
-    },
+      covariance: matToArray(r.covariance),
+      extra: {
+        finalLambda: r.finalLambda,
+        mode: r.mode,
+        xCorrection: r.xCorrection,
+        xCorrected: r.xCorrected,
+      },
+    }
   }
-}
 
-// ==================== 跑全部用例 ====================
+  // ==================== 跑全部用例 ====================
 
 function runAllCases(): Record<string, CaseSummary> {
   // 1. LM 等权
@@ -170,7 +170,7 @@ function runAllCases(): Record<string, CaseSummary> {
   const llsTwoPoints = linearLeastSquares([cBeer[0]!, cBeer[1]!], [aBeer[0]!, aBeer[1]!])
   // 5. ODR（sigmaX 非零）
   const odrLinear = orthogonalDistanceRegression(
-    (x, p) => x.map(xi => p["slope"]! * xi + p["b"]!),
+    (x: number[], p: Record<string, number>) => x.map(xi => p["slope"]! * xi + p["b"]!),
     { slope: 0.5, b: 0 },
     ["slope", "b"],
     cBeer,

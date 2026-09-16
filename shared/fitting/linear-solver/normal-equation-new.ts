@@ -38,7 +38,7 @@
  *   形成 JᵀJ 会把 J 的条件数平方：κ(JᵀJ) = κ(J)²。
  *   J 条件数 1e8 时 JᵀJ 达 1e16，双精度有效数字耗尽。
  *   拟合问题参数少（n 通常 < 100）、J 不算太病态时本方法最快最省内存；
- *   病态/秩亏场景请换 qr.ts / svd.ts（同目录）。
+ *   病态/秩亏场景请换 qr.ts / svd.ts（同目录，待实现）。
  *
  * 【复杂度与内存】
  *   时间：O(m·n²) 形成 + O(n³/3) 分解；内存：额外 n²（JᵀJ）+ 2n。
@@ -73,12 +73,12 @@ export function solveByNormalEquations(
 
   for (let k = 0; k < m; k++) {           // 遍历每个数据点（J 的每一行）
     const row = k * n;                    // 该行在扁平数组中的起始下标
-    const rk = r[k];                      // 缓存 r[k]，内层不用反复下标取
+    const rk = r[k]!;                     // 缓存 r[k]，内层不用反复下标取
     for (let i = 0; i < n; i++) {
-      const Jki = J[row + i];             // 缓存 J[k][i]
-      g[i] += Jki * rk;                   // 累加 Jᵀr 的第 i 个分量
+      const Jki = J[row + i]!;            // 缓存 J[k][i]
+      g[i]! += Jki * rk;                  // 累加 Jᵀr 的第 i 个分量
       for (let j = i; j < n; j++)         // j 从 i 起：只算上三角 (i ≤ j)
-        A[i * n + j] += Jki * J[row + j]; // A[i][j] += J[k][i]·J[k][j]
+        A[i * n + j]! += Jki * J[row + j]!; // A[i][j] += J[k][i]·J[k][j]
     }
   }
 
@@ -86,7 +86,7 @@ export function solveByNormalEquations(
   // Cholesky 只读下三角，必须补齐才能分解。
   for (let i = 0; i < n; i++)
     for (let j = 0; j < i; j++)           // 严格下三角（j < i）
-      A[i * n + j] = A[j * n + i];
+      A[i * n + j] = A[j * n + i]!;
 
   /* ------------------------------------------------------------------
    * 第二段：应用阻尼 A ← A + λ·D
@@ -97,9 +97,9 @@ export function solveByNormalEquations(
   if (lambda > 0) {                       // λ = 0 时跳过，纯 Gauss-Newton
     for (let i = 0; i < n; i++) {
       const d = damping.diagD
-        ? damping.diagD[i]                // 外部指定的尺度（如 tfjs 路径传来）
-        : A[i * n + i];                   // 缺省：JᵀJ 对角元自身
-      A[i * n + i] += lambda * Math.max(d, DIAGONAL_FLOOR);
+        ? damping.diagD[i]!               // 外部指定的尺度（如 tfjs 路径传来）
+        : A[i * n + i]!;                  // 缺省：JᵀJ 对角元自身
+      A[i * n + i]! += lambda * Math.max(d, DIAGONAL_FLOOR);
     }
   }
   // 此刻 A 对称正定（正定性由 λ>0 的阻尼兜底；λ=0 且 J 秩亏时
@@ -115,10 +115,10 @@ export function solveByNormalEquations(
    * y[i] = ( g[i] − Σ_{j<i} L[i][j]·y[j] ) / L[i][i]
    * ------------------------------------------------------------------ */
   for (let i = 0; i < n; i++) {
-    let s = g[i];                         // 未消去项的累积器
+    let s = g[i]!;                        // 未消去项的累积器
     for (let j = 0; j < i; j++)
-      s -= A[i * n + j] * out[j];         // 减去 L[i][j]·y[j]，j < i 走下三角
-    out[i] = s / A[i * n + i];            // L[i][i] 即对角（存的就是开方值）
+      s -= A[i * n + j]! * out[j]!;       // 减去 L[i][j]·y[j]，j < i 走下三角
+    out[i] = s / A[i * n + i]!;           // L[i][i] 即对角（存的就是开方值）
   }
 
   /* ------------------------------------------------------------------
@@ -129,10 +129,10 @@ export function solveByNormalEquations(
    * 两段共用同一缓冲是安全的：前代自上而下写完，回代自下而上覆盖。
    * ------------------------------------------------------------------ */
   for (let i = n - 1; i >= 0; i--) {
-    let s = out[i];                       // 此刻 out[i] 是 y[i]
+    let s = out[i]!;                      // 此刻 out[i] 是 y[i]
     for (let j = i + 1; j < n; j++)
-      s -= A[j * n + i] * out[j];         // 减 Lᵀ[i][j]·Δ[j] = L[j][i]·Δ[j]
-    out[i] = s / A[i * n + i];            // 得到 Δ[i]，就地覆盖
+      s -= A[j * n + i]! * out[j]!;       // 减 Lᵀ[i][j]·Δ[j] = L[j][i]·Δ[j]
+    out[i] = s / A[i * n + i]!;           // 得到 Δ[i]，就地覆盖
   }
 }
 
@@ -150,14 +150,14 @@ export function solveByNormalEquations(
 function choleskyInPlace(A: Float64Array, n: number): void {
   for (let i = 0; i < n; i++) {
     for (let j = 0; j <= i; j++) {          // 扫下三角含对角（j ≤ i）
-      let s = A[i * n + j];                 // 从原始 A[i][j] 出发
+      let s = A[i * n + j]!;                // 从原始 A[i][j] 出发
       for (let k = 0; k < j; k++)           // 减去已算出的 L 元素的贡献
-        s -= A[i * n + k] * A[j * n + k];   // L[i][k]·L[j][k]
+        s -= A[i * n + k]! * A[j * n + k]!; // L[i][k]·L[j][k]
       if (i === j) {
         if (s <= 0) s = DIAGONAL_FLOOR;     // 非正定兜底（见函数头注释）
         A[i * n + i] = Math.sqrt(s);        // 对角元：开方
       } else {
-        A[i * n + j] = s / A[j * n + j];    // 非对角：除以 L[j][j]
+        A[i * n + j] = s / A[j * n + j]!;   // 非对角：除以 L[j][j]
       }
     }
   }
@@ -174,13 +174,13 @@ function choleskyInPlace(A: Float64Array, n: number): void {
 export function cholSolve(L: Float64Array, g: Float64Array,
                           n: number, out: Float64Array): void {
   for (let i = 0; i < n; i++) {             // 前代 L·y = g
-    let s = g[i];
-    for (let j = 0; j < i; j++) s -= L[i * n + j] * out[j];
-    out[i] = s / L[i * n + i];
+    let s = g[i]!;
+    for (let j = 0; j < i; j++) s -= L[i * n + j]! * out[j]!;
+    out[i] = s / L[i * n + i]!;
   }
   for (let i = n - 1; i >= 0; i--) {        // 回代 Lᵀ·Δ = y
-    let s = out[i];
-    for (let j = i + 1; j < n; j++) s -= L[j * n + i] * out[j];
-    out[i] = s / L[i * n + i];
+    let s = out[i]!;
+    for (let j = i + 1; j < n; j++) s -= L[j * n + i]! * out[j]!;
+    out[i] = s / L[i * n + i]!;
   }
 }

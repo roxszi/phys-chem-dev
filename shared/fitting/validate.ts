@@ -1,21 +1,23 @@
 /**
  * 拟合输入校验
  * ---
- * - 在拟合开始前校验所有输入，提前抛错避免迭代中数值异常。
- * - 校验项（一次性合并检查，避免薄函数与重复遍历）：
- *   1.  n > 0
- *   2.  n > p（否则无自由度）
- *   3.  paramNames 不重复
- *   4.  initialParams 齐全且有限
- *   5.  fn(initialParams) 长度正确
- * ---
- * 元素级有限性校验（xData / yData / pred）由下游算法在自己的循环里顺便做，避免单独的"批量校验"遍历。
+ * 运行时防线：算法入口泛型的键约束只在编译期存在，编译后消失；
+ * 动态路径（fitEquation 合流 / UI 输入 / 脚本调用）组装的参数必须在拟合前专门校验一次。
+ * 校验项（一次性合并检查，避免薄函数与重复遍历）：
+ *   1. n > 0
+ *   2. n > 自由参数数（否则无自由度）
+ *   3. xData / yData 长度一致
+ *   4. paramNames 非空、不重复、每个元素 ∈ initialParams 的键（类型约束的运行时兜底）
+ *   5. initialParams 全部键值有限（含固定参数——固定参数也必须是有效数值）
+ *   6. fn(initialParams) 返回长度正确
+ * 元素级有限性（xData / yData / pred）由下游算法在自己的循环里顺便做，
+ * 避免单独的"批量校验"遍历。
  */
 
 // 导入数值校验方法
-import { isFinitePositive } from "@shared/math/index.ts"
+import { isFinitePositive } from "../math/index.ts"
 // 导入数据类型
-import type { PredictFn, DataArray, ParamNames, EquationFunction } from "./types.ts"
+import type { ParamValues, ParamNames, ModelFunction } from "./types.ts"
 
 
 /**
@@ -52,17 +54,17 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): n
  * 校验拟合输入，返回数据点数 n
  * @param xData 自变量数组
  * @param yData 因变量数组
- * @param paramNames 参数名列表
- * @param initialParams 初始参数
- * @param fn 预测函数（接收参数字典，返回预测值数组）
+ * @param paramNames 自由参数名列表（必须是全参数键集合的子集）
+ * @param initialParams 全参数初值字典（含固定参数）
+ * @param fn 模型函数
  * @returns 数据点数 n
  */
 export function validateInputs(
-  xData: DataArray,
-  yData: DataArray,
+  xData: number[],
+  yData: number[],
   paramNames: ParamNames,
-  initialParams: Record<string, number>,
-  fn: EquationFunction,
+  initialParams: ParamValues,
+  fn: ModelFunction,
 ): number {
   /** 数据长度 */
   const n = xData.length
@@ -70,17 +72,20 @@ export function validateInputs(
   if (n === 0) {
     throw new Error("xData / yData 为空")
   }
-  // 2. 数据点数应 > 参数个数
+  // 2. 数据点数应 > 自由参数个数
   if (n <= paramNames.length) {
     throw new Error(
-      `数据点数 ${ n } 必须 > 参数个数 ${ paramNames.length }（否则无自由度）`,
+      `数据点数 ${ n } 必须 > 自由参数个数 ${ paramNames.length }（否则无自由度）`,
     )
   }
   // 3. xData / yData 长度一致（单行检查——不写函数）
   if (yData.length !== n) {
     throw new Error(`xData 与 yData 长度不匹配：${ n } vs ${ yData.length }`)
   }
-  // 4. 参数名不能重复
+  // 4. paramNames：非空、不重复、每个元素必须在全参数字典里
+  if (paramNames.length === 0) {
+    throw new Error("paramNames 为空（至少保留一个自由参数参与拟合）")
+  }
   const seen = new Set<string>()
   for (const name of paramNames) {
     if (!name) {
@@ -89,15 +94,15 @@ export function validateInputs(
     if (seen.has(name)) {
       throw new Error(`paramNames 包含重复项：${ name }`)
     }
+    if (!(name in initialParams)) {
+      throw new Error(`paramNames 中的 ${ name } 不在全参数字典 initialParams 里`)
+    }
     seen.add(name)
   }
-  // 5. 初始参数齐全且有限
-  for (const name of paramNames) {
+  // 5. 全参数字典：每个键值都必须是有限数（含固定参数）
+  for (const name of Object.keys(initialParams)) {
     /** 参数的初始值 */
     const value = initialParams[name]
-    if (value === undefined) {
-      throw new Error(`initialParams 缺少参数：${ name }`)
-    }
     if (!Number.isFinite(value)) {
       throw new Error(`initialParams[${ name }] 不是有限数：${ value }`)
     }

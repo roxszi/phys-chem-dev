@@ -1,23 +1,19 @@
 /**
- * equation - 公式模块模型
+ * equation - 公式模块
  * ---
- * 1.  最核心的内容就是公式模型（EquationModel）
+ * 1.  最核心的内容就是公式（Equation）：参数元信息 + preprocess 前处理 + model 模型函数
+ * 2.  模型函数与 fitting 层的 ModelFunction 契约同构，公式可直接交给拟合算法
  */
 
-// 类型：公式模型schema
+// 类型：公式 schema
 export type {
-  EquationModel,
+  Equation,
   Parameter,
-  EquationFunction,
   ParameterInputs,
   PreprocessResult
 } from "./types.ts"
-// 公式模型工厂函数
-export { defineEquationModel } from "./types.ts"
-
-// equation ↔ fitting 桥接（拟合任务编排：isFixed 拆分 / 闭包绑定）
-export { bindFitTask, getParamNames } from "./bind.ts"
-export type { FitBinding } from "./bind.ts"
+// 公式工厂函数
+export { defineEquation } from "./types.ts"
 
 // 各类公式集
 
@@ -27,10 +23,10 @@ export { sucroseHydrolysis } from "./sucrose-hydrolysis.ts"
 
 // ==================== 一键拟合（便捷入口） ====================
 
-import { bindFitTask } from "./bind.ts"
+import type { ParamValues } from "../fitting/types.ts"
 import { levenbergMarquardt, orthogonalDistanceRegression } from "../fitting/index.ts"
 import type { LevenbergMarquardtResult, ODRResult } from "../fitting/index.ts"
-import type { EquationModel, Parameter } from "./types.ts"
+import type { Equation, Parameter } from "./types.ts"
 
 /** fitEquation 选算法 */
 export type FitEquationAlgorithm = "lm" | "odr"
@@ -48,7 +44,7 @@ export interface FitEquationOptions {
   /**
    * 用户 / UI 层的参数输入态（可整体省略）
    * - value：省略时取 preprocess 估值；isFixed：省略时取 Parameter.defaultFixed ?? false
-   * - isFixed=true 的参数不参与迭代（闭包常量），且不消耗自由度
+   * - isFixed=true 的参数不参与迭代（常量），且不消耗自由度
    */
   parameterInputs?: Record<string, { value: number; isFixed: boolean }>
 
@@ -66,17 +62,18 @@ export type FitEquationResult =
 /**
  * 一键拟合（便捷入口）
  *
- * 流程：preprocess（验证/排序/锚点分流/估初值）→ 参数输入合流 → 绑定拟合任务 → LM/ODR
+ * 流程：preprocess（验证/排序/锚点分流/估初值）→ 参数输入合流（全参数字典 + 自由参数子集）→ LM/ODR
  * - 原始数据只读；后续拟合只用 preprocess 数据包
+ * - equation.model 与 fitting 的 ModelFunction 契约同构，直接传入，零适配
  * - 返回值附 indices / excluded，调用方据此对齐图表（无需自行补偿错位）
  *
- * @param equation - 公式模型
+ * @param equation - 公式
  * @param xData - x 数据（原始）
  * @param yData - y 数据（原始）
  * @param options - 拟合配置对象
  */
 export function fitEquation(
-  equation: EquationModel<readonly Parameter<string>[]>,
+  equation: Equation<readonly Parameter<string>[]>,
   xData: number[],
   yData: number[],
   options?: FitEquationOptions,
@@ -92,33 +89,37 @@ export function fitEquation(
   // 1. 前处理：验证 → 排序 → 锚点分流 → 估初值（原始数据只读）
   const pre = equation.preprocess(xData, yData)
 
-  // 2. 参数输入合流：UI 显式输入 > preprocess 估值；isFixed：UI 显式 > defaultFixed > false
-  const inputs: Record<string, { value: number; isFixed: boolean }> = {}
+  // 2. 参数输入合流：
+  //    initialParams（全参数字典）：UI 显式输入 > preprocess 估值
+  //    paramNames（自由参数子集）：isFixed = UI 显式 > defaultFixed > false
+  /** 全参数初值字典（含固定参数） */
+  const initialParams: ParamValues = {}
+  /** 自由参数名列表（参与迭代的子集） */
+  const paramNames: string[] = []
   for (const p of equation.parameters) {
     const ui = parameterInputs?.[p.id]
     const value = ui?.value ?? pre.initialParams[p.id]
-    const isFixed = ui?.isFixed ?? p.defaultFixed ?? false
+    // 参数值必须是有效数值（无论固定与否）
     if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`参数 ${ p.id } 已固定但未提供有效数值`)
+      throw new Error(`参数 ${ p.id } 未提供有效数值`)
     }
-    inputs[p.id] = { value, isFixed }
+    initialParams[p.id] = value
+    const isFixed = ui?.isFixed ?? p.defaultFixed ?? false
+    if (!isFixed) {
+      paramNames.push(p.id)
+    }
+  }
+  // 至少保留一个自由参数
+  if (paramNames.length === 0) {
+    throw new Error("所有参数均已固定，没有需要拟合的参数")
   }
 
-  // 3. 绑定拟合任务：isFixed=true 的参数剔除出 paramNames、闭包绑定常量
-  const binding = bindFitTask(equation, pre.x, inputs)
-
-  // 4. 自由参数初值（固定参数不进拟合器）
-  const initParams: Record<string, number> = {}
-  for (const name of binding.paramNames) {
-    initParams[name] = inputs[name]!.value
-  }
-
-  // 5. 拟合（sigmaX / sigmaY 长度对应清洗后的数据）
+  // 3. 拟合（sigmaX / sigmaY 长度对应清洗后的数据）
   if (algorithm === "lm") {
     const r = levenbergMarquardt(
-      binding.predictFn,
-      initParams,
-      binding.paramNames,
+      equation.model,
+      initialParams,
+      paramNames,
       pre.x,
       pre.y,
       { sigmaY },
@@ -135,9 +136,9 @@ export function fitEquation(
 
   // 默认 ODR（sigmaX 全 0 时自动退化为 LM）
   const r = orthogonalDistanceRegression(
-    binding.predictFnODR,
-    initParams,
-    binding.paramNames,
+    equation.model,
+    initialParams,
+    paramNames,
     pre.x,
     pre.y,
     { sigmaX, sigmaY },

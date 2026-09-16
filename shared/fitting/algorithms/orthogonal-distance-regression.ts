@@ -1,6 +1,6 @@
 /**
  * 正交距离回归（Orthogonal Distance Regression, ODR）
- *
+ * ---
  * 解决的问题：
  *   LM 假设 x 精确无误差，只优化 y 残差。
  *   ODR 同时考虑 x 和 y 的误差，最小化数据点到曲线的"加权正交距离"：
@@ -25,26 +25,42 @@
  *   - σx → 0 (w_x → ∞)：w_eff → w_y，δ → 0，退化为加权 LM
  *   - 模型对 x 不敏感 (d ≈ 0)：w_eff → w_y，退化为加权 LM
  *   - 线性模型 + σx > 0：退化为 York 回归
- *
+ * ---
+ * 参数的两分语义与 LM 一致：initialParams 全参数字典 + paramNames 自由参数子集。
+ * 数学推导详见同目录 orthogonal-distance-regression.md。
  */
+
 import type { Matrix } from "ml-matrix"
-import type { PredictFnODR, DataArray, IterationState, FitResult } from "../types.ts"
-import type { LinearSolver } from "../linear-solver.ts"
+import type {
+  ModelFunction,
+  ParamValues,
+  DataArray,
+  IterationState,
+  FitResult,
+} from "../types.ts"
+import type { LinearSolver } from "../linear-solver/index.ts"
 import type { DampingStrategy, DampingOptions } from "../damping.ts"
 import type { ConvergenceOptions } from "../convergence.ts"
-import type { ODRJacobianProvider } from "../jacobian.ts"
+import type { ODRJacobianProvider } from "../jacobian/index.ts"
 
+// 正规方程构建 + 阻尼施加
 import { applyDamping, buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
-import { createNumericalODRJacobian } from "../jacobian.ts"
+// 数值雅可比（默认实现：参数方向 + 自变量方向）
+import { odrNumericalJacobian } from "../jacobian/index.ts"
+// 阻尼策略（默认 Marquardt 1963）
 import { createMarquardtDamping } from "../damping.ts"
+// 收敛判据（默认三判据 OR）
 import { createDefaultConvergence } from "../convergence.ts"
+// 参数标准误（共享原语）
 import { computeParamErrors } from "../statistics.ts"
-import { createGaussianEliminationSolver } from "../linear-solver.ts"
+// 线性求解器（默认高斯消元）
+import { createGaussianEliminationSolver } from "../linear-solver/index.ts"
+// math 原语
 import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovarianceMatrix, getInfNorm } from "../../math/index.ts"
 
 
 /**
- * ODR（正交距离回归）算法的配置与结果类型
+ * ODR 算法配置
  *
  * ODR 在 LM 基础上扩展：
  *   - LM 假设 x 精确，只优化 y 残差
@@ -59,14 +75,6 @@ import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovaria
  *   - 模型对 x 不敏感（d = ∂f/∂x ≈ 0）退化为加权 LM
  *   - 模型线性 + σx > 0 时退化为 York 回归
  */
-
-
-/**
- * ODR 算法配置
- *
- * 所有不带 sigma 前缀的字段都是可选的；
- * sigmaX / sigmaY 控制是否启用 ODR（全为 0 时退化为 LM）。
- */
 export interface ODROptions {
   /** x 的标准差数组（每点独立）。不传或全 0 时退化为 LM */
   sigmaX?: number[]
@@ -80,7 +88,7 @@ export interface ODROptions {
 
   // ── 可替换模块（依赖注入） ──
 
-  /** 雅可比计算器（必须 ODRJacobianProvider） */
+  /** 雅可比计算器（必须 ODRJacobianProvider：需额外返回 ∂f/∂x） */
   jacobian?: ODRJacobianProvider
 
   /** 线性方程组求解器 */
@@ -121,17 +129,23 @@ export interface ODRResult extends FitResult {
 /**
  * ODR 主入口
  *
- * @param fn 预测函数（ODR 形式：x 和 params 都显式传递）
- * @param initialParams 初始参数
- * @param paramNames 参数名（顺序固定）
- * @param xData 自变量观测值
- * @param yData 因变量观测值
- * @param options 配置（含 sigmaX / sigmaY）
+ * @typeParam ALL    全参数键元组（含固定参数）
+ * @typeParam FIT    自由参数键元组，必须是 ALL 的子集（编译期强制）
+ * @param fn         模型函数 (xs, 全参数字典) => ys
+ * @param initialParams 全参数初值字典（含固定参数）
+ * @param paramNames 自由参数名数组
+ * @param xData      自变量观测值
+ * @param yData      因变量观测值
+ * @param options    配置（含 sigmaX / sigmaY）
+ * @returns 拟合结果（params 为全参数；附 xCorrection / xCorrected / mode）
  */
-export function orthogonalDistanceRegression(
-  fn: PredictFnODR,
-  initialParams: Record<string, number>,
-  paramNames: string[],
+export function orthogonalDistanceRegression<
+  const ALL extends readonly string[],
+  const FIT extends readonly (ALL[number])[],
+>(
+  fn: ModelFunction<ALL[number]>,
+  initialParams: ParamValues<ALL[number]>,
+  paramNames: FIT,
   xData: DataArray,
   yData: DataArray,
   options: ODROptions = {},
@@ -142,7 +156,7 @@ export function orthogonalDistanceRegression(
     sigmaY,
     maxIterations = 100,
     maxInnerIterations = 20,
-    jacobian = createNumericalODRJacobian(),
+    jacobian,
     solver = createGaussianEliminationSolver(),
     damping = createMarquardtDamping(options.dampingOptions),
     convergence: convOptions,
@@ -160,7 +174,7 @@ export function orthogonalDistanceRegression(
   const n = xData.length
   if (n <= paramNames.length) {
     throw new Error(
-      `数据点数 ${n} 必须 > 参数个数 ${paramNames.length}（否则无自由度）`,
+      `数据点数 ${n} 必须 > 自由参数个数 ${paramNames.length}（否则无自由度）`,
     )
   }
 
@@ -181,19 +195,8 @@ export function orthogonalDistanceRegression(
   const hasXError = sigmaXY.some((s) => s > 0)
   const mode: "lm" | "odr" = hasXError ? "odr" : "lm"
 
-  // 参数名校验
-  const seen = new Set<string>()
-  for (const name of paramNames) {
-    if (!name) throw new Error("paramNames 包含空字符串")
-    if (seen.has(name)) throw new Error(`paramNames 包含重复项：${name}`)
-    seen.add(name)
-  }
-  for (const name of paramNames) {
-    const v = initialParams[name]
-    if (v === undefined || !Number.isFinite(v)) {
-      throw new Error(`initialParams[${name}] 缺失或非有限数`)
-    }
-  }
+  // 自由参数名校验（子集约束 / 有限性已由 validateInputs 统一做，这里补运行时参数名检查）
+  // 注：ODR 的校验在下方通过 validateInputs 前置完成（与 LM 共享同一防线）
 
   const p = paramNames.length
 
@@ -205,32 +208,36 @@ export function orthogonalDistanceRegression(
   // 实际计算时单独处理 ∞ 情况
   const wX: number[] = sigmaXY.map((s) => (s > 0 ? 1 / (s * s) : Infinity))
 
-  // ── 4. 状态初始化 ───────────────────────────────
-  let currentParams: Record<string, number> = { ...initialParams }
-  let currentDelta = new Array<number>(n).fill(0) // δ 初值为 0
+  // ── 4. 状态初始化（全参数字典 + δ 修正量） ──────────
+  /** 当前全参数值（固定参数在其中保持不变） */
+  let currentParams: ParamValues = { ...initialParams }
+  /** 每个 x 观测值的修正量 δ，初值为 0 */
+  let currentDelta = new Array<number>(n).fill(0)
+  /** 当前修正后的 x（= xData + δ） */
   let currentXCorrected = xData.slice()
+  /** 当前预测值 */
   let currentPredicted = fn(currentXCorrected, currentParams)
+  /** 当前 y 残差 r_y = y − f(x+δ; β) */
   let currentResidualsY = new Array<number>(n)
   for (let i = 0; i < n; i++) {
     currentResidualsY[i] = yData[i]! - currentPredicted[i]!
   }
+  /** 当前 ODR 加权 SSE（含 y 残差项与 δ 惩罚项） */
   let currentSSE = computeODRSSE(currentResidualsY, currentDelta, wY, wX)
 
-  let converged = false
+  /** 是否收敛 */
+  let isConverged = false
+  /** 实际使用的迭代次数 */
   let iterationsUsed = 0
 
   // ── 5. 主迭代循环 ───────────────────────────────
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     iterationsUsed++
 
-    // 5.1 计算雅可比 J_β 和 d（对 x 的偏导）
-    const { jBeta, d } = jacobian.compute(
-      fn,
-      currentXCorrected,
-      currentParams,
-      paramNames,
-      n,
-    )
+    // 5.1 计算雅可比 J_β（[n × p]）和 d（∂f/∂x，[n]）
+    const { jacobianBeta: JB, jacobianX: d } = jacobian
+      ? jacobian(fn, currentXCorrected, currentParams, paramNames)
+      : odrNumericalJacobian(fn, currentXCorrected, currentParams, paramNames)
 
     // 5.2 计算等效权重 w_eff 和等效残差 r_eff
     //   w_eff_i = w_y w_x / (w_y d² + w_x)
@@ -239,9 +246,8 @@ export function orthogonalDistanceRegression(
     //   r_eff_i = r_y_i + d_i δ_i
     const wEff = new Array<number>(n)
     const rEff = new Array<number>(n)
-    const cInv = new Array<number>(n) // 1/c_i = 1/(w_y d² + w_x)
-    const wYdOverC = new Array<number>(n) // w_y d / c
-    const wXOverC = new Array<number>(n) // w_x / c
+    const wYdOverC = new Array<number>(n) // w_y d / c（Δδ 回代系数 1）
+    const wXOverC = new Array<number>(n) // w_x / c（Δδ 回代系数 2）
 
     for (let i = 0; i < n; i++) {
       const wy = wY[i]!
@@ -253,50 +259,52 @@ export function orthogonalDistanceRegression(
       if (wx === Infinity) {
         // σx = 0：x 完全精确，退化为加权 LM
         wEff[i] = wy
-        cInv[i] = 0 // c = ∞, 1/c = 0
         wYdOverC[i] = 0
         wXOverC[i] = 0
       } else {
+        // c = w_y d² + w_x
         const c = wy * di * di + wx
         wEff[i] = (wy * wx) / c
-        cInv[i] = 1 / c
         wYdOverC[i] = (wy * di) / c
         wXOverC[i] = wx / c
       }
+      // 等效残差
       rEff[i] = dy + di * deltaI
     }
 
     // 5.3 构建等效正规方程（p × p）——gram 库路线：一次得 J_βᵀW_effJ_β 与 J_βᵀW_effr_eff
-    const { jtj: S, jtr: b } = buildWeightedNormalEquation(jBeta, rEff, wEff)
+    const { jtj: S, jtr: b } = buildWeightedNormalEquation(JB, rEff, wEff)
 
     // 5.3.1 一阶最优性预检查（与 LM 一致，带权梯度范数）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
     //   预检查用的梯度正是 b（J_βᵀW_effr_eff），与内层收敛判据、LM 语义完全一致。
     if (getInfNorm(b) < (convOptions?.gradientTolerance ?? 1e-8)) {
-      converged = true
+      isConverged = true
       break
     }
 
     // 5.4 内层循环：λ 试探
+    /** 本轮外层是否有步长被接受 */
     let accepted = false
 
     for (let inner = 0; inner < maxInnerIterations; inner++) {
-      // 应用阻尼
+      // 应用阻尼：(S + λ·diag(S))
       const A = applyDamping(S, damping.current())
 
-      // 解 S · Δβ = b
+      // 解 S · Δβ = b（奇异返回 null → 升 λ 重试）
       const trialDeltaBeta = solver.solve(A, b)
       if (!trialDeltaBeta) {
         damping.onReject()
         continue
       }
 
-      // 回代求 Δδ
-      //   Δδ_i = (w_y d / c) (r_y - J_β · Δβ) - (w_x / c) δ
+      // 回代求 Δδ（Schur 补的回代步骤）
+      //   Δδ_i = (w_y d / c) (r_y − J_β · Δβ) − (w_x / c) δ
       const trialDeltaDelta = new Array<number>(n)
       for (let i = 0; i < n; i++) {
-        const J_i = jBeta[i]!
+        const J_i = JB[i]!
+        // J_β[i] · Δβ（行向量点积）
         let jDotDeltaBeta = 0
         for (let j = 0; j < p; j++) {
           jDotDeltaBeta += J_i[j]! * trialDeltaBeta[j]!
@@ -306,12 +314,13 @@ export function orthogonalDistanceRegression(
           wXOverC[i]! * currentDelta[i]!
       }
 
-      // 试探新参数
-      const trialParams: Record<string, number> = { ...currentParams }
+      // 试探新参数（只更新自由参数键，固定参数随字典透传）
+      const trialParams: ParamValues = { ...currentParams }
       for (let j = 0; j < p; j++) {
         const name = paramNames[j]!
         trialParams[name] = currentParams[name]! + trialDeltaBeta[j]!
       }
+      // 试探新的 δ 与修正后 x
       const trialDelta = new Array<number>(n)
       const trialXCorrected = new Array<number>(n)
       for (let i = 0; i < n; i++) {
@@ -328,7 +337,7 @@ export function orthogonalDistanceRegression(
       const trialSSE = computeODRSSE(trialResidualsY, trialDelta, wY, wX)
 
       if (trialSSE < currentSSE) {
-        // 接受
+        // 接受：提交新状态
         currentParams = trialParams
         currentDelta = trialDelta
         currentXCorrected = trialXCorrected
@@ -338,6 +347,7 @@ export function orthogonalDistanceRegression(
         damping.onAccept()
         accepted = true
 
+        // 迭代状态快照（收敛判据消费）
         const state: IterationState = {
           iteration,
           params: currentParams,
@@ -348,26 +358,28 @@ export function orthogonalDistanceRegression(
           gradient: b, // 等效 J_βᵀ W_eff r_eff（正梯度方向）
         }
 
+        // 收敛判据检查（三判据 OR，见 convergence.ts）
         if (convergenceCheck.check(state)) {
-          converged = true
+          isConverged = true
         }
         break
       } else {
+        // 拒绝：升 λ 收紧步长
         damping.onReject()
       }
     }
 
-    if (converged || !accepted) break
+    // 外层退出条件（已收敛 / 内层全部拒绝）
+    if (isConverged || !accepted) break
   }
 
   // ── 6. 计算最终统计量 ───────────────────────────
   // 在最终参数处重新算一次雅可比（与 LM 一致）
-  const { jBeta: finalJBeta, d: _finalD } = jacobian.compute(
+  const { jacobianBeta: finalJBeta, jacobianX: finalD } = odrNumericalJacobian(
     fn,
     currentXCorrected,
     currentParams,
     paramNames,
-    n,
   )
 
   // 等效权重（融合 x / y 误差，用于协方差估计；σx=0 → wx=∞ 退化为 wy）
@@ -375,13 +387,13 @@ export function orthogonalDistanceRegression(
   for (let i = 0; i < n; i++) {
     const wy = wY[i]!
     const wx = wX[i]!
-    const di = _finalD[i] ?? 0
+    const di = finalD[i] ?? 0
     finalW[i] = wx === Infinity ? wy : (wy * wx) / (wy * di * di + wx)
   }
   // 等效残差 r_eff = r_y + d·δ
   const rEffFinal = new Array<number>(n)
   for (let i = 0; i < n; i++) {
-    rEffFinal[i] = currentResidualsY[i]! + (_finalD[i] ?? 0) * currentDelta[i]!
+    rEffFinal[i] = currentResidualsY[i]! + (finalD[i] ?? 0) * currentDelta[i]!
   }
 
   // J_βᵀ W_eff J_β 与 J_βᵀ W_eff r_eff（gram 库路线）
@@ -416,7 +428,7 @@ export function orthogonalDistanceRegression(
     residuals: currentResidualsY,
     predicted: currentPredicted,
     covariance,
-    converged,
+    isConverged,
     iterations: iterationsUsed,
     gradientNorm,
     xCorrection: currentDelta,
@@ -448,6 +460,7 @@ function computeODRSSE(
     const wx = wX[i]!
     const r = residualsY[i]!
     const d = delta[i]!
+    // y 残差项
     sse += wy * r * r
     if (wx === Infinity) {
       if (d !== 0) {
@@ -456,9 +469,9 @@ function computeODRSSE(
         sse += 1e30
       }
     } else {
+      // x 修正量惩罚项
       sse += wx * d * d
     }
   }
   return sse
 }
-

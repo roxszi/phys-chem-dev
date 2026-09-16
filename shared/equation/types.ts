@@ -1,18 +1,23 @@
 /**
- * 公式模型（Equation Model）的统一类型声明及工厂函数
+ * 公式（Equation）的统一类型声明及工厂函数
  * ---
  * 设计哲学：
- * - 公式与拟合算法解耦，同一个公式可以用多种算法拟合
- * - 运行时参数形状统一为扁平 Record<id, number>（fitting 层唯一契约）
+ * - 公式与拟合算法解耦：公式只描述"是什么"，拟合算法只管"怎么拟合"；
+ *   同一个公式可以用多种算法拟合（LM / ODR / 未来的其他算法）
+ * - 模型函数统一为 ModelFunction（显式接收 xs 与全参数字典），
+ *   与 fitting 层的模型契约同构——equation.model 可直接传给拟合算法
  * - isFixed 是"拟合编排"语义（参不参与迭代），不属于模型函数签名；
  *   它的默认值由公式定义者经 Parameter.defaultFixed 给出，
- *   用户/UI 覆盖值经 ParameterInputs 传入，在编排层（bind/fitEquation）合流
+ *   用户/UI 覆盖值经 ParameterInputs 传入，在编排层（fitEquation）合流
  * - 数据清洗（验证 / 排序 / 锚点识别 / 踢点）与初值估计合并为 preprocess
  *   一个纯函数：原始数据只读，踢点进 excluded 记录，索引经 indices 保留
  */
 
-// 导入tfjs数据类型
+// 导入 tfjs 数据类型（tfModel 自动微分预留）
 type TF = typeof import("@tensorflow/tfjs-core")
+
+// 桥梁契约类型（定义在 fitting 侧，编译后零运行时依赖）
+import type { ModelFunction, ParamValues } from "../fitting/types.ts"
 
 
 /**
@@ -59,27 +64,16 @@ export interface PreprocessResult<P extends readonly Parameter[]> {
   /** 未参与拟合的点（锚点观测、非法点），带原因 */
   excluded: { index: number; x: number; y: number; reason: string }[]
   /** 初始参数值（键集合与 parameters 的 id 一一对应） */
-  initialParams: Record<P[number]["id"], number>
+  initialParams: ParamValues<P[number]["id"]>
 }
 
 
 /**
- * 公式模型函数（Equation Function）
- */
-export type EquationFunction<P extends readonly Parameter[]> = (
-  /** 自变量 X[] */
-  x: number[],
-  /** 扁平参数字典（键与 parameters 的 id 一一对应） */
-  params: Record<P[number]["id"], number>
-) => number[]
-
-
-/**
- * 公式模型（Equation Model）
+ * 公式模型（Equation）
  * - 泛型属性 P 继承 Parameter[] 约束，并作为具体的只读元组，
  *   使 model 的 params 拥有精确的键耦合（Record<P[id], number>）
  */
-export interface EquationModel<P extends readonly Parameter[]> {
+export interface Equation<P extends readonly Parameter[]> {
   /** 唯一 ID（程序标识，如 "first-order"） */
   id: string
   /** 中文名（如 "一级动力学"） */
@@ -94,19 +88,19 @@ export interface EquationModel<P extends readonly Parameter[]> {
    * 拟合前处理（纯函数，禁止修改入参数组）
    *   - 验证 → 排序 → 识别锚点 / 非法点 → 估初值 → 分流
    *   - 锚点（如蔗糖水解的 t=0 → α₀、t=∞ → α∞）先消费为初值再进 excluded，
-   *     特殊“哨兵值”（Infinity 等）不得进入返回的 x
+   *     特殊"哨兵值"（Infinity 等）不得进入返回的 x
    *   - fitEquation 保证调用本方法；后续拟合只用返回的数据包
    */
   preprocess: (rawX: number[], rawY: number[]) => PreprocessResult<P>
   /**
    * 模型函数（纯函数）
-   * - 非线性形式：x[] 经扁平 params 变换到 y[]
-   * - params 形状与 fitting 层一致（扁平数值字典），键精确耦合
+   * - 非线性形式：xs 经扁平 params 变换到 ys
+   * - params 形状与 fitting 层一致（全参数值字典），键精确耦合
    */
-  model: EquationFunction<P>
+  model: ModelFunction<P[number]["id"]>
   /**
    * tf张量化的模型函数
-   * - 用于自动微分 auto-diff 实现
+   * - 用于自动微分 auto-diff 实现（fitting/jacobian/tfjs-auto-diff，待实现）
    */
   tfModel?: (
     /** TensorFlow 运行环境 */
@@ -114,7 +108,7 @@ export interface EquationModel<P extends readonly Parameter[]> {
     /** 自变量 X[] */
     x: number[],
     /** 扁平参数字典（键与 parameters 的 id 一一对应） */
-    params: Record<P[number]["id"], number>
+    params: ParamValues<P[number]["id"]>
   ) => number[]
   /**
    * 线性化
@@ -122,7 +116,7 @@ export interface EquationModel<P extends readonly Parameter[]> {
   linearization?: (
     x: number[],
     y: number[],
-    params: Record<P[number]["id"], number>,
+    params: ParamValues<P[number]["id"]>,
   ) => {
     /** 线性空间的X轴标签 */
     xLabel: string
@@ -142,8 +136,8 @@ export interface EquationModel<P extends readonly Parameter[]> {
 /**
  * 用户 / UI 层的参数输入态
  * - isFixed 语义在此层表达（"这个参数参与不参与迭代"），不进 model 签名
- * - 编排层（bindFitTask）将其拆分为：自由参数（进 paramNames 参与迭代）
- *   与固定参数（闭包常量，fitting 层零感知）
+ * - 编排层（fitEquation）将其拆分为：全参数字典 initialParams
+ *   与自由参数子集 paramNames（fitting 层零感知 isFixed）
  */
 export type ParameterInputs<P extends readonly Parameter[]> = Record<
   P[number]["id"],
@@ -152,22 +146,22 @@ export type ParameterInputs<P extends readonly Parameter[]> = Record<
 
 
 /**
- * 工厂函数：构造公式模型
+ * 工厂函数：构造公式
  *
  * 因为涉及到泛型，重写泛型类型以实现类型约束太过于冗余，因此以工厂函数进行封装，实现泛型复用
- * @param config 公式模型配置，类型与 EquationModel 完全一致
- * @returns 配置好的公式模型实例
+ * @param config 公式配置，类型与 Equation 完全一致
+ * @returns 配置好的公式实例
  * @example
- * const model = defineEquationModel({
+ * const model = defineEquation({
  *   id: 'first-order',
  *   parameters: [...] as const,
  *   preprocess: (x, y) => ({ x, y, indices: [], excluded: [], initialParams: { k: 0.1 } }),
- *   model: (x, p) => x.map(t => p.k * t)
+ *   model: (xs, p) => xs.map(t => p.k * t)
  * })
  */
-export function defineEquationModel<const P extends readonly Parameter<string>[]>(
-  config: EquationModel<P>
-): EquationModel<P> {
+export function defineEquation<const P extends readonly Parameter<string>[]>(
+  config: Equation<P>
+): Equation<P> {
   // 运行时直接返回配置对象
-  return config as EquationModel<P>
+  return config as Equation<P>
 }

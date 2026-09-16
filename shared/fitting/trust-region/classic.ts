@@ -1,5 +1,5 @@
 // classic.ts
-import type { StepDecision } from './types';
+import type { StepDecision } from './types.ts';
 
 export interface ClassicParams {
   rhoGood: number; rhoBad: number; shrink: number; grow: number;

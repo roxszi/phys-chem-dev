@@ -1,5 +1,5 @@
 // nielsen.ts —— Nielsen 1999 的 λ 更新，带内部状态 v
-import type { StepDecision } from './types';
+import type { StepDecision } from './types.ts';
 
 const LAMBDA_MIN = 1e-12, LAMBDA_MAX = 1e12;
 

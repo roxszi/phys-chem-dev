@@ -24,7 +24,7 @@
  */
 
 // 导入公式构建的工厂函数
-import { defineEquationModel } from "./types.ts"
+import { defineEquation } from "./types.ts"
 import type { PreprocessResult } from "./types.ts"
 // 导入基础公式
 import { getMean } from "../math/index.ts"
@@ -47,7 +47,7 @@ const parameters = [
 
 
 /** 蔗糖水解动力学公式 */
-export const sucroseHydrolysis = defineEquationModel({
+export const sucroseHydrolysis = defineEquation({
   id: "kinetics.first-order-equilibrium",
   name: "蔗糖水解动力学（折光法）",
   description: "蔗糖水解动力学（折光法）",

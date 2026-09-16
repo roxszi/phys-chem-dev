@@ -43,7 +43,7 @@
 
 // 库导入
 import { Matrix } from "ml-matrix"
-import { getLuChecked } from "@shared/math/index.ts"
+import { getLuChecked } from "../../math/index.ts"
 
 /** 线性方程组求解器接口 */
 export interface LinearSolver {

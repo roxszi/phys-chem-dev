@@ -1,14 +1,14 @@
 /**
  * 拟合统计层
- *
+ * ---
  * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
  * 属"业务拼装"层——标量统计（R² / RMSE / σ²）调 math/statistics.ts 原语，
  * 矩阵运算（求逆 / 协方差）调 math/matrix.ts 原语，本文件只负责组装拟合专属字段。
- *
+ * ---
  * 依赖方向：math/（标量与矩阵原语）← fitting/statistics.ts（拼装），不反向依赖。
  */
 import type { Matrix } from "ml-matrix"
-import type { PredictFn, ParamNames } from "./types.ts"
+import type { ModelFunction, ParamValues, ParamNames } from "./types.ts"
 import { buildWeightedNormalEquation } from "./linear-solver/normal-equation.ts"
 import {
   getRSquared,
@@ -20,11 +20,13 @@ import {
 
 
 export interface StatisticsInput {
-  /** 预测函数 */
-  fn: PredictFn
-  /** 最终参数值 */
-  params: Record<string, number>
-  /** 参数名列表 */
+  /** 模型函数（与拟合主循环使用的同一函数引用） */
+  fn: ModelFunction
+  /** 自变量数据（与拟合主循环使用的同一数组——ODR 场景应传修正后的 x） */
+  xs: number[]
+  /** 最终全参数值（含固定参数） */
+  params: ParamValues
+  /** 自由参数名列表（协方差矩阵的行列顺序与之对应） */
   paramNames: ParamNames
   /** 因变量数据 */
   yData: number[]
@@ -32,14 +34,14 @@ export interface StatisticsInput {
   residuals: number[]
   /** 最终加权 SSE */
   sse: number
-  /** 最终参数处的雅可比矩阵 */
+  /** 最终参数处的雅可比矩阵（n × p，p 为自由参数数） */
   jacobian: number[][]
-  /** 权重（可选） */
+  /** 权重（可选；不传按等权 1 处理） */
   weights?: number[]
 }
 
 export interface StatisticsResult {
-  /** 预测值 y_pred = fn(params) */
+  /** 预测值 y_pred = fn(xs, params) */
   predicted: number[]
   /** 决定系数 R² = 1 - SS_res / SS_tot */
   rSquared: number
@@ -49,8 +51,8 @@ export interface StatisticsResult {
   sigma2: number
   /** 协方差矩阵 Cov = σ² × (JᵀWJ)⁻¹（若 JᵀWJ 奇异 / 近奇异则为 null） */
   covariance: Matrix | null
-  /** 参数标准误 SE(pⱼ) = √Cov[j][j] */
-  paramErrors: Record<string, number>
+  /** 参数标准误 SE(pⱼ) = √Cov[j][j]（只含自由参数键） */
+  paramErrors: ParamValues
   /** 梯度无穷范数（最终一阶条件诊断） */
   gradientNorm: number
   /** 自由度 */
@@ -61,13 +63,13 @@ export interface StatisticsResult {
  * 从协方差矩阵提取参数标准误（LM / ODR 共用）
  * - SE(pⱼ) = √Cov[j][j]；协方差不可得（null）时为 0
  * @param covariance 协方差矩阵（可为 null）
- * @param paramNames 参数名（顺序与协方差对角元索引对应）
+ * @param paramNames 自由参数名（顺序与协方差对角元索引对应）
  */
 export function computeParamErrors(
   covariance: Matrix | null,
   paramNames: ParamNames,
-): Record<string, number> {
-  const paramErrors: Record<string, number> = {}
+): ParamValues {
+  const paramErrors: ParamValues = {}
   for (let j = 0; j < paramNames.length; j++) {
     const variance = covariance !== null ? covariance.get(j, j) : 0
     paramErrors[paramNames[j]!] = Math.sqrt(Math.max(variance, 0))
@@ -89,14 +91,14 @@ export function computeParamErrors(
  * R² 和 RMSE 仍然有效（它们不依赖这些假设）。
  */
 export function computeStatistics(input: StatisticsInput): StatisticsResult {
-  const { fn, params, paramNames, yData, residuals, sse, jacobian, weights } =
+  const { fn, xs, params, paramNames, yData, residuals, sse, jacobian, weights } =
     input
 
   const n = yData.length
   const p = paramNames.length
 
   // 预测值
-  const predicted = fn(params)
+  const predicted = fn(xs, params)
 
   // R² / RMSE（math/statistics.ts 原语）
   const r2 = getRSquared(yData, predicted)

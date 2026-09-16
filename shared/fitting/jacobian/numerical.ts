@@ -5,41 +5,60 @@
  * - 该方法简单明了，不需要用户手写偏导公式，便于用数组遍历方法直接实现；
  * - 该方法的劣势是计算量大，遍历次数多，无法调用GPU性能。属于纯粹的JS实现。
  * ---
- * 本模块目前提供的具体实现方法为[数值雅可比]方法，值计算方法采用[中心差分法]：
+ * 本模块的值计算方法采用[中心差分法]：
  *   - `J[n][p] ≈ [f(p + hⱼ·eⱼ) − f(p − hⱼ·eⱼ)] / (2·hⱼ)`
- *   - 其优势在于误差阶为 O(h²)，综合考虑了前向差分和后向差分，且步长 h 可以自适应。
+ *   - 误差阶为 O(h²)，综合考虑了前向差分和后向差分，且步长 h 可以自适应。
  *   - 最优 h ≈ ε^(1/3) ≈ 6e-6（相比前向/后向差分，本方法最优 h 更大，则小值情况下的舍入误差更小）
  * ---
  * 本模块的内容：
- *   - 数据类型/接口 - JacobianProvider / NumericalJacobianOptions
- *   - 工具函数（便于复用） - centralDiff 中心差分 / diffOverParams 算∂f/∂x / diffOverXs 算∂fᵢ/∂pⱼ
+ *   - 数据类型/接口 - JacobianProvider（LM）/ ODRJacobianProvider（ODR）/ NumericalJacobianOptions
+ *   - 工具函数（便于复用） - centralDiff 中心差分 / diffOverParams 算∂fᵢ/∂pⱼ / diffOverXs 算∂f/∂x
  *   - 具体实现 - lmNumericalJacobian（LM） / odrNumericalJacobian（ODR）
  */
 
-import type { ParamNames, EquationFunction } from "../types.ts"
+import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
 
 // ================================ 数据类型/接口 ================================
 
 /**
- * LM雅可比计算器
- * - 计算雅可比矩阵：∂fᵢ/∂pⱼ 形状为 [n × p] - n 行 p 列
- *                  ∂f/∂x 形状为 [n]
- * @param fn 预测函数
- * @param params 当前参数值
- * @param paramNames 参数名（顺序固定）
- * @param n 数据点数（fn 应返回 n 长度的向量）
- * @returns 雅可比矩阵。{ ∂fᵢ/∂pⱼ, ∂f/∂x }
+ * LM 雅可比计算器（函数式注入点）
+ * - 计算雅可比矩阵 J[i][j] = ∂fᵢ/∂pⱼ，形状 [n × p]（n 数据点数 × p 自由参数数）
+ * @param equationFunction 模型函数
+ * @param xs 自变量数据
+ * @param params 当前全参数值
+ * @param paramNames 自由参数名数组（顺序固定，与雅可比列对应）
+ * @param options 数值雅可比配置
+ * @returns 雅可比矩阵数据包（LM 只需参数方向）
  */
 export type JacobianProvider = (
-  /** 公式函数 */
-  equationFunction: EquationFunction,
-  /** 当前参数值 */
-  params: Record<string, number>,
-  /** 参数名数组（顺序固定） */
+  /** 模型函数 */
+  equationFunction: ModelFunction,
+  /** 自变量数据 */
+  xs: number[],
+  /** 当前全参数值 */
+  params: ParamValues,
+  /** 自由参数名数组（顺序固定） */
   paramNames: ParamNames,
-  /** 数据点数 */
-  n: number,
-) => { jacobianBeta: number[][]; jacobianX?: number[] }
+  /** 配置（可选） */
+  options?: NumericalJacobianOptions,
+) => { jacobianBeta: number[][] }
+
+/**
+ * ODR 雅可比计算器（函数式注入点）
+ * - 在 LM 基础上追加自变量方向的偏导 ∂f/∂x（ODR 迭代中 x 会被修正）
+ */
+export type ODRJacobianProvider = (
+  /** 模型函数 */
+  equationFunction: ModelFunction,
+  /** 自变量数据（ODR 场景为当前修正值 x + δ） */
+  xs: number[],
+  /** 当前全参数值 */
+  params: ParamValues,
+  /** 自由参数名数组（顺序固定） */
+  paramNames: ParamNames,
+  /** 配置（可选） */
+  options?: NumericalJacobianOptions,
+) => { jacobianBeta: number[][]; jacobianX: number[] }
 
 
 /**
@@ -66,32 +85,64 @@ export interface NumericalJacobianOptions {
 }
 
 
+/**
+ * 校验数值雅可比配置（options 显式传入时逐字段检查）
+ * @param options 配置对象
+ */
+function checkOptions(options: NumericalJacobianOptions): void {
+  // 参数相对步长：必须为正有限数
+  if (
+    options.relativeStepBeta !== undefined
+    && ((options.relativeStepBeta <= 0) || (!Number.isFinite(options.relativeStepBeta)))
+  ) {
+    throw new Error(`relativeStepBeta 必须为正有限数，当前为 ${ options.relativeStepBeta }`)
+  }
+  // x 相对步长：必须为正有限数
+  if (
+    options.relativeStepX !== undefined
+    && ((options.relativeStepX <= 0) || (!Number.isFinite(options.relativeStepX)))
+  ) {
+    throw new Error(`relativeStepX 必须为正有限数，当前为 ${ options.relativeStepX }`)
+  }
+  // 典型尺度表：每个值必须为非负有限数（作为步长下限参考）
+  if (options.typicalValues !== undefined) {
+    for (const [name, value] of Object.entries(options.typicalValues)) {
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error(`typicalValues[${ name }] 必须为非负有限数，当前为 ${ value }`)
+      }
+    }
+  }
+}
+
+
 // ================================ 具体实现 ================================
 
 
-// TODO
-// options还没检查有效性
-// // 相对步长校验：必须为正有限数
-// if ((relativeStep <= 0) || (!Number.isFinite(relativeStep))) {
-//   throw new Error(`relativeStep 必须为正有限数，当前为 ${ relativeStep }`)
-// }
-
-
 /**
- * 数值雅可比（LM法）
+ * 数值雅可比（LM 法）
+ * - 只算参数方向的偏导 ∂fᵢ/∂pⱼ
+ * @param equationFunction 模型函数
+ * @param xs 自变量数据
+ * @param params 当前全参数值
+ * @param paramNames 自由参数名数组（顺序固定）
+ * @param options 配置（可选）
+ * @returns { jacobianBeta }：[n × p] 雅可比矩阵
  */
 export function lmNumericalJacobian(
-  equationFunction: (xs: number[], params: Record<string, number>) => number[],
-  n: number,
+  equationFunction: ModelFunction,
   xs: number[],
-  params: Record<string, number>,
+  params: ParamValues,
   paramNames: ParamNames,
   options: NumericalJacobianOptions = {}
 ) {
+  // 配置校验
+  checkOptions(options)
+  // 数据点数（由 xs 自带，无需单独传参）
+  const n = xs.length
   // 初始化
   const typicalValues = options.typicalValues ?? {}
   const relativeStepBeta = options.relativeStepBeta ?? 1e-6
-  // 参数方向差分（与 ODR 的 J_β 共用驱动逻辑）
+  // 参数方向差分
   const jacobianBeta = diffOverParams(
     equationFunction,
     n,
@@ -106,16 +157,26 @@ export function lmNumericalJacobian(
 }
 
 /**
- * 数值雅可比（ODR法）
+ * 数值雅可比（ODR 法）
+ * - 在 LM 基础上追加自变量方向偏导 ∂f/∂x
+ * @param equationFunction 模型函数
+ * @param xs 自变量数据（ODR 场景为当前修正值 x + δ）
+ * @param params 当前全参数值
+ * @param paramNames 自由参数名数组（顺序固定）
+ * @param options 配置（可选）
+ * @returns { jacobianBeta, jacobianX }：[n × p] 矩阵 + [n] 向量
  */
 export function odrNumericalJacobian(
-  equationFunction: (xs: number[], params: Record<string, number>) => number[],
-  n: number,
+  equationFunction: ModelFunction,
   xs: number[],
-  params: Record<string, number>,
+  params: ParamValues,
   paramNames: ParamNames,
   options: NumericalJacobianOptions = {}
 ) {
+  // 配置校验
+  checkOptions(options)
+  // 数据点数
+  const n = xs.length
   // 初始化
   const typicalValues = options.typicalValues ?? {}
   const relativeStepBeta = options.relativeStepBeta ?? 1e-6
@@ -149,20 +210,20 @@ export function odrNumericalJacobian(
 /**
  * 参数方向差分，计算 ∂fᵢ/∂pⱼ
  *   - 逐参数扰动（±h），中心差分，按列填充 [n × p] 矩阵
- * @param equationFunction 公式
+ * @param equationFunction 模型函数
  * @param n 数据点数
  * @param xs 自变量数据集
- * @param params 当前参数值
- * @param paramNames 参数名数组
- * @param relativeStepBeta 参数相对步长（默认 1e-6）
- * @param typicalValues 参数典型尺度（可选）
- * @returns ∂fᵢ/∂pⱼ
+ * @param params 当前全参数值
+ * @param paramNames 自由参数名数组
+ * @param relativeStepBeta 参数相对步长
+ * @param typicalValues 参数典型尺度表
+ * @returns ∂fᵢ/∂pⱼ（[n × p]）
  */
 export function diffOverParams(
-  equationFunction: (xs: number[], params: Record<string, number>) => number[],
+  equationFunction: ModelFunction,
   n: number,
   xs: number[],
-  params: Record<string, number>,
+  params: ParamValues,
   paramNames: ParamNames,
   relativeStepBeta: number,
   typicalValues: Record<string, number>,
@@ -181,7 +242,7 @@ export function diffOverParams(
    * 参数试验值
    * 浅拷贝，不影响传入的 params
    */
-  const paramsTrial: Record<string, number> = { ...params }
+  const paramsTrial: ParamValues = { ...params }
   // 遍历各参数
   for (let j = 0; j < p; j++) {
     /** 参数名 */
@@ -221,19 +282,20 @@ export function diffOverParams(
 
 /**
  * 自变量方向差分，计算 ∂f/∂x
- * - 逐自变量扰动（±h），中心差分，填充 [n] 矩阵。
- * @param equationFunction 公式
+ * - 逐自变量扰动（±h），中心差分，填充 [n] 向量。
+ * - 逐点单独求值：对点态显式公式（各数据点独立计算）语义正确
+ * @param equationFunction 模型函数
  * @param n 数据点数
  * @param xs 自变量数组
- * @param params 当前参数值
- * @param relativeStepX 参数相对步长
- * @returns ∂f/∂x
+ * @param params 当前全参数值
+ * @param relativeStepX 自变量相对步长
+ * @returns ∂f/∂x（[n]）
  */
 export function diffOverXs(
-  equationFunction: (xs: number[], params: Record<string, number>) => number[],
+  equationFunction: ModelFunction,
   n: number,
   xs: number[],
-  params: Record<string, number>,
+  params: ParamValues,
   relativeStepX: number,
 ): number[] {
   /** 差分向量/数组 */
