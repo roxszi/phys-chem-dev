@@ -15,8 +15,8 @@
  *     v 是"连续失败倍增系数"（初值 2）：连续拒绝时 λ 指数式收紧；
  *     一旦接受步成功，v 复位 2。
  * ---
- * 状态：v 需要跨迭代保持，由调用方（未来的 StepController 闭包）持有；
- * nielsenCreateState 提供初值。
+ * 状态：v 需要跨迭代保持，由 createNielsenDamping 闭包持有（初值 2，接受步复位）；
+ * nielsenJudge 保持纯函数形态（v 显式传入、nextV 显式返回）。
  */
 
 // 数据类型（模块内部文件，相对路径）
@@ -28,14 +28,6 @@ import type { StepDecision } from "./types.ts"
  */
 const LAMBDA_MIN = 1e-12
 const LAMBDA_MAX = 1e12
-
-/**
- * 创建 Nielsen 策略的内部状态 v（连续失败倍增系数）
- * @returns 初值 2（Nielsen 1999 推荐值）
- */
-export function nielsenCreateState(): number {
-  return 2
-}
 
 /**
  * Nielsen 判据：依据增益比 ρ 决定接受/拒绝与 λ 的连续化更新

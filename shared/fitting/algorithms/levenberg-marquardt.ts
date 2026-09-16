@@ -25,7 +25,7 @@ import type {
 } from "../types.ts"
 // 可替换模块接口（模块内部子目录，相对路径）
 import type { JacobianProvider } from "../jacobian/index.ts"
-import type { DampingStrategy, DampingOptions } from "../damping.ts"
+import type { DampingStrategy, NielsenDampingOptions } from "../trust-region/index.ts"
 import type { ConvergenceOptions } from "../post/convergence.ts"
 import type { LinearSolver } from "../linear-solver/index.ts"
 // 输入校验与权重转换（前置处理）
@@ -34,8 +34,8 @@ import { validateInputs, sigmaToWeights } from "../pre/validate.ts"
 import { buildWeightedNormalEquation, applyDamping } from "../linear-solver/normal-equation.ts"
 // 数值雅可比（默认实现，统一传参对象）
 import { lmNumericalJacobian } from "../jacobian/index.ts"
-// 阻尼策略（默认 Marquardt 1963）
-import { createMarquardtDamping } from "../damping.ts"
+// 阻尼策略（默认 Nielsen 1999）+ 增益比判据（ρ 驱动步控）
+import { createNielsenDamping, predictedReduction, gainRatio } from "../trust-region/index.ts"
 // 收敛判据（默认三判据 OR）
 import { createDefaultConvergence } from "../post/convergence.ts"
 // 统计拼装（后置处理）
@@ -83,7 +83,7 @@ export interface LevenbergMarquardtOptions {
   solver?: LinearSolver
 
   /**
-   * 阻尼策略（默认：Marquardt 1963）
+   * 阻尼策略（默认：Nielsen 1999 自适应，ρ 驱动，见 trust-region/）
    *
    * 同时提供 damping 和 dampingOptions 时，damping 优先。
    */
@@ -94,8 +94,8 @@ export interface LevenbergMarquardtOptions {
   /** 收敛判据配置 */
   convergence?: ConvergenceOptions
 
-  /** 默认阻尼策略的配置（仅当未提供 damping 时生效） */
-  dampingOptions?: DampingOptions
+  /** 默认阻尼策略（Nielsen）的配置（仅当未提供 damping 时生效） */
+  dampingOptions?: NielsenDampingOptions
 }
 
 /**
@@ -154,7 +154,7 @@ export function levenbergMarquardt<
     weights,
     jacobian,
     solver = createGaussianEliminationSolver(),
-    damping = createMarquardtDamping(options.dampingOptions),
+    damping = createNielsenDamping(options.dampingOptions),
     convergence: convOptions,
   } = options
 
@@ -187,6 +187,10 @@ export function levenbergMarquardt<
   /** 当前加权 SSE */
   let currentSSE = getSSE(currentResiduals, weightArr)
 
+  // 阻尼策略初始化：每次 fit 复位策略内部状态（Nielsen 的 v 等），取初始 λ；
+  // λ 由主循环持有并逐轮回传（finalLambda 直接读本变量）
+  let lambda = damping.init()
+
   /** 是否收敛 */
   let isConverged = false
   /** 实际使用的迭代次数 */
@@ -204,6 +208,15 @@ export function levenbergMarquardt<
     // 4.2 构建加权正规方程 (JᵀWJ, JᵀWr)
     const { jtj, jtr } = buildWeightedNormalEquation(J, currentResiduals, weightArr)
 
+    // 4.2.0 jtj → 行主序扁平 Float64Array（predictedReduction 的消费布局）
+    //   每外层轮只扁平化一次；p 阶小矩阵（物化场景 p ≤ 5），开销可忽略
+    const jtjFlat = new Float64Array(p * p)
+    for (let i = 0; i < p; i++) {
+      for (let j = 0; j < p; j++) {
+        jtjFlat[i * p + j] = jtj.get(i, j)
+      }
+    }
+
     // 4.2.1 一阶最优性预检查（Nocedal & Wright 标准做法）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
@@ -213,17 +226,17 @@ export function levenbergMarquardt<
       break
     }
 
-    // 4.3 内层循环：λ 试探
+    // 4.3 内层循环：λ 试探（ρ 驱动：每步由增益比决定接受/拒绝与新 λ）
     /** 本轮外层是否有步长被接受 */
     let accepted = false
     for (let inner = 0; inner < maxInnerIterations; inner++) {
       // 4.3.1 应用阻尼：(JᵀWJ + λ·diag(JᵀWJ))
-      const A = applyDamping(jtj, damping.current())
+      const A = applyDamping(jtj, lambda)
 
-      // 4.3.2 解正规方程得步长 Δp（奇异返回 null → 升 λ 重试）
+      // 4.3.2 解正规方程得步长 Δp（奇异返回 null → 视作最坏步 ρ = -1，走拒绝路径收紧 λ 重试）
       const deltaP = solver.solve(A, jtr)
       if (!deltaP) {
-        damping.onReject()
+        lambda = damping.judge(-1, lambda).lambda
         continue
       }
 
@@ -238,13 +251,28 @@ export function levenbergMarquardt<
       const trialResiduals = getREArr(yData, fn(xData, trialParams))
       const trialSSE = getSSE(trialResiduals, weightArr)
 
-      // 4.3.5 接受 / 拒绝
-      if (trialSSE < currentSSE) {
+      // 4.3.5 增益比 ρ = 实际 SSE 下降 / 预测 SSE 下降（信赖域判据）
+      //   预测下降量 predRed = 2Δᵀg − ΔᵀAΔ（Gauss-Newton 近似；g = jtr，A = jtj 扁平化）；
+      //   predRed ≤ 0 时 gainRatio 返回 -1，必然拒绝
+      const predRed = predictedReduction(
+        Float64Array.from(deltaP),
+        Float64Array.from(jtr),
+        jtjFlat,
+        p,
+      )
+      const rho = gainRatio(currentSSE, trialSSE, predRed)
+
+      // 4.3.6 策略决策（ρ > 0 蕴含 SSE 真实下降，语义兼容旧判据且更严：
+      //   线性预测已失真但 SSE 碰巧下降的步也会被拒绝）
+      const decision = damping.judge(rho, lambda)
+      // 下一轮 λ：接受步 Nielsen 降 λ（更新量随 ρ 连续），拒绝步升 λ 收紧
+      lambda = decision.lambda
+
+      if (decision.accept) {
         // 接受：提交新状态
         currentParams = trialParams
         currentResiduals = trialResiduals
         currentSSE = trialSSE
-        damping.onAccept()
         accepted = true
 
         // 迭代状态快照（收敛判据消费）
@@ -263,10 +291,8 @@ export function levenbergMarquardt<
           isConverged = true
         }
         break
-      } else {
-        // 拒绝：升 λ 收紧步长
-        damping.onReject()
       }
+      // 拒绝：λ 已由 judge 收紧，继续内层重试
     }
 
     // 4.4 检查外层退出条件（已收敛 / 内层全部拒绝）
@@ -300,7 +326,7 @@ export function levenbergMarquardt<
     covariance: stats.covariance,
     isConverged,
     iterations: iterationsUsed,
-    finalLambda: damping.current(),
+    finalLambda: lambda,
     gradientNorm: stats.gradientNorm,
   }
 }

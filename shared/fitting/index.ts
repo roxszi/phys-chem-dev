@@ -13,7 +13,7 @@
  * 2. 内部迭代循环：
  *    2.1 jacobian\      - 雅可比矩阵（numerical 中心差分；tfjs-auto-diff 待实现）
  *    2.2 linear-solver\ - 正规方程构建 + 线性求解（高斯消元；Cholesky / QR / SVD 待扩展）
- *    2.3 damping.ts     - 阻尼策略（λ 固定倍数升降；trust-region\ 的 ρ 驱动策略待接入）
+ *    2.3 trust-region\ - ρ 驱动阻尼策略（Nielsen 1999 主体；classic 三段式兼容）
  *    2.4 post\convergence.ts - 收敛判定（三判据 OR）
  * 3. post\statistics.ts - 后置处理：最终统计拼装（R² / RMSE / 协方差 / 参数误差）
  * ---
@@ -64,9 +64,22 @@ export { createDefaultConvergence } from "./post/convergence.ts"
 export { computeStatistics, computeParamErrors } from "./post/statistics.ts"
 export type { StatisticsInput, StatisticsResult } from "./post/statistics.ts"
 
-// ==================== 阻尼策略（迭代中） ====================
-export type { DampingStrategy, DampingOptions } from "./damping.ts"
-export { createMarquardtDamping } from "./damping.ts"
+// ==================== 阻尼策略（迭代中，trust-region/ ρ 驱动） ====================
+export type {
+  DampingStrategy,
+  StepDecision,
+  NielsenDampingOptions,
+  ClassicDampingOptions,
+} from "./trust-region/index.ts"
+export {
+  createNielsenDamping,
+  createClassicDamping,
+  nielsenJudge,
+  classicJudge,
+  CLASSIC_DEFAULTS,
+  predictedReduction,
+  gainRatio,
+} from "./trust-region/index.ts"
 
 // ==================== 可替换模块：雅可比（LM / ODR 接口与数值实现，全项目唯一） ====================
 export type {

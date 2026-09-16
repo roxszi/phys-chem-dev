@@ -39,7 +39,7 @@ import type {
   FitResult,
 } from "../types.ts"
 import type { LinearSolver } from "../linear-solver/index.ts"
-import type { DampingStrategy, DampingOptions } from "../damping.ts"
+import type { DampingStrategy, NielsenDampingOptions } from "../trust-region/index.ts"
 import type { ConvergenceOptions } from "../post/convergence.ts"
 import type { ODRJacobianProvider } from "../jacobian/index.ts"
 
@@ -47,8 +47,8 @@ import type { ODRJacobianProvider } from "../jacobian/index.ts"
 import { applyDamping, buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
 // 数值雅可比（默认实现：参数方向 + 自变量方向）
 import { odrNumericalJacobian } from "../jacobian/index.ts"
-// 阻尼策略（默认 Marquardt 1963）
-import { createMarquardtDamping } from "../damping.ts"
+// 阻尼策略（默认 Nielsen 1999）+ 增益比判据（ρ 驱动步控）
+import { createNielsenDamping, predictedReduction, gainRatio } from "../trust-region/index.ts"
 // 收敛判据（默认三判据 OR）
 import { createDefaultConvergence } from "../post/convergence.ts"
 // 参数标准误（后置处理共享原语）
@@ -94,7 +94,7 @@ export interface ODROptions {
   /** 线性方程组求解器 */
   solver?: LinearSolver
 
-  /** 阻尼策略 */
+  /** 阻尼策略（默认：Nielsen 1999 自适应，ρ 驱动，见 trust-region/） */
   damping?: DampingStrategy
 
   // ── 子模块的配置 ──
@@ -102,8 +102,8 @@ export interface ODROptions {
   /** 收敛判据配置 */
   convergence?: ConvergenceOptions
 
-  /** 默认阻尼策略的配置 */
-  dampingOptions?: DampingOptions
+  /** 默认阻尼策略（Nielsen）的配置（仅当未提供 damping 时生效） */
+  dampingOptions?: NielsenDampingOptions
 }
 
 /**
@@ -158,7 +158,7 @@ export function orthogonalDistanceRegression<
     maxInnerIterations = 20,
     jacobian,
     solver = createGaussianEliminationSolver(),
-    damping = createMarquardtDamping(options.dampingOptions),
+    damping = createNielsenDamping(options.dampingOptions),
     convergence: convOptions,
   } = options
 
@@ -230,6 +230,10 @@ export function orthogonalDistanceRegression<
   /** 当前 ODR 加权 SSE（含 y 残差项与 δ 惩罚项） */
   let currentSSE = computeODRSSE(currentResidualsY, currentDelta, wY, wX)
 
+  // 阻尼策略初始化：每次 fit 复位策略内部状态（Nielsen 的 v 等），取初始 λ；
+  // λ 由主循环持有并逐轮回传（finalLambda 直接读本变量）
+  let lambda = damping.init()
+
   /** 是否收敛 */
   let isConverged = false
   /** 实际使用的迭代次数 */
@@ -280,6 +284,15 @@ export function orthogonalDistanceRegression<
     // 5.3 构建等效正规方程（p × p）——gram 库路线：一次得 J_βᵀW_effJ_β 与 J_βᵀW_effr_eff
     const { jtj: S, jtr: b } = buildWeightedNormalEquation(JB, rEff, wEff)
 
+    // 5.3.0 S → 行主序扁平 Float64Array（predictedReduction 的消费布局）
+    //   每外层轮只扁平化一次；p 阶小矩阵（物化场景 p ≤ 5），开销可忽略
+    const sFlat = new Float64Array(p * p)
+    for (let i = 0; i < p; i++) {
+      for (let j = 0; j < p; j++) {
+        sFlat[i * p + j] = S.get(i, j)
+      }
+    }
+
     // 5.3.1 一阶最优性预检查（与 LM 一致，带权梯度范数）
     //   若梯度范数已足够小，说明已经在极值点附近，直接判收敛。
     //   这避免初值恰好接近真值时"trial SSE ≈ current SSE 永远拒绝"的死循环。
@@ -295,12 +308,12 @@ export function orthogonalDistanceRegression<
 
     for (let inner = 0; inner < maxInnerIterations; inner++) {
       // 应用阻尼：(S + λ·diag(S))
-      const A = applyDamping(S, damping.current())
+      const A = applyDamping(S, lambda)
 
-      // 解 S · Δβ = b（奇异返回 null → 升 λ 重试）
+      // 解 S · Δβ = b（奇异返回 null → 视作最坏步 ρ = -1，走拒绝路径收紧 λ 重试）
       const trialDeltaBeta = solver.solve(A, b)
       if (!trialDeltaBeta) {
-        damping.onReject()
+        lambda = damping.judge(-1, lambda).lambda
         continue
       }
 
@@ -341,7 +354,25 @@ export function orthogonalDistanceRegression<
       }
       const trialSSE = computeODRSSE(trialResidualsY, trialDelta, wY, wX)
 
-      if (trialSSE < currentSSE) {
+      // 增益比 ρ = 实际 SSE 下降 / 预测 SSE 下降（信赖域判据）
+      //   ⚠️ 参数空间近似：ODR 的实际 SSE 含 δ 惩罚项，而 predRed = 2Δᵀg − ΔᵀAΔ
+      //   只物化了 β 空间曲率（Schur 降维后 δ 空间曲率未物化）。
+      //   ρ 在此的作用是“方向性判断”（单调反映步质量，驱动 λ 升降），
+      //   该近似足够；ODRPACK 亦用同类简化。
+      const predRed = predictedReduction(
+        Float64Array.from(trialDeltaBeta),
+        Float64Array.from(b),
+        sFlat,
+        p,
+      )
+      const rho = gainRatio(currentSSE, trialSSE, predRed)
+
+      // 策略决策（ρ > 0 蕴含 SSE 真实下降；predRed ≤ 0 时 ρ = -1 必然拒绝）
+      const decision = damping.judge(rho, lambda)
+      // 下一轮 λ：接受步 Nielsen 降 λ（更新量随 ρ 连续），拒绝步升 λ 收紧
+      lambda = decision.lambda
+
+      if (decision.accept) {
         // 接受：提交新状态
         currentParams = trialParams
         currentDelta = trialDelta
@@ -349,7 +380,6 @@ export function orthogonalDistanceRegression<
         currentPredicted = trialPredicted
         currentResidualsY = trialResidualsY
         currentSSE = trialSSE
-        damping.onAccept()
         accepted = true
 
         // 迭代状态快照（收敛判据消费）
@@ -368,10 +398,8 @@ export function orthogonalDistanceRegression<
           isConverged = true
         }
         break
-      } else {
-        // 拒绝：升 λ 收紧步长
-        damping.onReject()
       }
+      // 拒绝：λ 已由 judge 收紧，继续内层重试
     }
 
     // 外层退出条件（已收敛 / 内层全部拒绝）
@@ -438,7 +466,7 @@ export function orthogonalDistanceRegression<
     gradientNorm,
     xCorrection: currentDelta,
     xCorrected: currentXCorrected,
-    finalLambda: damping.current(),
+    finalLambda: lambda,
     mode,
   }
 }
