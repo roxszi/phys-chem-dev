@@ -263,10 +263,22 @@ export function diffOverParams(
 }
 
 /**
- * 自变量方向差分，计算 ∂f/∂x
- * - 逐样本扰动（±h），中心差分，填充 [n] 向量。
- * - 逐点单独求值：对点态显式公式（各数据点独立计算）语义正确
- * - ⚠️ 单自变量专用（对每行唯一分量 row[0] 扰动；ODR 当前仅支持 m = 1，
+ * 自变量方向差分，计算 ∂f/∂x（批量版）
+ * ---
+ * 设计思路：
+ * - 旧版对每个数据点单独调用 2 次模型函数（共 2n 次），每次只求 1 个点的值；
+ *   模型函数本就支持整表求值，逐点调用浪费了批量化能力（n 大时函数调用与
+ *   数组分配的开销线性放大）。
+ * - 批量版构造两张整表：xPlus（第 i 行 = xᵢ + hᵢ）与 xMinus（第 i 行 = xᵢ − hᵢ），
+ *   各调 1 次模型函数（共 2 次），再逐点做中心差分，2n 次模型调用降为 2 次。
+ * - 步长逐行独立：hᵢ = relativeStepX × max(|xᵢ|, 1)（相对步长自适应各点量级，
+ *   与参数差分同思路），因此扰动表必须逐行写各自的 hᵢ，不能共用一个 h。
+ * ---
+ * 点态假设（批量化的正确性前提）：
+ * - 要求每个数据点的预测值只依赖该点自己的 x（物理显式公式 y = f(x; p) 天然满足）；
+ * - 若未来出现依赖整表的非点态模型（平滑 / 卷积类），本函数须回退逐点差分。
+ * ---
+ * ⚠️ 单自变量专用（对每行唯一分量 row[0] 扰动；ODR 当前仅支持 m = 1，
  *   多自变量的 ∂f/∂x 推广为 [n × m] 矩阵，待真实业务出现再扩展）
  * @param fn 模型函数
  * @param n 数据点数
@@ -282,20 +294,36 @@ export function diffOverXData(
   params: ParamValues,
   relativeStepX: number,
 ): number[] {
-  /** 差分向量/数组 */
-  const jacobianX = new Array<number>(n).fill(0)
-  // 遍历 n 个数据点
+  /** 逐行步长表（hᵢ 各点独立，差分时分母必须用各自的 hᵢ） */
+  const steps = new Array<number>(n).fill(0)
+  /** 前向扰动整表：第 i 行 = [xᵢ + hᵢ] */
+  const xPlus: number[][] = new Array(n)
+  /** 后向扰动整表：第 i 行 = [xᵢ − hᵢ] */
+  const xMinus: number[][] = new Array(n)
+  // 一次遍历同时生成步长表与两张扰动表
   for (let i = 0; i < n; i++) {
     // 本样本的自变量分量（单自变量：每行唯一分量）
     const xi = xData[i]![0]!
-    // 自变量相对步长
+    // 自变量相对步长（逐行独立）
     const h = relativeStepX * Math.max(Math.abs(xi), 1)
-    // 前向扰动：单点单分量包装回行主序形态再求值
-    const yPlus = fn([[xi + h]], params)
-    // 后向扰动
-    const yMinus = fn([[xi - h]], params)
-    // 填充差分向量
-    jacobianX[i] = (yPlus[0]! - yMinus[0]!) / (2 * h)
+    steps[i] = h
+    xPlus[i] = [xi + h]
+    xMinus[i] = [xi - h]
+  }
+  // 整表各求值 1 次（2n 次模型调用降为 2 次）
+  const yPlus = fn(xPlus, params)
+  const yMinus = fn(xMinus, params)
+  // 长度守卫：模型函数必须整表返回 n 个预测值
+  if (yPlus.length !== n || yMinus.length !== n) {
+    throw new Error(
+      `diffOverXData: 模型函数返回长度 ${ yPlus.length }/${ yMinus.length } ≠ 数据点数 ${ n }`,
+    )
+  }
+  /** 差分结果 ∂f/∂x（[n]） */
+  const jacobianX = new Array<number>(n).fill(0)
+  // 逐点中心差分（分母用各自的 hᵢ）
+  for (let i = 0; i < n; i++) {
+    jacobianX[i] = (yPlus[i]! - yMinus[i]!) / (2 * steps[i]!)
   }
   // 返回结果
   return jacobianX
