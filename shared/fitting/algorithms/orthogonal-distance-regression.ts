@@ -40,7 +40,7 @@ import type {
 } from "../types.ts"
 import type { LinearSolver } from "../linear-solver/index.ts"
 import type { DampingStrategy, DampingOptions } from "../damping.ts"
-import type { ConvergenceOptions } from "../convergence.ts"
+import type { ConvergenceOptions } from "../post/convergence.ts"
 import type { ODRJacobianProvider } from "../jacobian/index.ts"
 
 // 正规方程构建 + 阻尼施加
@@ -50,13 +50,13 @@ import { odrNumericalJacobian } from "../jacobian/index.ts"
 // 阻尼策略（默认 Marquardt 1963）
 import { createMarquardtDamping } from "../damping.ts"
 // 收敛判据（默认三判据 OR）
-import { createDefaultConvergence } from "../convergence.ts"
-// 参数标准误（共享原语）
-import { computeParamErrors } from "../statistics.ts"
+import { createDefaultConvergence } from "../post/convergence.ts"
+// 参数标准误（后置处理共享原语）
+import { computeParamErrors } from "../post/statistics.ts"
 // 线性求解器（默认高斯消元）
 import { createGaussianEliminationSolver } from "../linear-solver/index.ts"
-// math 原语
-import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovarianceMatrix, getInfNorm } from "../../math/index.ts"
+// math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import { isFinitePositive, isFiniteNonNegative, getRSquared, getRMSE, getCovarianceMatrix, getInfNorm } from "@shared/math/index.ts"
 
 
 /**
@@ -114,10 +114,10 @@ export interface ODROptions {
  *   - xCorrected：修正后的 x（= xData + xCorrection）
  */
 export interface ODRResult extends FitResult {
-  /** 每个数据点的 x 修正量 δ_i */
+  /** 每个数据点的 x 修正量 δ_i（单自变量：每点一个标量） */
   xCorrection: number[]
-  /** 修正后的 x（= xData + δ） */
-  xCorrected: number[]
+  /** 修正后的 x（= xData + δ；行主序，与 xData 同形状） */
+  xCorrected: number[][]
   /** 最终阻尼因子 λ */
   finalLambda: number
   /** 拟合模式（运行时判定） */
@@ -131,7 +131,7 @@ export interface ODRResult extends FitResult {
  *
  * @typeParam ALL    全参数键元组（含固定参数）
  * @typeParam FIT    自由参数键元组，必须是 ALL 的子集（编译期强制）
- * @param fn         模型函数 (xs, 全参数字典) => ys
+ * @param fn         模型函数 (xData, 全参数字典) => ys
  * @param initialParams 全参数初值字典（含固定参数）
  * @param paramNames 自由参数名数组
  * @param xData      自变量观测值
@@ -147,7 +147,7 @@ export function orthogonalDistanceRegression<
   initialParams: ParamValues<ALL[number]>,
   paramNames: FIT,
   xData: DataArray,
-  yData: DataArray,
+  yData: number[],
   options: ODROptions = {},
 ): ODRResult {
   // ── 1. 解析配置 + 构造默认模块 ─────────────────────
@@ -176,6 +176,11 @@ export function orthogonalDistanceRegression<
     throw new Error(
       `数据点数 ${n} 必须 > 自由参数个数 ${paramNames.length}（否则无自由度）`,
     )
+  }
+  // 单自变量守卫：ODR 的 δ 修正量与 ∂f/∂x 当前均按单变量实现（m = 1）；
+  // 多自变量的 ODR 推广（δ / d 变矩阵）待真实业务出现再扩展，LM 无此限制
+  if (!xData.every(row => row.length === 1)) {
+    throw new Error("ODR 当前仅支持单自变量：xData 每行必须恰有 1 个自变量分量")
   }
 
   // σ 校验（单次循环同时检查长度 + 元素级条件）
@@ -213,8 +218,8 @@ export function orthogonalDistanceRegression<
   let currentParams: ParamValues = { ...initialParams }
   /** 每个 x 观测值的修正量 δ，初值为 0 */
   let currentDelta = new Array<number>(n).fill(0)
-  /** 当前修正后的 x（= xData + δ） */
-  let currentXCorrected = xData.slice()
+  /** 当前修正后的 x（= xData + δ；行主序，行拷贝防共享引用） */
+  let currentXCorrected = xData.map(row => row.slice())
   /** 当前预测值 */
   let currentPredicted = fn(currentXCorrected, currentParams)
   /** 当前 y 残差 r_y = y − f(x+δ; β) */
@@ -234,10 +239,10 @@ export function orthogonalDistanceRegression<
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     iterationsUsed++
 
-    // 5.1 计算雅可比 J_β（[n × p]）和 d（∂f/∂x，[n]）
+    // 5.1 计算雅可比 J_β（[n × p]）和 d（∂f/∂x，[n]；统一传参对象）
     const { jacobianBeta: JB, jacobianX: d } = jacobian
-      ? jacobian(fn, currentXCorrected, currentParams, paramNames)
-      : odrNumericalJacobian(fn, currentXCorrected, currentParams, paramNames)
+      ? jacobian({ fn, xData: currentXCorrected, params: currentParams, paramNames })
+      : odrNumericalJacobian({ fn, xData: currentXCorrected, params: currentParams, paramNames })
 
     // 5.2 计算等效权重 w_eff 和等效残差 r_eff
     //   w_eff_i = w_y w_x / (w_y d² + w_x)
@@ -320,12 +325,12 @@ export function orthogonalDistanceRegression<
         const name = paramNames[j]!
         trialParams[name] = currentParams[name]! + trialDeltaBeta[j]!
       }
-      // 试探新的 δ 与修正后 x
+      // 试探新的 δ 与修正后 x（单自变量：每行取 row[0] 加 δ，再包装回行主序）
       const trialDelta = new Array<number>(n)
-      const trialXCorrected = new Array<number>(n)
+      const trialXCorrected = new Array<number[]>(n)
       for (let i = 0; i < n; i++) {
         trialDelta[i] = currentDelta[i]! + trialDeltaDelta[i]!
-        trialXCorrected[i] = xData[i]! + trialDelta[i]!
+        trialXCorrected[i] = [xData[i]![0]! + trialDelta[i]!]
       }
 
       // 评估试探结果
@@ -374,13 +379,13 @@ export function orthogonalDistanceRegression<
   }
 
   // ── 6. 计算最终统计量 ───────────────────────────
-  // 在最终参数处重新算一次雅可比（与 LM 一致）
-  const { jacobianBeta: finalJBeta, jacobianX: finalD } = odrNumericalJacobian(
+  // 在最终参数处重新算一次雅可比（与 LM 一致；统一传参对象）
+  const { jacobianBeta: finalJBeta, jacobianX: finalD } = odrNumericalJacobian({
     fn,
-    currentXCorrected,
-    currentParams,
+    xData: currentXCorrected,
+    params: currentParams,
     paramNames,
-  )
+  })
 
   // 等效权重（融合 x / y 误差，用于协方差估计；σx=0 → wx=∞ 退化为 wy）
   const finalW: number[] = new Array(n)

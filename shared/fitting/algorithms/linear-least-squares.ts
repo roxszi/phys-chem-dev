@@ -1,8 +1,13 @@
 /**
  * 加权线性最小二乘（闭式解）
  * ---
- * 模型：y = slope · x + intercept
- *
+ * 模型：y = slope · x + intercept（一元线性专用）
+ * ---
+ * ⚠️ 数据形态说明：本函数是一元线性回归的闭式特例工具（slope / intercept 语义
+ * 与单自变量绑定），入参 xData 保持 number[] 标量数组，
+ * 不进 fitting 的 number[][] 行主序契约；多元线性回归待真实业务出现时另立函数。
+ * 若手头已是行主序形态，用 pre/data-shape.ts 的打样方式自行取分量即可。
+ * ---
  * 加权闭式公式：
  *   令 X = [1, x]（n×2 设计矩阵），W = diag(wᵢ)，wᵢ = 1/σ_yᵢ²
  *   β = (Xᵀ W X)⁻¹ Xᵀ W y
@@ -17,9 +22,12 @@
 
 
 import { Matrix } from "ml-matrix"
-import { getInvertMatrix } from "../../math/index.ts"
+// 矩阵求逆原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import { getInvertMatrix } from "@shared/math/index.ts"
+// 正规方程构建（模块内部子目录，相对路径）
 import { buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
-import { sigmaToWeights } from "../validate.ts"
+// σ→weights 预处理（前置处理子目录，相对路径）
+import { sigmaToWeights } from "../pre/validate.ts"
 
 /**
  * 线性最小二乘的额外传参

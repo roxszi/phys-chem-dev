@@ -1,12 +1,15 @@
 /**
- * 拟合输入校验
+ * fitting/pre - 拟合前置处理
+ * 内容：validateInputs 输入校验（校验类）+ sigmaToWeights σ→weights 变换（预处理类）
+ * 另见同目录 data-shape.ts：原始数据结构 → xData / yData 的结构变换打样，
+ * 供 equation 层实现拟合时消费。
  * ---
  * 运行时防线：算法入口泛型的键约束只在编译期存在，编译后消失；
  * 动态路径（fitEquation 合流 / UI 输入 / 脚本调用）组装的参数必须在拟合前专门校验一次。
  * 校验项（一次性合并检查，避免薄函数与重复遍历）：
  *   1. n > 0
  *   2. n > 自由参数数（否则无自由度）
- *   3. xData / yData 长度一致
+ *   3. xData / yData 长度一致；xData 每行至少 1 个自变量分量
  *   4. paramNames 非空、不重复、每个元素 ∈ initialParams 的键（类型约束的运行时兜底）
  *   5. initialParams 全部键值有限（含固定参数——固定参数也必须是有效数值）
  *   6. fn(initialParams) 返回长度正确
@@ -14,10 +17,10 @@
  * 避免单独的"批量校验"遍历。
  */
 
-// 导入数值校验方法
-import { isFinitePositive } from "../math/index.ts"
-// 导入数据类型
-import type { ParamValues, ParamNames, ModelFunction } from "./types.ts"
+// 导入数值校验方法（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import { isFinitePositive } from "@shared/math/index.ts"
+// 导入数据类型（本模块内部文件，相对路径）
+import type { ParamValues, ParamNames, ModelFunction } from "../types.ts"
 
 
 /**
@@ -52,21 +55,21 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): n
 
 /**
  * 校验拟合输入，返回数据点数 n
- * @param xData 自变量数组
- * @param yData 因变量数组
+ * @param xData 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量）
+ * @param yData 因变量数据
  * @param paramNames 自由参数名列表（必须是全参数键集合的子集）
  * @param initialParams 全参数初值字典（含固定参数）
  * @param fn 模型函数
  * @returns 数据点数 n
  */
 export function validateInputs(
-  xData: number[],
+  xData: number[][],
   yData: number[],
   paramNames: ParamNames,
   initialParams: ParamValues,
   fn: ModelFunction,
 ): number {
-  /** 数据长度 */
+  /** 数据长度（行数 = 样本数） */
   const n = xData.length
   // 1. 至少 1 个数据点
   if (n === 0) {
@@ -81,6 +84,14 @@ export function validateInputs(
   // 3. xData / yData 长度一致（单行检查——不写函数）
   if (yData.length !== n) {
     throw new Error(`xData 与 yData 长度不匹配：${ n } vs ${ yData.length }`)
+  }
+  // 3.1 每行自变量向量至少 1 个分量（空行 = 模型函数无从取值）
+  //     多自变量合法（列数不限），LM 把模型当黑盒天然支持；
+  //     仅支持单自变量的算法（如 ODR）在自己的入口额外加“每行长度 = 1”守卫
+  for (let i = 0; i < n; i++) {
+    if (xData[i]!.length === 0) {
+      throw new Error(`xData[${ i }] 是空向量，每个样本至少需要 1 个自变量分量`)
+    }
   }
   // 4. paramNames：非空、不重复、每个元素必须在全参数字典里
   if (paramNames.length === 0) {

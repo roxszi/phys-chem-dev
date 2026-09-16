@@ -23,26 +23,27 @@ import type {
   IterationState,
   FitResult,
 } from "../types.ts"
+// 可替换模块接口（模块内部子目录，相对路径）
 import type { JacobianProvider } from "../jacobian/index.ts"
 import type { DampingStrategy, DampingOptions } from "../damping.ts"
-import type { ConvergenceOptions } from "../convergence.ts"
+import type { ConvergenceOptions } from "../post/convergence.ts"
 import type { LinearSolver } from "../linear-solver/index.ts"
-// 输入校验与权重转换
-import { validateInputs, sigmaToWeights } from "../validate.ts"
+// 输入校验与权重转换（前置处理）
+import { validateInputs, sigmaToWeights } from "../pre/validate.ts"
 // 正规方程构建 + 阻尼施加
 import { buildWeightedNormalEquation, applyDamping } from "../linear-solver/normal-equation.ts"
-// 数值雅可比（默认实现）
+// 数值雅可比（默认实现，统一传参对象）
 import { lmNumericalJacobian } from "../jacobian/index.ts"
 // 阻尼策略（默认 Marquardt 1963）
 import { createMarquardtDamping } from "../damping.ts"
 // 收敛判据（默认三判据 OR）
-import { createDefaultConvergence } from "../convergence.ts"
-// 统计拼装
-import { computeStatistics } from "../statistics.ts"
+import { createDefaultConvergence } from "../post/convergence.ts"
+// 统计拼装（后置处理）
+import { computeStatistics } from "../post/statistics.ts"
 // 线性求解器（默认高斯消元）
 import { createGaussianEliminationSolver } from "../linear-solver/index.ts"
-// math 原语
-import { getREArr, getSSE, getInfNorm } from "../../math/index.ts"
+// math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import { getREArr, getSSE, getInfNorm } from "@shared/math/index.ts"
 
 
 /**
@@ -123,11 +124,13 @@ export interface LevenbergMarquardtResult extends FitResult {
  *
  * @example
  * ```typescript
+ * // 单自变量：xData 每行 1 个分量（可用 singleXToRows(tData) 包装）
  * const result = levenbergMarquardt(
- *   (xs, p) => xs.map(t => p.A * Math.exp(-p.k * t)),  // ModelFunction
+ *   (xData, p) => xData.map(row => p.A * Math.exp(-p.k * row[0]!)),  // ModelFunction
  *   { A: 1, k: 0.1 },                                  // 全参数初值
  *   ["A", "k"],                                        // 自由参数（⊆ 全参数键）
- *   tData, cData,
+ *   tData.map(t => [t]),                               // 行主序自变量数据
+ *   cData,
  *   { sigmaY: cSigma },                                // 可选；weights = 1/σ² 自动转换
  * )
  * ```
@@ -140,7 +143,7 @@ export function levenbergMarquardt<
   initialParams: ParamValues<ALL[number]>,
   paramNames: FIT,
   xData: DataArray,
-  yData: DataArray,
+  yData: number[],
   options: LevenbergMarquardtOptions = {},
 ): LevenbergMarquardtResult {
   // 1. 解析配置 + 构造默认模块
@@ -193,10 +196,10 @@ export function levenbergMarquardt<
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     iterationsUsed++
 
-    // 4.1 计算雅可比矩阵 [n × p]（注入则用注入实现，否则数值中心差分）
+    // 4.1 计算雅可比矩阵 [n × p]（注入则用注入实现，否则数值中心差分；统一传参对象）
     const J = jacobian
-      ? jacobian(fn, xData, currentParams, paramNames).jacobianBeta
-      : lmNumericalJacobian(fn, xData, currentParams, paramNames).jacobianBeta
+      ? jacobian({ fn, xData, params: currentParams, paramNames }).jacobianBeta
+      : lmNumericalJacobian({ fn, xData, params: currentParams, paramNames }).jacobianBeta
 
     // 4.2 构建加权正规方程 (JᵀWJ, JᵀWr)
     const { jtj, jtr } = buildWeightedNormalEquation(J, currentResiduals, weightArr)
@@ -271,10 +274,10 @@ export function levenbergMarquardt<
   }
 
   // 5. 计算最终统计量（在最终参数处重新算一次雅可比）
-  const finalJacobian = lmNumericalJacobian(fn, xData, currentParams, paramNames).jacobianBeta
+  const finalJacobian = lmNumericalJacobian({ fn, xData, params: currentParams, paramNames }).jacobianBeta
   const stats = computeStatistics({
     fn,
-    xs: xData,
+    xData,
     params: currentParams,
     paramNames,
     yData,

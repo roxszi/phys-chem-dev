@@ -1,34 +1,33 @@
 /**
- * fitting/ - 数据拟合模块
- * - 拟合算法与共享基础设施
- * - 适用于任何显式拟合问题（线性 / 非线性 / ODR / errors-in-variables）
+ * fitting/ - 数据拟合模块（唯一对外出口）
  * ---
- * 对模型的唯一契约 = ModelFunction 纯函数 + ParamNames 自由参数名 + ParamValues 全参数字典，
- * 与模型来源（equation 层公式 / 手写函数）完全解耦。
+ * 跨模块消费一律从本文件导入（@shared/fitting/index.ts）；
+ * types.ts 等内部文件不对外，仅向本文件聚合。
+ * ---
+ * 对模型的唯一契约 = ModelFunction 纯函数（xData: number[][] 行主序 + ParamValues 全参数字典）
+ * + ParamNames 自由参数名，与模型来源（equation 层公式 / 手写函数）完全解耦。
+ * 多自变量天然支持：LM 把模型当黑盒；ODR / 线性最小二乘当前限单自变量（入口有守卫）。
  * ---
  * 拟合流水线（各步骤独立模块、接口规范、实现多样）：
- * 1.  validate.ts - 输入校验（paramNames 子集约束的运行时兜底 / 全字典有限性 / n > p）
- * 2.  内部迭代循环：
- *     2.1 jacobian\        - 雅可比矩阵（numerical 中心差分；tfjs-auto-diff 待实现）
- *     2.2 linear-solver\   - 正规方程构建 + 线性求解（高斯消元；Cholesky / QR / SVD 待扩展）
- *     2.3 damping.ts       - 阻尼策略（λ 升降试探；trust-region\ 的 ρ 驱动策略待接入）
- *     2.4 convergence.ts   - 收敛判定（三判据 OR）
- * 3.  statistics.ts - 收尾：最终统计拼装（R² / RMSE / 协方差 / 参数误差）
+ * 1. pre\        - 前置处理：输入校验 + σ→weights + 数据结构变换打样（data-shape）
+ * 2. 内部迭代循环：
+ *    2.1 jacobian\      - 雅可比矩阵（numerical 中心差分；tfjs-auto-diff 待实现）
+ *    2.2 linear-solver\ - 正规方程构建 + 线性求解（高斯消元；Cholesky / QR / SVD 待扩展）
+ *    2.3 damping.ts     - 阻尼策略（λ 固定倍数升降；trust-region\ 的 ρ 驱动策略待接入）
+ *    2.4 post\convergence.ts - 收敛判定（三判据 OR）
+ * 3. post\statistics.ts - 后置处理：最终统计拼装（R² / RMSE / 协方差 / 参数误差）
  * ---
  * 依赖：
  * math/（标量统计、矩阵求逆 / 协方差、无穷范数、数值校验）
  * ---
- * 对外暴露：
- * - 桥梁契约类型：ParamValues / ModelFunction / ParamNames（equation 层 import type 引用）
- * - 与"模型"完全解耦的拟合算法入口（接收纯函数作为模型）
- * ---
  * 拟合算法（按复杂度递增，见 algorithms/）：
- *   - linearLeastSquares：闭式加权线性最小二乘
+ *   - linearLeastSquares：闭式加权线性最小二乘（一元专用）
  *   - levenbergMarquardt：非线性 + 只 y 残差
  *   - orthogonalDistanceRegression：非线性 + (x, y) 都有误差
  * ---
  * 可替换模块（依赖注入）：
  *   JacobianProvider / ConvergenceCheck / DampingStrategy / LinearSolver
+ * （实现均为工厂函数 + 闭包，无 class；接口形状编译期约束，运行时零原型链开销）
  */
 
 // ==================== 桥梁契约类型 ====================
@@ -36,11 +35,52 @@ export type {
   ParamValues,
   ModelFunction,
   ParamNames,
+  DataArray,
   IterationState,
   FitResult,
 } from "./types.ts"
 
-// ==================== 算法集合入口（algorithms/ 子目录聚合） ====================
+// ==================== 前置处理（pre/） ====================
+// 输入校验 + σ→weights 预处理
+export { validateInputs, sigmaToWeights } from "./pre/validate.ts"
+// 数据结构变换打样（原始数据 → xData / yData，equation 层消费）
+export { pointListToXY, singleXToRows } from "./pre/data-shape.ts"
+
+// ==================== 正规方程构建 + 阻尼 ====================
+export {
+  buildWeightedNormalEquation,
+  applyDamping,
+} from "./linear-solver/normal-equation.ts"
+
+// ==================== 线性求解器（依赖注入点） ====================
+export type { LinearSolver } from "./linear-solver/index.ts"
+export { createGaussianEliminationSolver } from "./linear-solver/index.ts"
+
+// ==================== 后置处理（post/） ====================
+// 收敛判据
+export type { ConvergenceCheck, ConvergenceOptions } from "./post/convergence.ts"
+export { createDefaultConvergence } from "./post/convergence.ts"
+// 最终统计量拼装
+export { computeStatistics, computeParamErrors } from "./post/statistics.ts"
+export type { StatisticsInput, StatisticsResult } from "./post/statistics.ts"
+
+// ==================== 阻尼策略（迭代中） ====================
+export type { DampingStrategy, DampingOptions } from "./damping.ts"
+export { createMarquardtDamping } from "./damping.ts"
+
+// ==================== 可替换模块：雅可比（LM / ODR 接口与数值实现，全项目唯一） ====================
+export type {
+  JacobianProvider,
+  ODRJacobianProvider,
+  NumericalJacobianInput,
+  NumericalJacobianOptions,
+} from "./jacobian/index.ts"
+export {
+  lmNumericalJacobian,
+  odrNumericalJacobian,
+} from "./jacobian/index.ts"
+
+// ==================== 拟合算法集合（algorithms/ 子目录聚合） ====================
 export {
   linearLeastSquares,
   levenbergMarquardt,
@@ -54,45 +94,3 @@ export type {
   ODROptions,
   ODRResult,
 } from "./algorithms/index.ts"
-
-// ==================== 拟合输入校验 ====================
-export { validateInputs, sigmaToWeights } from "./validate.ts"
-
-// ==================== 正规方程构建 + 阻尼 ====================
-export {
-  buildWeightedNormalEquation,
-  applyDamping,
-} from "./linear-solver/normal-equation.ts"
-
-// ==================== 线性求解器（依赖注入点） ====================
-export type { LinearSolver } from "./linear-solver/index.ts"
-export { createGaussianEliminationSolver } from "./linear-solver/index.ts"
-
-// ==================== 最终统计量拼装 ====================
-export { computeStatistics, computeParamErrors } from "./statistics.ts"
-export type { StatisticsInput, StatisticsResult } from "./statistics.ts"
-
-// ==================== 可替换模块：雅可比（LM / ODR 接口与数值实现，全项目唯一） ====================
-export type {
-  JacobianProvider,
-  ODRJacobianProvider,
-  NumericalJacobianOptions,
-} from "./jacobian/index.ts"
-export {
-  lmNumericalJacobian,
-  odrNumericalJacobian,
-} from "./jacobian/index.ts"
-
-// ==================== 可替换模块：收敛判据 ====================
-export type { ConvergenceCheck, ConvergenceOptions } from "./convergence.ts"
-export {
-  DefaultConvergence,
-  createDefaultConvergence,
-} from "./convergence.ts"
-
-// ==================== 可替换模块：阻尼策略 ====================
-export type { DampingStrategy, DampingOptions } from "./damping.ts"
-export {
-  MarquardtDamping,
-  createMarquardtDamping,
-} from "./damping.ts"

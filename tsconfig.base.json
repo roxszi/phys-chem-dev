@@ -20,6 +20,15 @@
       // 前端工具
       "@utils/*": ["./frontend/utils/*"],
     },
+    // 模块语法标准：esnext（配合 bundler 解析策略）
+    "module": "esnext",
+    // 模块解析策略：bundler（模拟 vite / tsx 等打包器语义：允许目录 index 补全、允许导入路径以“.ts”结尾）
+    //   源码导入统一写“@shared/xxx/index.ts”形式；运行与打包由 vite（前端）/ tsx（脚本与 backend）完成
+    "moduleResolution": "bundler",
+    // 只做类型检查，不产出 JS；产物由 vite / tsx 处理
+    "noEmit": true,
+    // 配合 noEmit，允许导入路径以“.ts”结尾
+    "allowImportingTsExtensions": true,
     // 严格模式。开启严格模式将同步开启设置：
     //   alwaysStrict - 强制以严格模式解析和输出，并显式输出"use strict"
     //   strictNullChecks - 严格空值检查
@@ -54,8 +63,6 @@
     "removeComments": true,
     // 开启JSON模块的类型推断支持
     "resolveJsonModule": true,
-    // 源码统一用“.ts”后缀导入；编译输出时自动重写为“.js”（解决前后端模块解析策略冲突）
-    "rewriteRelativeImportExtensions": true,
     // 跳过库的类型检查
     "skipLibCheck": true,
     // 编译JS时，用ESM模块语法剔出类型导入

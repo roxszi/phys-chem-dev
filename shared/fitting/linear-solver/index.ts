@@ -41,9 +41,10 @@
  *   GPU 端归约直接产出 JᵀJ（小 IO），下载后的 A 已含阻尼，
  */
 
-// 库导入
+// 库导入（第三方包，保持包名）
 import { Matrix } from "ml-matrix"
-import { getLuChecked } from "../../math/index.ts"
+// 带奇异检查的 LU（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import { getLuChecked } from "@shared/math/index.ts"
 
 /** 线性方程组求解器接口 */
 export interface LinearSolver {
@@ -56,31 +57,35 @@ export interface LinearSolver {
 
 
 /**
- * 高斯消元求解器（ml-matrix 部分主元 LU 路线）
- *
- * 数值稳定、适用范围广（不要求对称正定），是默认选择。
+ * 工厂函数：创建高斯消元求解器（ml-matrix 部分主元 LU 路线）
+ * - 返回对象字面量（solve 为无状态纯函数，闭包零开销；无 class 原型链）
+ * - 数值稳定、适用范围广（不要求对称正定），是默认选择
  */
-export class GaussianEliminationSolver implements LinearSolver {
-  solve(A: Matrix, b: number[]): number[] | null {
-    if (A.isEmpty()) return []
-    if (!A.isSquare()) {
-      throw new Error(`系数矩阵必须是方阵：${A.rows}×${A.columns}`)
-    }
-    if (b.length !== A.rows) {
-      throw new Error(`右端项长度 ${b.length} ≠ 矩阵维度 ${A.rows}`)
-    }
-
-    // 奇异 / 近奇异判定复用共享原语（阈值定义在 math/matrix.ts）
-    const lu = getLuChecked(A)
-    if (!lu) return null
-
-    // LU 前代 + 回代由库完成：b 作为列向量右乘，结果按行展开
-    return lu.solve(Matrix.columnVector(b)).to1DArray()
-  }
-}
-
-
-/** 工厂函数：创建默认求解器 */
 export function createGaussianEliminationSolver(): LinearSolver {
-  return new GaussianEliminationSolver()
+  return {
+    /**
+     * 解 A · x = b
+     * @param A 系数矩阵（p × p 方阵）
+     * @param b 右端项（长度 p）
+     * @returns 解向量；若 A 奇异 / 近奇异返回 null
+     */
+    solve(A: Matrix, b: number[]): number[] | null {
+      // 空矩阵：空模型直接返回空解
+      if (A.isEmpty()) return []
+      // 形状防御：正规方程必须是方阵，右端项长度必须与维度一致
+      if (!A.isSquare()) {
+        throw new Error(`系数矩阵必须是方阵：${ A.rows }×${ A.columns }`)
+      }
+      if (b.length !== A.rows) {
+        throw new Error(`右端项长度 ${ b.length } ≠ 矩阵维度 ${ A.rows }`)
+      }
+
+      // 奇异 / 近奇异判定复用共享原语（阈值定义在 math/matrix.ts）
+      const lu = getLuChecked(A)
+      if (!lu) return null
+
+      // LU 前代 + 回代由库完成：b 作为列向量右乘，结果按行展开
+      return lu.solve(Matrix.columnVector(b)).to1DArray()
+    },
+  }
 }

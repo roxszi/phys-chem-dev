@@ -23,9 +23,11 @@ export { sucroseHydrolysis } from "./sucrose-hydrolysis.ts"
 
 // ==================== 一键拟合（便捷入口） ====================
 
-import type { ParamValues } from "../fitting/types.ts"
-import { levenbergMarquardt, orthogonalDistanceRegression } from "../fitting/index.ts"
-import type { LevenbergMarquardtResult, ODRResult } from "../fitting/index.ts"
+// fitting 模块（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { ParamValues } from "@shared/fitting/index.ts"
+import { levenbergMarquardt, orthogonalDistanceRegression } from "@shared/fitting/index.ts"
+import type { LevenbergMarquardtResult, ODRResult } from "@shared/fitting/index.ts"
+// equation 模块内部文件（相对路径）
 import type { Equation, Parameter } from "./types.ts"
 
 /** fitEquation 选算法 */
@@ -56,8 +58,8 @@ export interface FitEquationOptions {
 
 /** fitEquation 的返回结果（LM 或 ODR，附前处理元信息） */
 export type FitEquationResult =
-  | ({ algorithm: "lm"; effectiveX: number[]; effectiveY: number[]; indices: number[]; excluded: { index: number; x: number; y: number; reason: string }[] } & LevenbergMarquardtResult)
-  | ({ algorithm: "odr"; effectiveX: number[]; effectiveY: number[]; indices: number[]; excluded: { index: number; x: number; y: number; reason: string }[] } & ODRResult)
+  | ({ algorithm: "lm"; effectiveX: number[][]; effectiveY: number[]; indices: number[]; excluded: { index: number; x: number; y: number; reason: string }[] } & LevenbergMarquardtResult)
+  | ({ algorithm: "odr"; effectiveX: number[][]; effectiveY: number[]; indices: number[]; excluded: { index: number; x: number; y: number; reason: string }[] } & ODRResult)
 
 /**
  * 一键拟合（便捷入口）
@@ -68,13 +70,14 @@ export type FitEquationResult =
  * - 返回值附 indices / excluded，调用方据此对齐图表（无需自行补偿错位）
  *
  * @param equation - 公式
- * @param xData - x 数据（原始）
+ * @param xData - x 数据（原始；行主序：第 i 行 = 第 i 个样本的自变量向量，
+ *                单变量业务可用 fitting/pre/data-shape 的 singleXToRows 包装）
  * @param yData - y 数据（原始）
  * @param options - 拟合配置对象
  */
 export function fitEquation(
   equation: Equation<readonly Parameter<string>[]>,
-  xData: number[],
+  xData: number[][],
   yData: number[],
   options?: FitEquationOptions,
 ): FitEquationResult {
@@ -120,15 +123,15 @@ export function fitEquation(
       equation.model,
       initialParams,
       paramNames,
-      pre.x,
-      pre.y,
+      pre.xData,
+      pre.yData,
       { sigmaY },
     )
     return {
       algorithm: "lm",
       ...r,
-      effectiveX: pre.x,
-      effectiveY: pre.y,
+      effectiveX: pre.xData,
+      effectiveY: pre.yData,
       indices: pre.indices,
       excluded: pre.excluded,
     }
@@ -139,15 +142,15 @@ export function fitEquation(
     equation.model,
     initialParams,
     paramNames,
-    pre.x,
-    pre.y,
+    pre.xData,
+    pre.yData,
     { sigmaX, sigmaY },
   )
   return {
     algorithm: "odr",
     ...r,
-    effectiveX: pre.x,
-    effectiveY: pre.y,
+    effectiveX: pre.xData,
+    effectiveY: pre.yData,
     indices: pre.indices,
     excluded: pre.excluded,
   }

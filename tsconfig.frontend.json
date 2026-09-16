@@ -7,16 +7,6 @@
   "compilerOptions": {
     // 指定ECMAScript目标版本为较为保守的大版本：es2020
     "target": "es2020",
-    // 解析模块导入/导出遵循的语法标准：前端项目选esnext
-    "module": "esnext",
-    // 模块解析策略：Bundler，即模拟打包工具（如vite）的策略
-    "moduleResolution": "Bundler",
-    // 只做类型检查，不编译为js文件
-    "noEmit": true,
-    // 配合"noEmit"，允许import语法的“.ts”写法
-    "allowImportingTsExtensions": true,
-    // 前端 noEmit（Vite 打包），不参与后端 tsc emit 重写，覆盖关闭
-    "rewriteRelativeImportExtensions": false,
     // 前端项目需要加载的内置全局对象/方法
     "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
     // 前端项目需要加载的外置类型模块

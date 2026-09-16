@@ -1,29 +1,32 @@
 /**
- * 拟合统计层
+ * fitting/post - 拟合后置处理：statistics.ts（收尾统计拼装）
  * ---
  * 收敛后计算最终统计：R²、RMSE、协方差矩阵、参数标准误、梯度范数。
  * 属"业务拼装"层——标量统计（R² / RMSE / σ²）调 math/statistics.ts 原语，
  * 矩阵运算（求逆 / 协方差）调 math/matrix.ts 原语，本文件只负责组装拟合专属字段。
  * ---
- * 依赖方向：math/（标量与矩阵原语）← fitting/statistics.ts（拼装），不反向依赖。
+ * 依赖方向：math/（标量与矩阵原语）← fitting/post/statistics.ts（拼装），不反向依赖。
  */
 import type { Matrix } from "ml-matrix"
-import type { ModelFunction, ParamValues, ParamNames } from "./types.ts"
-import { buildWeightedNormalEquation } from "./linear-solver/normal-equation.ts"
+// 数据类型（本模块内部文件，相对路径）
+import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
+// 正规方程构建（模块内部子目录，相对路径）
+import { buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
+// math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import {
   getRSquared,
   getRMSE,
   getSSESigmaSquared,
   getCovarianceMatrix,
   getInfNorm,
-} from "../math/index.ts"
+} from "@shared/math/index.ts"
 
 
 export interface StatisticsInput {
   /** 模型函数（与拟合主循环使用的同一函数引用） */
   fn: ModelFunction
   /** 自变量数据（与拟合主循环使用的同一数组——ODR 场景应传修正后的 x） */
-  xs: number[]
+  xData: number[][]
   /** 最终全参数值（含固定参数） */
   params: ParamValues
   /** 自由参数名列表（协方差矩阵的行列顺序与之对应） */
@@ -41,7 +44,7 @@ export interface StatisticsInput {
 }
 
 export interface StatisticsResult {
-  /** 预测值 y_pred = fn(xs, params) */
+  /** 预测值 y_pred = fn(xData, params) */
   predicted: number[]
   /** 决定系数 R² = 1 - SS_res / SS_tot */
   rSquared: number
@@ -91,14 +94,14 @@ export function computeParamErrors(
  * R² 和 RMSE 仍然有效（它们不依赖这些假设）。
  */
 export function computeStatistics(input: StatisticsInput): StatisticsResult {
-  const { fn, xs, params, paramNames, yData, residuals, sse, jacobian, weights } =
+  const { fn, xData, params, paramNames, yData, residuals, sse, jacobian, weights } =
     input
 
   const n = yData.length
   const p = paramNames.length
 
   // 预测值
-  const predicted = fn(xs, params)
+  const predicted = fn(xData, params)
 
   // R² / RMSE（math/statistics.ts 原语）
   const r2 = getRSquared(yData, predicted)

@@ -15,17 +15,20 @@
  *   7. fit-equation    fitEquation + 蔗糖水解全链路（含 t=0/t=∞ 锚点踢除路径）
  *
  * 用法：
- *   pnpm exec tsx scripts/verify-fitting.ts --save   生成/覆盖基线
- *   pnpm exec tsx scripts/verify-fitting.ts          与基线对比（默认）
+ *   pnpm verify:fitting --save   生成/覆盖基线
+ *   pnpm verify:fitting          与基线对比（默认）
+ *   （等价：pnpm exec tsx --tsconfig tsconfig.base.json scripts/verify-fitting.ts）
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
+// fitting / equation 模块（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import {
   linearLeastSquares,
   levenbergMarquardt,
   orthogonalDistanceRegression,
-} from "../shared/fitting/index.ts"
-import type { LevenbergMarquardtResult } from "../shared/fitting/index.ts"
-import { fitEquation, sucroseHydrolysis } from "../shared/equation/index.ts"
+  singleXToRows,
+} from "@shared/fitting/index.ts"
+import type { LevenbergMarquardtResult } from "@shared/fitting/index.ts"
+import { fitEquation, sucroseHydrolysis } from "@shared/equation/index.ts"
 
 // ==================== 固定伪随机扰动 ====================
 
@@ -52,13 +55,9 @@ const tExp = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8]
 const yExp = tExp.map((t, i) =>
   2 * Math.exp(-0.5 * t) + 0.3 + seededNoise(42, tExp.length, 0.01)[i]!,
 )
-const fnExp = (xs: number[], p: Record<string, number>) => {
+const fnExp = (xData: number[][], p: Record<string, number>) => {
   const { A, k, C } = p
-  return xs.map(t => A! * Math.exp(-k! * t) + C!)
-}
-const fnExpODR = (x: number[], p: Record<string, number>) => {
-  const { A, k, C } = p
-  return x.map(t => A! * Math.exp(-k! * t) + C!)
+  return xData.map(row => A! * Math.exp(-k! * row[0]!) + C!)
 }
 const initExp = { A: 1.5, k: 0.3, C: 0 }
 const namesExp = ["A", "k", "C"]
@@ -114,7 +113,7 @@ interface CaseSummary {
   gradientNorm: number
   covariance: number[] | null
   /** 算法特有诊断字段（finalLambda / xCorrection / mode 等） */
-  extra: Record<string, number | string | number[] | null>
+  extra: Record<string, number | string | number[] | number[][] | null>
 }
 
 function summarizeLM(r: LevenbergMarquardtResult): CaseSummary {
@@ -158,10 +157,10 @@ function summarizeODR(r: ReturnType<typeof orthogonalDistanceRegression>): CaseS
 
 function runAllCases(): Record<string, CaseSummary> {
   // 1. LM 等权
-  const lmBasic = levenbergMarquardt(fnExp, initExp, namesExp, tExp, yExp)
+  const lmBasic = levenbergMarquardt(fnExp, initExp, namesExp, singleXToRows(tExp), yExp)
   // 2. LM 加权
   const sigmaExp = tExp.map((_, i) => 0.005 * (i + 1))
-  const lmWeighted = levenbergMarquardt(fnExp, initExp, namesExp, tExp, yExp, {
+  const lmWeighted = levenbergMarquardt(fnExp, initExp, namesExp, singleXToRows(tExp), yExp, {
     sigmaY: sigmaExp,
   })
   // 3. LLS 加权
@@ -170,30 +169,31 @@ function runAllCases(): Record<string, CaseSummary> {
   const llsTwoPoints = linearLeastSquares([cBeer[0]!, cBeer[1]!], [aBeer[0]!, aBeer[1]!])
   // 5. ODR（sigmaX 非零）
   const odrLinear = orthogonalDistanceRegression(
-    (x: number[], p: Record<string, number>) => x.map(xi => p["slope"]! * xi + p["b"]!),
+    (xData: number[][], p: Record<string, number>) =>
+      xData.map(row => p["slope"]! * row[0]! + p["b"]!),
     { slope: 0.5, b: 0 },
     ["slope", "b"],
-    cBeer,
+    singleXToRows(cBeer),
     aBeer,
     { sigmaX: sigmaXBeer, sigmaY: sigmaBeer },
   )
   // 6. ODR 退化（sigmaX 全 0，应与加权 LM 一致）
   const odrDegenerate = orthogonalDistanceRegression(
-    fnExpODR,
+    fnExp,
     initExp,
     namesExp,
-    tExp,
+    singleXToRows(tExp),
     yExp,
     { sigmaY: tExp.map((_, i) => 0.005 * (i + 1)) },
   )
   // 7. fitEquation + 蔗糖（默认 ODR → 内部 LM 退化路径）
-  const fitEq = fitEquation(sucroseHydrolysis, tSucrose, aSucrose, {})
+  const fitEq = fitEquation(sucroseHydrolysis, singleXToRows(tSucrose), aSucrose, {})
   const fitEqOdr =
     fitEq.algorithm === "odr" ? fitEq : null
   if (!fitEqOdr) throw new Error("用例 7 预期走 ODR 分支")
 
   // 8. fitEquation + 蔗糖（t=0 与 t=∞ 锚点并存，双锚点分流路径）
-  const fitEqAnchor = fitEquation(sucroseHydrolysis, tAnchorBoth, aAnchorBoth, {})
+  const fitEqAnchor = fitEquation(sucroseHydrolysis, singleXToRows(tAnchorBoth), aAnchorBoth, {})
   const fitEqAnchorOdr =
     fitEqAnchor.algorithm === "odr" ? fitEqAnchor : null
   if (!fitEqAnchorOdr) throw new Error("用例 8 预期走 ODR 分支")

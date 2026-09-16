@@ -18,9 +18,9 @@
     "build:frontend:gzip:root": "set VITE_BUILD_KIND=root&& node shared/distFrontendGzip.ts",
     "build:frontend:gzip:subpage": "set VITE_BUILD_KIND=subpage&& node shared/distFrontendGzip.ts",
     "preview:frontend": "vitepress preview frontend",
-    "dev:backend": "tsx watch src/index.ts",
-    "build:backend": "tsc",
-    "start:backend": "node dist/index.js"
+    "dev:backend": "tsx watch backend/index.ts",
+    "build:backend": "tsc -p tsconfig.backend.json",
+    "verify:fitting": "tsx --tsconfig tsconfig.base.json scripts/verify-fitting.ts"
   },
   "engines": {
     "node": ">=24.0.0",

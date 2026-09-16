@@ -29,13 +29,14 @@ export type ParamValues<P extends string = string> = Record<P, number>
 
 /**
  * 模型纯函数（桥梁契约）
- * - 显式接收自变量数组 xs 与全参数字典 params，返回逐点预测值 ys
+ * - 显式接收自变量数据 xData 与全参数字典 params，返回逐点预测值 ys
  * - 与 equation 层的公式函数同构：equation.model 可直接作为本类型传入
  * - 纯函数约定：不修改入参，同一输入必得同一输出
+ * - 多自变量天然支持：xData 每行是一个样本的自变量向量，模型内部自行取用各分量
  */
 export type ModelFunction<P extends string = string> = (
-  /** 自变量数组 */
-  xs: number[],
+  /** 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量） */
+  xData: number[][],
   /** 全参数值字典（键与公式参数 id 一致，含固定参数） */
   params: ParamValues<P>,
 ) => number[]
@@ -49,10 +50,12 @@ export type ModelFunction<P extends string = string> = (
 export type ParamNames = readonly string[]
 
 /**
- * 数据数组
- * 语义标记，等价于 number[]
+ * 数据数组：自变量数据的统一形状（行主序）
+ * - xData[i] 是第 i 个样本的自变量向量：单自变量时每行仅 1 个分量 [xᵢ]，
+ *   多自变量时为 [x₁, x₂, …, xₘ]；行数 = 样本数 n，列数 = 自变量个数 m
+ * - 因变量 yData 保持 number[]（多因变量场景拆分为多个公式，见 equation 层）
  */
-export type DataArray = number[]
+export type DataArray = number[][]
 
 /**
  * 单次迭代的状态快照

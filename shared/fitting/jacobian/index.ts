@@ -9,12 +9,13 @@
  *   - 数值雅可比：有限差分近似，简单通用，无需手推公式；纯 JS 实现，无法 GPU 加速（见 numerical.ts）。
  */
 
-// 数据类型
+// 数据类型（统一传参对象 + 函数式注入接口 + 配置）
 export type {
+  NumericalJacobianInput,
   JacobianProvider,
   ODRJacobianProvider,
   NumericalJacobianOptions,
 } from "./numerical.ts"
 
-// 数值雅可比
+// 数值雅可比（LM / ODR 两个入口，统一传参对象）
 export { lmNumericalJacobian, odrNumericalJacobian } from "./numerical.ts"
