@@ -16,19 +16,19 @@
 ## 用法
 
 ```typescript
-import { linearLeastSquares } from './index.js'
+import { linearLeastSquares } from '@shared/fitting/index.ts'
 
-// Beer-Lambert 校准：A = ε·b·c + 0（过原点）
-const result = linearLeastSquares(
-  cData,  // x：浓度
-  aData,  // y：吸光度
-  // { sigmaY: aSigmaArr }  可选；传 y 的标准差数组，内部自动转 weights = 1/σ²
-)
+// Beer-Lambert 校准：A = ε·b·c + b₀（不过原点）
+const result = linearLeastSquares({
+  xData: cData,            // x：浓度（一元标量数组）
+  yData: aData,            // y：吸光度（number[] | Float64Array）
+  // sigmaY: aSigmaArr,     // 可选；传 y 的标准差数组，内部自动转 weights = 1/σ²
+})
 // result.slope      ε·b
-// result.intercept  理论上 ≈ 0
+// result.intercept  截距
 // result.slopeStdErr / result.interceptStdErr
 // result.rSquared
-// result.covariance  [[var(intercept), cov], [cov, var(slope)]]
+// result.covariance  2×2 自研 Matrix（matrixGet(covariance, 1, 1) = var(slope)）
 ```
 
 ## 传 sigmaY 还是 weights？
@@ -62,8 +62,8 @@ const result = linearLeastSquares(
 
 ## 与其他算法的关系
 
-- 与 LM / ODR 共享 `FitResult` 部分字段（params / paramErrors / rSquared / rmse / sse / dof / residuals / predicted / covariance / converged / iterations）
-- 不共享：LM 独有的 `finalLambda`、ODR 独有的 `xCorrection` / `xCorrected` / `mode`
+- 语义字段（slope / intercept / rSquared / rmse / sse / dof / residuals / predicted / covariance）与 LM / ODR 的 FitResult 对齐，但形态不同：线性模型参数就是 slope / intercept 两个标量，无 params 字典与 paramErrors
+- 闭式解无迭代：无 isConverged / iterations / finalLambda（LM 独有）、无 xCorrection / xCorrected / mode（ODR 独有）
 
 ## 教学价值
 

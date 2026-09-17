@@ -13,11 +13,12 @@
  *   5. odr-linear      ODR（sigmaX 非零，线性模型）
  *   6. odr-degenerate  ODR sigmaX 全 0（应退化为加权 LM）
  *   7. fit-equation    fitEquation + 蔗糖水解全链路（含 t=0/t=∞ 锚点踢除路径）
+ *   8. fit-equation-anchor-both  锚点双边消费（α₀ 与 α∞ 同时给出的初值路径）
  *
  * 用法：
  *   pnpm verify:fitting --save   生成/覆盖基线
  *   pnpm verify:fitting          与基线对比（默认）
- *   （等价：pnpm exec tsx --tsconfig tsconfig.base.json scripts/verify-fitting.ts）
+ *   （等价：pnpm exec tsx --tsconfig tsconfig.base.json scripts/fitting/verify-fitting.ts）
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 // fitting / equation 模块（跨模块，走 @shared 别名 + index.ts 唯一入口）

@@ -171,7 +171,7 @@ f(x; a, b) = a + bx 时：
 - J_β[i] = [1, xᵢ]
 - Schur 补系统退化为 York 1966 的加权正交回归
 
-**这是 York 的单元测试关键**（见 test/york-degeneracy.test.ts）。
+**这是 York 退化对照的关键**（回归防线见 `scripts/fitting/verify-fitting.ts` 的 odr-linear 用例）。
 
 ---
 
@@ -235,39 +235,52 @@ Cov(β) = σ² · (J_βᵀ W_eff J_β)⁻¹
 ### 7.1 ODR 完整调用
 
 ```typescript
-import { orthogonalDistanceRegression } from '@/fitting/algorithms/odr'
+import {
+  orthogonalDistanceRegression,
+  singleXToMatrix,
+} from '@shared/fitting/index.ts'
+import type { DataArray } from '@shared/fitting/index.ts'
 
 // 模型：一级反应动力学带平衡浓度
 //   c(t) = c∞ + (c0 − c∞) · exp(−k·t)
-const fn = (t: number[], p: Record<string, number>) =>
-  t.map(ti => p.c_inf + (p.c0 - p.c_inf) * Math.exp(-p.k * ti))
+// fn 契约：(xData: DataArray, 全参数字典) => Float64Array
+const fn = (xData: DataArray, p: Record<string, number>) => {
+  const ys = new Float64Array(xData.rows)
+  for (let i = 0; i < xData.rows; i++) {
+    const ti = xData.data[i]!
+    ys[i] = p.c_inf + (p.c0 - p.c_inf) * Math.exp(-p.k * ti)
+  }
+  return ys
+}
 
 // 浓度误差 ±0.005 mol/L，时间误差 ±0.5 s
 const sigmaY = cData.map(() => 0.005)
 const sigmaX = tData.map(() => 0.5)
 
-const result = orthogonalDistanceRegression(
+const result = orthogonalDistanceRegression({
   fn,
-  { c0: 0.1, c_inf: 0.01, k: 0.005 },  // 初始猜测
-  ['c0', 'c_inf', 'k'],
-  tData,
-  cData,
-  { sigmaX, sigmaY },
-)
+  initialParams: { c0: 0.1, c_inf: 0.01, k: 0.005 },  // 全参数初值
+  paramNames: ['c0', 'c_inf', 'k'],                    // 自由参数子集
+  xData: singleXToMatrix(tData),                       // n×1 设计矩阵（ODR 限单自变量）
+  yData: cData,
+  options: { sigmaX, sigmaY },
+})
 
 console.log(result.params)        // 最终参数
-console.log(result.xCorrection)   // 每个点 x 的修正量
-console.log(result.converged)
+console.log(result.xCorrection)   // 每个点 x 的修正量 δ
+console.log(result.xCorrected)    // 修正后的 x（n×1 设计矩阵）
+console.log(result.isConverged)
 console.log(result.mode)          // 'odr'
 ```
 
 ### 7.2 LM 退化模式（sigmaX 全 0）
 
 ```typescript
-const result = orthogonalDistanceRegression(
-  fn, init, names, xData, yData,
-  { sigmaY: sy },  // 不传 sigmaX 等价于全 0
-)
+const result = orthogonalDistanceRegression({
+  fn, initialParams: init, paramNames: names,
+  xData: singleXToMatrix(xRaw), yData,
+  options: { sigmaY: sy },  // 不传 sigmaX 等价于全 0
+})
 console.log(result.mode)  // 'lm'
 console.log(result.xCorrection)  // 全 0（δ 不更新）
 ```
@@ -283,7 +296,7 @@ console.log(result.xCorrection)  // 全 0（δ 不更新）
 | 每步成本 | O(p³ + np²) | O(p³ + np²)（同阶！） |
 | 必须的输入 | x, y | x, y, σx, σy |
 | 退化 | —— | σx=0 → LM |
-| 单元测试 | 闭式对照 | 退化到 LM / York 检验 |
+| 单元测试 | 闭式对照 | 回归防线 scripts/fitting/verify-fitting.ts：odr-degenerate（退化为 LM）/ odr-linear（线性 ODR）对照 |
 
 ---
 

@@ -27,6 +27,27 @@
  *   - 线性模型 + σx > 0：退化为 York 回归
  * ---
  * 参数的两分语义与 LM 一致：initialParams 全参数字典 + paramNames 自由参数子集。
+ * ---
+ * 迭代步骤流程（Schur 补路线，编号对应函数体内的步骤注释）：
+ *   初始化
+ *     0~1. 解构传参 + 装配默认模块（同 LM）
+ *     2. 输入校验（含 cols = 1 单自变量守卫）+ σ 表构建（σx 默认 0 / σy 默认 1）
+ *        模式判定：sigmaX 全 0 → mode = "lm"（δ 恒 0，纯加权 LM）
+ *     3. 权重 w_y = 1/σy²、w_x = 1/σx²（σx = 0 → ∞）
+ *     4. 状态初始化：β₀、δ = 0、x_corr = x + δ、加权 SSE（含 δ 惩罚项）、λ₀ = 1e-3
+ *   外层循环（≤ maxIterations = 100）
+ *     5.1 雅可比 J_β [n×p] 与 d = ∂f/∂x [n]（在 x + δ 处评估）
+ *     5.2 等效量：w_eff = w_y w_x/(w_y d² + w_x)，r_eff = r_y + d·δ（w_x = ∞ 时退化为 w_y / r_y）
+ *     5.3 等效正规方程 (J_βᵀ W_eff J_β, J_βᵀ W_eff r_eff)；梯度预检查同 LM
+ *     5.4 内层 λ 试探：
+ *       a. 阻尼 A = S + λ·diag(S)，解 A·Δβ = b（奇异 → 拒绝路径收紧 λ）
+ *       b. Schur 补回代 Δδ = (w_y d/c)(r_y − J_βΔβ) − (w_x/c)δ，其中 c = w_y d² + w_x
+ *       c. 试探 (β', δ', x+δ')；评估 ODR 加权 SSE；增益比 ρ + Nielsen 判决（同 LM）
+ *       d. 接受后跑收敛三判据
+ *     5.5 外层退出：已收敛或内层全部拒绝
+ *   收尾
+ *     6. 最终统计（协方差用 w_eff 权重），返回 ODRResult（xCorrected / xCorrection / mode）
+ *
  * 数学推导详见同目录 orthogonal-distance-regression.md。
  */
 

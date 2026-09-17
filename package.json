@@ -15,12 +15,12 @@
     "build:frontend:root": "set VITE_BUILD_KIND=root&& vitepress build frontend",
     "build:frontend:subpage": "set VITE_BUILD_KIND=subpage&& vitepress build frontend",
     "build:frontend:gzip": "pnpm build:frontend:gzip:root && build:frontend:gzip:subpage",
-    "build:frontend:gzip:root": "set VITE_BUILD_KIND=root&& node shared/distFrontendGzip.ts",
-    "build:frontend:gzip:subpage": "set VITE_BUILD_KIND=subpage&& node shared/distFrontendGzip.ts",
+    "build:frontend:gzip:root": "set VITE_BUILD_KIND=root&& node scripts/distFrontendGzip.ts",
+    "build:frontend:gzip:subpage": "set VITE_BUILD_KIND=subpage&& node scripts/distFrontendGzip.ts",
     "preview:frontend": "vitepress preview frontend",
     "dev:backend": "tsx watch backend/index.ts",
     "build:backend": "tsc -p tsconfig.backend.json",
-    "verify:fitting": "tsx --tsconfig tsconfig.base.json scripts/verify-fitting.ts"
+    "verify:fitting": "tsx --tsconfig tsconfig.base.json scripts/fitting/verify-fitting.ts"
   },
   "engines": {
     "node": ">=24.0.0",
