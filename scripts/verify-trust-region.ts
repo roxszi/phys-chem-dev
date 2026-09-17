@@ -15,8 +15,9 @@ import {
   nielsenJudge,
   classicJudge,
   CLASSIC_DEFAULTS,
-  singleXToRows,
+  singleXToMatrix,
 } from "@shared/fitting/index.ts"
+import type { Matrix } from "@shared/math/index.ts"
 
 // ==================== 1. Nielsen 判据单元行为 ====================
 
@@ -54,24 +55,34 @@ const tExp = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8]
 const yExp = tExp.map((t, i) =>
   2 * Math.exp(-0.5 * t) + 0.3 + seededNoise(42, tExp.length, 0.01)[i]!,
 )
-const fnExp = (xData: number[][], p: Record<string, number>) => {
+const fnExp = (xData: Matrix, p: Record<string, number>) => {
   const { A, k, C } = p
   // ys 返回 Float64Array（ModelFunction 契约）
-  const ys = new Float64Array(xData.length)
-  for (let i = 0; i < xData.length; i++) {
-    ys[i] = A! * Math.exp(-k! * xData[i]![0]!) + C!
+  const ys = new Float64Array(xData.rows)
+  for (let i = 0; i < xData.rows; i++) {
+    ys[i] = A! * Math.exp(-k! * xData.data[i]!) + C!
   }
   return ys
 }
-const xRows = singleXToRows(tExp)
+const xMat = singleXToMatrix(tExp)
 
 console.log("\n── 2. 双策略交叉收敛（lm-basic 用例）──")
 const results = {
-  nielsen: levenbergMarquardt(fnExp, { A: 1.5, k: 0.3, C: 0 }, ["A", "k", "C"], xRows, yExp),
-  classic: levenbergMarquardt(
-    fnExp, { A: 1.5, k: 0.3, C: 0 }, ["A", "k", "C"], xRows, yExp,
-    { damping: createClassicDamping() },
-  ),
+  nielsen: levenbergMarquardt({
+    fn: fnExp,
+    initialParams: { A: 1.5, k: 0.3, C: 0 },
+    paramNames: ["A", "k", "C"],
+    xData: xMat,
+    yData: yExp,
+  }),
+  classic: levenbergMarquardt({
+    fn: fnExp,
+    initialParams: { A: 1.5, k: 0.3, C: 0 },
+    paramNames: ["A", "k", "C"],
+    xData: xMat,
+    yData: yExp,
+    options: { damping: createClassicDamping() },
+  }),
 }
 for (const [name, r] of Object.entries(results)) {
   console.log(

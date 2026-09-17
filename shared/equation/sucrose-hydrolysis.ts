@@ -26,6 +26,8 @@
 // 导入公式构建的工厂函数（模块内部文件，相对路径）
 import { defineEquation } from "./types.ts"
 import type { PreprocessResult } from "./types.ts"
+// 数据契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
+import type { DataArray } from "@shared/fitting/index.ts"
 // 导入基础公式（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import { getMean } from "@shared/math/index.ts"
 
@@ -57,10 +59,10 @@ export const sucroseHydrolysis = defineEquation({
   // ==================== 拟合前处理（纯函数） ====================
   // 验证 → 排序 → 识别锚点（t=0 / t=∞）→ 估初值 → 分流
   // 原始数组只读：所有剔除都发生在新建的数组上，原始数据零污染
-  // rawX 行主序：单自变量，每行唯一分量是时间 t
+  // rawX 行主序设计矩阵：单自变量，每样本唯一分量是时间 t（data[i] 直读）
   preprocess: (rawX, rawY): PreprocessResult<typeof parameters> => {
-    /** 数据长度（行数 = 样本数） */
-    const n = rawX.length
+    /** 数据长度（rows = 样本数） */
+    const n = rawX.rows
     // 检查数据量
     if (n < 4) {
       throw new Error("数据量不足")
@@ -73,8 +75,8 @@ export const sucroseHydrolysis = defineEquation({
     /** [t, α, 原始索引][] */
     const dataAoa: [number, number, number][] = []
     for (let i = 0; i < n; i++) {
-      /** t（取每行唯一分量） */
-      const t = Number(rawX[i]![0])
+      /** t（取每样本唯一分量） */
+      const t = Number(rawX.data[i])
       // t 不能是 NaN、不能是负值（Infinity 是合法锚点）
       if (isNaN(t) || t < 0) {
         throw new Error(`第 ${ i + 1 } 行 t 数据有误`)
@@ -160,17 +162,22 @@ export const sucroseHydrolysis = defineEquation({
     }
 
     // ======================== 拟合数据集（正常点） ========================
-    /** 进拟合的 x（行主序：单自变量，每行 [t]） */
-    const xData: number[][] = []
+    /** 进拟合的 x（n×1 行主序设计矩阵，单自变量） */
+    const xFlat = new Float64Array(dataAoa.length)
     /** 进拟合的 y */
     const yData: number[] = []
     /** 原始索引映射 */
     const indices: number[] = []
+    /** 行游标 */
+    let k = 0
     for (const [t, a, i] of dataAoa) {
-      xData.push([t])
+      xFlat[k] = t
+      k++
       yData.push(a)
       indices.push(i)
     }
+    /** 进拟合的 xData（n×1 设计矩阵） */
+    const xData: DataArray = { data: xFlat, rows: dataAoa.length, cols: 1 }
 
     return {
       xData,
@@ -186,7 +193,7 @@ export const sucroseHydrolysis = defineEquation({
   },
 
   // ==================== 模型公式（纯函数，扁平参数） ====================
-  // xData 行主序：单自变量，每行唯一分量是时间 t
+  // xData 行主序设计矩阵：单自变量，每样本唯一分量是时间 t（data[i] 直读）
   // ys 返回 Float64Array（ModelFunction 契约）：预分配填充，热路径零转换
   model: (xData, params) => {
     // 接参数（扁平字典）
@@ -196,13 +203,13 @@ export const sucroseHydrolysis = defineEquation({
       throw new Error("公式参数没有初始化")
     }
     // 预分配结果向量
-    const atArr = new Float64Array(xData.length)
-    // 逐行计算（取自变量分量 t）
-    for (let i = 0; i < xData.length; i++) {
+    const atArr = new Float64Array(xData.rows)
+    // 逐样本计算（取自变量分量 t）
+    for (let i = 0; i < xData.rows; i++) {
       // 公式本体：
       // (α_0 - α_∞) / (α_t - α_∞) = exp(kt)
       // =>  α_t = ((α_0 - α_∞) / exp(kt)) + α_∞
-      atArr[i] = ((alphaInitial - alphaEquilibrium) / Math.exp(k * xData[i]![0]!)) + alphaEquilibrium
+      atArr[i] = ((alphaInitial - alphaEquilibrium) / Math.exp(k * xData.data[i]!)) + alphaEquilibrium
     }
     // 返回结果
     return atArr

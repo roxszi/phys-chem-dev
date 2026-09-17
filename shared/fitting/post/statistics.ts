@@ -10,7 +10,7 @@
  */
 import type { Matrix, Vector } from "@shared/math/index.ts"
 // 数据类型（本模块内部文件，相对路径）
-import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
+import type { DataArray, ModelFunction, ParamValues, ParamNames } from "../types.ts"
 // 正规方程构建（模块内部子目录，相对路径）
 import { buildWeightedNormalEquation } from "../linear-solver/normal-equation.ts"
 // math 原语（跨模块，走 @shared 别名 + index.ts 唯一入口）
@@ -28,8 +28,8 @@ import {
 export interface StatisticsInput {
   /** 模型函数（与拟合主循环使用的同一函数引用） */
   fn: ModelFunction
-  /** 自变量数据（与拟合主循环使用的同一数组——ODR 场景应传修正后的 x） */
-  xData: number[][]
+  /** 自变量数据（与拟合主循环使用的同一矩阵——ODR 场景应传修正后的 x） */
+  xData: DataArray
   /** 最终全参数值（含固定参数） */
   params: ParamValues
   /** 自由参数名列表（协方差矩阵的行列顺序与之对应） */

@@ -4,7 +4,7 @@
  * 跨模块消费一律从本文件导入（@shared/fitting/index.ts）；
  * types.ts 等内部文件不对外，仅向本文件聚合。
  * ---
- * 对模型的唯一契约 = ModelFunction 纯函数（xData: number[][] 行主序 + ParamValues 全参数字典）
+ * 对模型的唯一契约 = ModelFunction 纯函数（xData: DataArray 设计矩阵 + ParamValues 全参数字典）
  * + ParamNames 自由参数名，与模型来源（equation 层公式 / 手写函数）完全解耦。
  * 多自变量天然支持：LM 把模型当黑盒；ODR / 线性最小二乘当前限单自变量（入口有守卫）。
  * ---
@@ -44,7 +44,7 @@ export type {
 // 输入校验 + σ→weights 预处理
 export { validateInputs, sigmaToWeights } from "./pre/validate.ts"
 // 数据结构变换打样（原始数据 → xData / yData，equation 层消费）
-export { pointListToXY, singleXToRows } from "./pre/data-shape.ts"
+export { pointListToXY, singleXToMatrix } from "./pre/data-shape.ts"
 
 // ==================== 正规方程构建 + 阻尼 ====================
 export {
@@ -100,10 +100,12 @@ export {
   orthogonalDistanceRegression,
 } from "./algorithms/index.ts"
 export type {
-  LinearLeastSquaresOptions,
+  LinearLeastSquaresInput,
   LinearLeastSquaresResult,
+  LevenbergMarquardtInput,
   LevenbergMarquardtOptions,
   LevenbergMarquardtResult,
+  ODRInput,
   ODROptions,
   ODRResult,
 } from "./algorithms/index.ts"

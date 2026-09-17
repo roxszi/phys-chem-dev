@@ -5,8 +5,9 @@
  * ---
  * ⚠️ 数据形态说明：本函数是一元线性回归的闭式特例工具（slope / intercept 语义
  * 与单自变量绑定），入参 xData 保持 number[] 标量数组，
- * 不进 fitting 的 number[][] 行主序契约；多元线性回归待真实业务出现时另立函数。
- * 若手头已是行主序形态，用 pre/data-shape.ts 的打样方式自行取分量即可。
+ * 不进 fitting 的 DataArray（设计矩阵）契约；若手头已是设计矩阵形态，
+ * 取 xData.data 分量即可（singleXToMatrix 的逆操作）。
+ * 多元线性回归待真实业务出现时另立函数。
  * ---
  * 加权闭式公式：
  *   令 X = [1, x]（n×2 设计矩阵），W = diag(wᵢ)，wᵢ = 1/σ_yᵢ²
@@ -38,15 +39,18 @@ import { sigmaToWeights } from "../pre/validate.ts"
 import type { Vector } from "@shared/math/index.ts"
 
 /**
- * 线性最小二乘的额外传参
- * - 目前主要就是 sigmaY（会转为权重）
+ * 线性最小二乘的统一传参对象（对象式传参，sigmaY 拍平到顶层）
+ * - 本函数仅 3 字段，无需嵌套 options 层
  */
-export interface LinearLeastSquaresOptions {
+export interface LinearLeastSquaresInput {
+  /** x 数据（一元标量数组；本函数一元专用，不进 DataArray 设计矩阵契约） */
+  xData: number[]
+  /** y 数据（入口宽容：number[] | Vector，内部统一 Vector） */
+  yData: number[] | Vector
   /**
-   * y 的标准差数组（内部自动转换为权重 w = 1/σ²）
-   * - 例：若 y 的标准差都是 0.1，传 sigmaY = [0.1, 0.1, ...]。
-   *   内部会用 weights = [100, 100, ...]
-   * - 不传时退化为等权 OLS（等价于 sigmaY 全 1）。
+   * y 的标准差数组（可选；内部自动转换为权重 w = 1/σ²）
+   * - 例：若 y 的标准差都是 0.1，传 sigmaY = [0.1, 0.1, ...]（权重 = [100, 100, ...]）
+   * - 不传时退化为等权 OLS（等价于 sigmaY 全 1）
    */
   sigmaY?: number[]
 }
@@ -86,13 +90,16 @@ export interface LinearLeastSquaresResult {
 
 
 /**
- * 线性拟合-最小二乘法
+ * 线性拟合-最小二乘法（闭式解）
+ *
+ * @param input 统一传参对象（xData / yData / sigmaY）
+ * @returns 拟合结果（slope / intercept / 标准误 / 协方差等）
  */
 export function linearLeastSquares(
-  xData: number[],
-  yData: number[],
-  options: LinearLeastSquaresOptions = {},
+  input: LinearLeastSquaresInput,
 ): LinearLeastSquaresResult {
+  // 解构统一传参对象（命名字段，顺序无关）
+  const { xData, yData, sigmaY } = input
   /** 数组长度 */
   const n = xData.length
   // x、y 长度匹配（单行检查——不写函数）
@@ -107,8 +114,8 @@ export function linearLeastSquares(
   // ---------------- 权重 ----------------
   // sigmaY → weights = 1/σ²（共享原语，含长度与正性校验）；y 入口宽容 → 内部 Vector
   const yVec = Float64Array.from(yData)
-  const weights = options.sigmaY
-    ? sigmaToWeights(options.sigmaY, n, "[linearLeastSquares]：sigmaY")
+  const weights = sigmaY
+    ? sigmaToWeights(sigmaY, n, "[linearLeastSquares]：sigmaY")
     : undefined
 
   // ---------------- 正规方程 ----------------

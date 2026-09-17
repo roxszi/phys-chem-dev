@@ -21,7 +21,7 @@
  */
 
 // 数据类型（本模块内部文件，相对路径）
-import type { ModelFunction, ParamValues, ParamNames } from "../types.ts"
+import type { DataArray, ModelFunction, ParamValues, ParamNames } from "../types.ts"
 // 矩阵契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import type { Matrix, Vector } from "@shared/math/index.ts"
 import { createMatrix } from "@shared/math/index.ts"
@@ -35,8 +35,8 @@ import { createMatrix } from "@shared/math/index.ts"
 export interface NumericalJacobianInput {
   /** 模型函数（纯函数：(xData, 全参数字典) => ys） */
   fn: ModelFunction
-  /** 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量） */
-  xData: number[][]
+  /** 自变量数据（行主序设计矩阵：第 i 行 = 第 i 个样本的自变量向量） */
+  xData: DataArray
   /** 当前全参数值（含固定参数） */
   params: ParamValues
   /** 自由参数名数组（顺序固定，与雅可比列对应） */
@@ -131,8 +131,8 @@ export function lmNumericalJacobian(
   const { fn, xData, params, paramNames, options = {} } = input
   // 配置校验
   checkOptions(options)
-  // 数据点数（由 xData 行数自带，无需单独传参）
-  const n = xData.length
+  // 数据点数（由设计矩阵行数自带，无需单独传参）
+  const n = xData.rows
   // 初始化
   const typicalValues = options.typicalValues ?? {}
   const relativeStepBeta = options.relativeStepBeta ?? 1e-6
@@ -164,7 +164,7 @@ export function odrNumericalJacobian(
   // 配置校验
   checkOptions(options)
   // 数据点数
-  const n = xData.length
+  const n = xData.rows
   // 初始化
   const typicalValues = options.typicalValues ?? {}
   const relativeStepBeta = options.relativeStepBeta ?? 1e-6
@@ -209,7 +209,7 @@ export function odrNumericalJacobian(
 export function diffOverParams(
   fn: ModelFunction,
   n: number,
-  xData: number[][],
+  xData: DataArray,
   params: ParamValues,
   paramNames: ParamNames,
   relativeStepBeta: number,
@@ -277,11 +277,11 @@ export function diffOverParams(
  * - 要求每个数据点的预测值只依赖该点自己的 x（物理显式公式 y = f(x; p) 天然满足）；
  * - 若未来出现依赖整表的非点态模型（平滑 / 卷积类），本函数须回退逐点差分。
  * ---
- * ⚠️ 单自变量专用（对每行唯一分量 row[0] 扰动；ODR 当前仅支持 m = 1，
+ * ⚠️ 单自变量专用（对每样本唯一分量 data[i] 扰动；ODR 当前仅支持 m = 1，
  *   多自变量的 ∂f/∂x 推广为 [n × m] 矩阵，待真实业务出现再扩展）
  * @param fn 模型函数
  * @param n 数据点数
- * @param xData 自变量数据（行主序，每行 1 个分量）
+ * @param xData 自变量数据（行主序设计矩阵，cols = 1）
  * @param params 当前全参数值
  * @param relativeStepX 自变量相对步长
  * @returns ∂f/∂x（[n]）
@@ -289,25 +289,25 @@ export function diffOverParams(
 export function diffOverXData(
   fn: ModelFunction,
   n: number,
-  xData: number[][],
+  xData: DataArray,
   params: ParamValues,
   relativeStepX: number,
 ): Vector {
   /** 逐行步长表（hᵢ 各点独立，差分时分母必须用各自的 hᵢ） */
   const steps = new Array<number>(n).fill(0)
-  /** 前向扰动整表：第 i 行 = [xᵢ + hᵢ] */
-  const xPlus: number[][] = new Array(n)
-  /** 后向扰动整表：第 i 行 = [xᵢ − hᵢ] */
-  const xMinus: number[][] = new Array(n)
+  /** 前向扰动设计矩阵（n×1）：data[i] = xᵢ + hᵢ */
+  const xPlus = createMatrix(n, 1)
+  /** 后向扰动设计矩阵（n×1）：data[i] = xᵢ − hᵢ */
+  const xMinus = createMatrix(n, 1)
   // 一次遍历同时生成步长表与两张扰动表
   for (let i = 0; i < n; i++) {
-    // 本样本的自变量分量（单自变量：每行唯一分量）
-    const xi = xData[i]![0]!
+    // 本样本的自变量分量（单自变量：每样本唯一分量）
+    const xi = xData.data[i]!
     // 自变量相对步长（逐行独立）
     const h = relativeStepX * Math.max(Math.abs(xi), 1)
     steps[i] = h
-    xPlus[i] = [xi + h]
-    xMinus[i] = [xi - h]
+    xPlus.data[i] = xi + h
+    xMinus.data[i] = xi - h
   }
   // 整表各求值 1 次（2n 次模型调用降为 2 次）
   const yPlus = fn(xPlus, params)

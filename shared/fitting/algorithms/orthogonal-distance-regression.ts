@@ -116,40 +116,53 @@ export interface ODROptions {
 export interface ODRResult extends FitResult {
   /** 每个数据点的 x 修正量 δ_i（单自变量：每点一个标量） */
   xCorrection: Vector
-  /** 修正后的 x（= xData + δ；行主序，与 xData 同形状） */
-  xCorrected: number[][]
+  /** 修正后的 x（= xData + δ；n×1 行主序设计矩阵，与 xData 同形状） */
+  xCorrected: DataArray
   /** 最终阻尼因子 λ */
   finalLambda: number
   /** 拟合模式（运行时判定） */
   mode: "lm" | "odr"
 }
 
-
+/**
+ * ODR 统一传参对象（对象式传参，防位置错位）
+ * - 数据契约五字段 + options（算法配置），与 LM / NumericalJacobianInput 同构风格
+ */
+export interface ODRInput<
+  ALL extends readonly string[],
+  FIT extends readonly (ALL[number])[],
+> {
+  /** 模型函数 (xData, 全参数字典) => ys */
+  fn: ModelFunction<ALL[number]>
+  /** 全参数初值字典（含固定参数） */
+  initialParams: ParamValues<ALL[number]>
+  /** 自由参数名数组 */
+  paramNames: FIT
+  /** 自变量观测值（行主序设计矩阵；ODR 仅支持单自变量，cols = 1） */
+  xData: DataArray
+  /** 因变量观测值（入口宽容：number[] | Vector，内部统一 Vector） */
+  yData: number[] | Vector
+  /** 算法配置（含 sigmaX / sigmaY） */
+  options?: ODROptions
+}
 
 /**
  * ODR 主入口
  *
  * @typeParam ALL    全参数键元组（含固定参数）
  * @typeParam FIT    自由参数键元组，必须是 ALL 的子集（编译期强制）
- * @param fn         模型函数 (xData, 全参数字典) => ys
- * @param initialParams 全参数初值字典（含固定参数）
- * @param paramNames 自由参数名数组
- * @param xData      自变量观测值
- * @param yData      因变量观测值
- * @param options    配置（含 sigmaX / sigmaY）
+ * @param input      统一传参对象（fn / initialParams / paramNames / xData / yData / options）
  * @returns 拟合结果（params 为全参数；附 xCorrection / xCorrected / mode）
  */
 export function orthogonalDistanceRegression<
   const ALL extends readonly string[],
   const FIT extends readonly (ALL[number])[],
 >(
-  fn: ModelFunction<ALL[number]>,
-  initialParams: ParamValues<ALL[number]>,
-  paramNames: FIT,
-  xData: DataArray,
-  yData: number[],
-  options: ODROptions = {},
+  input: ODRInput<ALL, FIT>,
 ): ODRResult {
+  // ── 0. 解构统一传参对象 ─────────────────────
+  const { fn, initialParams, paramNames, xData, yData, options = {} } = input
+
   // ── 1. 解析配置 + 构造默认模块 ─────────────────────
   const {
     sigmaX,
@@ -168,20 +181,20 @@ export function orthogonalDistanceRegression<
 
   // ── 2. 输入校验 ─────────────────────────────────
   // x、y 长度匹配（单行检查）；yData 入口宽容（number[]）→ 内部统一 Vector
-  if (yData.length !== xData.length) {
-    throw new Error(`xData 与 yData 长度不匹配：${xData.length} vs ${yData.length}`)
+  if (yData.length !== xData.rows) {
+    throw new Error(`xData 与 yData 长度不匹配：${xData.rows} vs ${yData.length}`)
   }
   const yVec = Float64Array.from(yData)
-  const n = xData.length
+  const n = xData.rows
   if (n <= paramNames.length) {
     throw new Error(
       `数据点数 ${n} 必须 > 自由参数个数 ${paramNames.length}（否则无自由度）`,
     )
   }
-  // 单自变量守卫：ODR 的 δ 修正量与 ∂f/∂x 当前均按单变量实现（m = 1）；
+  // 单自变量守卫：ODR 的 δ 修正量与 ∂f/∂x 当前均按单变量实现（cols = 1）；
   // 多自变量的 ODR 推广（δ / d 变矩阵）待真实业务出现再扩展，LM 无此限制
-  if (!xData.every(row => row.length === 1)) {
-    throw new Error("ODR 当前仅支持单自变量：xData 每行必须恰有 1 个自变量分量")
+  if (xData.cols !== 1) {
+    throw new Error("ODR 当前仅支持单自变量：xData 设计矩阵必须恰有 1 列（cols = 1）")
   }
 
   // σ 校验（单次循环同时检查长度 + 元素级条件；σ 表内部统一 Vector）
@@ -229,8 +242,8 @@ export function orthogonalDistanceRegression<
   let currentParams: ParamValues = { ...initialParams }
   /** 每个 x 观测值的修正量 δ，初值为 0 */
   const currentDelta = new Float64Array(n)
-  /** 当前修正后的 x（= xData + δ；行主序，行拷贝防共享引用） */
-  let currentXCorrected = xData.map(row => row.slice())
+  /** 当前修正后的 x（= xData + δ；n×1 设计矩阵，扁平拷贝防共享引用） */
+  let currentXCorrected: DataArray = { data: new Float64Array(xData.data), rows: n, cols: 1 }
   /** 当前预测值 */
   let currentPredicted = fn(currentXCorrected, currentParams)
   /** 当前 y 残差 r_y = y − f(x+δ; β) */
@@ -340,12 +353,12 @@ export function orthogonalDistanceRegression<
         const name = paramNames[j]!
         trialParams[name] = currentParams[name]! + trialDeltaBeta[j]!
       }
-      // 试探新的 δ 与修正后 x（单自变量：每行取 row[0] 加 δ，再包装回行主序）
+      // 试探新的 δ 与修正后 x（单自变量：data[i] = 原始 xᵢ + δᵢ，写入 n×1 扰动矩阵）
       const trialDelta = new Float64Array(n)
-      const trialXCorrected = new Array<number[]>(n)
+      const trialXCorrected: DataArray = { data: new Float64Array(n), rows: n, cols: 1 }
       for (let i = 0; i < n; i++) {
         trialDelta[i] = currentDelta[i]! + trialDeltaDelta[i]!
-        trialXCorrected[i] = [xData[i]![0]! + trialDelta[i]!]
+        trialXCorrected.data[i] = xData.data[i]! + trialDelta[i]!
       }
 
       // 评估试探结果

@@ -111,42 +111,63 @@ export interface LevenbergMarquardtResult extends FitResult {
 
 
 /**
+ * LM 统一传参对象（对象式传参，防位置错位）
+ * - 数据契约五字段 + options（算法配置），与 NumericalJacobianInput 同构风格
+ */
+export interface LevenbergMarquardtInput<
+  ALL extends readonly string[],
+  FIT extends readonly (ALL[number])[],
+> {
+  /** 模型函数 (xData, 全参数字典) => ys */
+  fn: ModelFunction<ALL[number]>
+  /** 全参数初值字典（含固定参数） */
+  initialParams: ParamValues<ALL[number]>
+  /** 自由参数名数组（锚点：从这里推导 ALL / FIT 的键检查） */
+  paramNames: FIT
+  /** 自变量数据（行主序设计矩阵；单变量业务用 pre/data-shape 的 singleXToMatrix 包装） */
+  xData: DataArray
+  /** 因变量数据（入口宽容：number[] | Vector，内部统一 Vector） */
+  yData: number[] | Vector
+  /** 算法配置（可选） */
+  options?: LevenbergMarquardtOptions
+}
+
+/**
  * Levenberg-Marquardt 算法实现
  *
  * @typeParam ALL    全参数键元组（含固定参数）
  * @typeParam FIT    自由参数键元组，必须是 ALL 的子集（编译期强制）
- * @param fn         模型函数 (xs, 全参数字典) => ys
- * @param initialParams 全参数初值字典（含固定参数）
- * @param paramNames 自由参数名数组（锚点：从这里推导 ALL / FIT 的键检查）
- * @param xData      自变量数据
- * @param yData      因变量数据
- * @param options    配置对象
+ * @param input      统一传参对象（fn / initialParams / paramNames / xData / yData / options）
  * @returns 拟合结果（params 为全参数；paramErrors 只含自由参数）
  *
  * @example
  * ```typescript
- * // 单自变量：xData 每行 1 个分量（可用 singleXToRows(tData) 包装）
- * const result = levenbergMarquardt(
- *   (xData, p) => xData.map(row => p.A * Math.exp(-p.k * row[0]!)),  // ModelFunction
- *   { A: 1, k: 0.1 },                                  // 全参数初值
- *   ["A", "k"],                                        // 自由参数（⊆ 全参数键）
- *   tData.map(t => [t]),                               // 行主序自变量数据
- *   cData,
- *   { sigmaY: cSigma },                                // 可选；weights = 1/σ² 自动转换
- * )
+ * // 单自变量：xData 为 n×1 设计矩阵（可用 singleXToMatrix(tData) 包装）
+ * const result = levenbergMarquardt({
+ *   fn: (xData, p) => {                      // ModelFunction：返回 Float64Array
+ *     const ys = new Float64Array(xData.rows)
+ *     for (let i = 0; i < xData.rows; i++) {
+ *       ys[i] = p.A * Math.exp(-p.k * xData.data[i]!)
+ *     }
+ *     return ys
+ *   },
+ *   initialParams: { A: 1, k: 0.1 },         // 全参数初值
+ *   paramNames: ["A", "k"],                  // 自由参数（⊆ 全参数键）
+ *   xData: singleXToMatrix(tData),           // n×1 行主序设计矩阵
+ *   yData: cData,
+ *   options: { sigmaY: cSigma },             // 可选；weights = 1/σ² 自动转换
+ * })
  * ```
  */
 export function levenbergMarquardt<
   const ALL extends readonly string[],
   const FIT extends readonly (ALL[number])[],
 >(
-  fn: ModelFunction<ALL[number]>,
-  initialParams: ParamValues<ALL[number]>,
-  paramNames: FIT,
-  xData: DataArray,
-  yData: number[],
-  options: LevenbergMarquardtOptions = {},
+  input: LevenbergMarquardtInput<ALL, FIT>,
 ): LevenbergMarquardtResult {
+  // 0. 解构统一传参对象（命名字段，顺序无关）
+  const { fn, initialParams, paramNames, xData, yData, options = {} } = input
+
   // 1. 解析配置 + 构造默认模块
   const {
     maxIterations = 100,

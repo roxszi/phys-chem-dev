@@ -25,9 +25,10 @@ import {
   linearLeastSquares,
   levenbergMarquardt,
   orthogonalDistanceRegression,
-  singleXToRows,
+  singleXToMatrix,
 } from "@shared/fitting/index.ts"
 import type { LevenbergMarquardtResult } from "@shared/fitting/index.ts"
+import type { Matrix } from "@shared/math/index.ts"
 import { fitEquation, sucroseHydrolysis } from "@shared/equation/index.ts"
 
 // ==================== 固定伪随机扰动 ====================
@@ -55,12 +56,12 @@ const tExp = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8]
 const yExp = tExp.map((t, i) =>
   2 * Math.exp(-0.5 * t) + 0.3 + seededNoise(42, tExp.length, 0.01)[i]!,
 )
-const fnExp = (xData: number[][], p: Record<string, number>) => {
+const fnExp = (xData: Matrix, p: Record<string, number>) => {
   const { A, k, C } = p
   // ys 返回 Float64Array（ModelFunction 契约）
-  const ys = new Float64Array(xData.length)
-  for (let i = 0; i < xData.length; i++) {
-    ys[i] = A! * Math.exp(-k! * xData[i]![0]!) + C!
+  const ys = new Float64Array(xData.rows)
+  for (let i = 0; i < xData.rows; i++) {
+    ys[i] = A! * Math.exp(-k! * xData.data[i]!) + C!
   }
   return ys
 }
@@ -153,7 +154,7 @@ function summarizeODR(r: ReturnType<typeof orthogonalDistanceRegression>): CaseS
         finalLambda: r.finalLambda,
         mode: r.mode,
         xCorrection: Array.from(r.xCorrection),
-        xCorrected: r.xCorrected,
+        xCorrected: Array.from(r.xCorrected.data),
       },
     }
   }
@@ -162,49 +163,63 @@ function summarizeODR(r: ReturnType<typeof orthogonalDistanceRegression>): CaseS
 
 function runAllCases(): Record<string, CaseSummary> {
   // 1. LM 等权
-  const lmBasic = levenbergMarquardt(fnExp, initExp, namesExp, singleXToRows(tExp), yExp)
+  const lmBasic = levenbergMarquardt({
+    fn: fnExp,
+    initialParams: initExp,
+    paramNames: namesExp,
+    xData: singleXToMatrix(tExp),
+    yData: yExp,
+  })
   // 2. LM 加权
   const sigmaExp = tExp.map((_, i) => 0.005 * (i + 1))
-  const lmWeighted = levenbergMarquardt(fnExp, initExp, namesExp, singleXToRows(tExp), yExp, {
-    sigmaY: sigmaExp,
+  const lmWeighted = levenbergMarquardt({
+    fn: fnExp,
+    initialParams: initExp,
+    paramNames: namesExp,
+    xData: singleXToMatrix(tExp),
+    yData: yExp,
+    options: { sigmaY: sigmaExp },
   })
   // 3. LLS 加权
-  const llsWeighted = linearLeastSquares(cBeer, aBeer, { sigmaY: sigmaBeer })
+  const llsWeighted = linearLeastSquares({ xData: cBeer, yData: aBeer, sigmaY: sigmaBeer })
   // 4. LLS 两点（NaN 口径）
-  const llsTwoPoints = linearLeastSquares([cBeer[0]!, cBeer[1]!], [aBeer[0]!, aBeer[1]!])
+  const llsTwoPoints = linearLeastSquares({
+    xData: [cBeer[0]!, cBeer[1]!],
+    yData: [aBeer[0]!, aBeer[1]!],
+  })
   // 5. ODR（sigmaX 非零）
-  const odrLinear = orthogonalDistanceRegression(
-    (xData: number[][], p: Record<string, number>) => {
+  const odrLinear = orthogonalDistanceRegression({
+    fn: (xData: Matrix, p: Record<string, number>) => {
       // ys 返回 Float64Array（ModelFunction 契约）
-      const ys = new Float64Array(xData.length)
-      for (let i = 0; i < xData.length; i++) {
-        ys[i] = p["slope"]! * xData[i]![0]! + p["b"]!
+      const ys = new Float64Array(xData.rows)
+      for (let i = 0; i < xData.rows; i++) {
+        ys[i] = p["slope"]! * xData.data[i]! + p["b"]!
       }
       return ys
     },
-    { slope: 0.5, b: 0 },
-    ["slope", "b"],
-    singleXToRows(cBeer),
-    aBeer,
-    { sigmaX: sigmaXBeer, sigmaY: sigmaBeer },
-  )
+    initialParams: { slope: 0.5, b: 0 },
+    paramNames: ["slope", "b"],
+    xData: singleXToMatrix(cBeer),
+    yData: aBeer,
+    options: { sigmaX: sigmaXBeer, sigmaY: sigmaBeer },
+  })
   // 6. ODR 退化（sigmaX 全 0，应与加权 LM 一致）
-  const odrDegenerate = orthogonalDistanceRegression(
-    fnExp,
-    initExp,
-    namesExp,
-    singleXToRows(tExp),
-    yExp,
-    { sigmaY: tExp.map((_, i) => 0.005 * (i + 1)) },
-  )
+  const odrDegenerate = orthogonalDistanceRegression({
+    fn: fnExp,
+    initialParams: initExp,
+    paramNames: namesExp,
+    xData: singleXToMatrix(tExp),
+    yData: yExp,
+    options: { sigmaY: tExp.map((_, i) => 0.005 * (i + 1)) },
+  })
   // 7. fitEquation + 蔗糖（默认 ODR → 内部 LM 退化路径）
-  const fitEq = fitEquation(sucroseHydrolysis, singleXToRows(tSucrose), aSucrose, {})
+  const fitEq = fitEquation(sucroseHydrolysis, singleXToMatrix(tSucrose), aSucrose, {})
   const fitEqOdr =
     fitEq.algorithm === "odr" ? fitEq : null
   if (!fitEqOdr) throw new Error("用例 7 预期走 ODR 分支")
 
   // 8. fitEquation + 蔗糖（t=0 与 t=∞ 锚点并存，双锚点分流路径）
-  const fitEqAnchor = fitEquation(sucroseHydrolysis, singleXToRows(tAnchorBoth), aAnchorBoth, {})
+  const fitEqAnchor = fitEquation(sucroseHydrolysis, singleXToMatrix(tAnchorBoth), aAnchorBoth, {})
   const fitEqAnchorOdr =
     fitEqAnchor.algorithm === "odr" ? fitEqAnchor : null
   if (!fitEqAnchorOdr) throw new Error("用例 8 预期走 ODR 分支")

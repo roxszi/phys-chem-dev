@@ -17,7 +17,7 @@
 type TF = typeof import("@tensorflow/tfjs-core")
 
 // 桥梁契约类型（跨模块，走 @shared 别名 + index.ts 唯一入口；定义在 fitting 侧，编译后零运行时依赖）
-import type { ModelFunction, ParamValues } from "@shared/fitting/index.ts"
+import type { DataArray, ModelFunction, ParamValues } from "@shared/fitting/index.ts"
 
 
 /**
@@ -55,8 +55,8 @@ export interface Parameter<P extends string = string> {
  * - 被剔除的点（锚点观测 / 非法点）进 excluded 并带原因，UI 可据此展示
  */
 export interface PreprocessResult<P extends readonly Parameter[]> {
-  /** 进拟合的 x（行主序：第 i 行 = 第 i 个样本的自变量向量；已排序、已剔除锚点与非法点） */
-  xData: number[][]
+  /** 进拟合的 x（行主序设计矩阵：rows = 样本数，cols = 自变量分量数；已排序、已剔除锚点与非法点） */
+  xData: DataArray
   /** 进拟合的 y（与 xData 一一对应） */
   yData: number[]
   /** 原始索引映射：xData[i] 来自原始数据的第 indices[i] 行 */
@@ -90,10 +90,10 @@ export interface Equation<P extends readonly Parameter[]> {
    *   - 锚点（如蔗糖水解的 t=0 → α₀、t=∞ → α∞）先消费为初值再进 excluded，
    *     特殊"哨兵值"（Infinity 等）不得进入返回的 x
    *   - fitEquation 保证调用本方法；后续拟合只用返回的数据包
-   *   - rawX 与返回的 xData 同形状（行主序：第 i 行 = 第 i 个样本的自变量向量；
-   *     原始数据入模前先用 pre/data-shape 打样工具完成 number[] → number[][] 包装）
+   *   - rawX 与返回的 xData 同形状（行主序设计矩阵；原始数据入模前先用
+   *     pre/data-shape 打样工具完成 number[] → n×1 设计矩阵包装）
    */
-  preprocess: (rawX: number[][], rawY: number[]) => PreprocessResult<P>
+  preprocess: (rawX: DataArray, rawY: number[]) => PreprocessResult<P>
   /**
    * 模型函数（纯函数）
    * - 非线性形式：xData（行主序）经扁平 params 变换到 ys
@@ -104,13 +104,13 @@ export interface Equation<P extends readonly Parameter[]> {
   /**
    * tf张量化的模型函数
    * - 用于自动微分 auto-diff 实现（fitting/jacobian/tfjs-auto-diff，待实现）
-   * - xData 与 model 同形状（行主序：第 i 行 = 第 i 个样本的自变量向量）
+   * - xData 与 model 同形状（行主序设计矩阵；tf.tensor2d(xData.data, [rows, cols]) 一步进计算图）
    */
   tfModel?: (
     /** TensorFlow 运行环境 */
     tf: TF,
-    /** 自变量数据（行主序） */
-    xData: number[][],
+    /** 自变量数据（行主序设计矩阵） */
+    xData: DataArray,
     /** 扁平参数字典（键与 parameters 的 id 一一对应） */
     params: ParamValues<P[number]["id"]>
   ) => number[]
@@ -159,8 +159,8 @@ export type ParameterInputs<P extends readonly Parameter[]> = Record<
  * const model = defineEquation({
  *   id: 'first-order',
  *   parameters: [...] as const,
- *   preprocess: (x, y) => ({ xData: x.map(t => [t]), yData: y, indices: [], excluded: [], initialParams: { k: 0.1 } }),
- *   model: (xData, p) => xData.map(row => p.k * row[0]!)
+ *   preprocess: (x, y) => ({ xData: { data: Float64Array.from(x.data), rows: x.rows, cols: x.cols }, yData: y, indices: [], excluded: [], initialParams: { k: 0.1 } }),
+ *   model: (xData, p) => { const ys = new Float64Array(xData.rows); for (let i = 0; i < xData.rows; i++) ys[i] = p.k * xData.data[i]!; return ys }
  * })
  */
 export function defineEquation<const P extends readonly Parameter<string>[]>(

@@ -192,7 +192,7 @@ import { exampleDataAoa } from "./data.ts"
 // 导入公式 + 一键拟合入口
 import { sucroseHydrolysis, fitEquation } from "@shared/equation/index.ts"
 // 单变量标量数组 → 行主序自变量数据（fitting 数据契约）
-import { singleXToRows } from "@shared/fitting/index.ts"
+import { singleXToMatrix } from "@shared/fitting/index.ts"
 // 导入本组件语言包
 import { langDict } from "./SucroseHydrolysis-lang.ts"
 // 导入组件类型
@@ -399,7 +399,7 @@ function onDataFitting() {
   if(!validateData(tArr, alphaArr)) return
   // ================ 拟合 ================
   /** 拟合结果原始对象 */
-  const fitResultRaw = fitEquation(sucroseHydrolysis, singleXToRows(tArr), alphaArr, {})
+  const fitResultRaw = fitEquation(sucroseHydrolysis, singleXToMatrix(tArr), alphaArr, {})
   // 解构取值
   const {
     // 自由度

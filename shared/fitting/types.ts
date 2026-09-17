@@ -36,8 +36,8 @@ export type ParamValues<P extends string = string> = Record<P, number>
  * - ys 为 Float64Array（Vector 契约）：实现时预分配填充，或 Float64Array.from(map 结果) 一次转换
  */
 export type ModelFunction<P extends string = string> = (
-  /** 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量） */
-  xData: number[][],
+  /** 自变量数据（行主序设计矩阵：第 i 行 = 第 i 个样本的自变量向量） */
+  xData: DataArray,
   /** 全参数值字典（键与公式参数 id 一致，含固定参数） */
   params: ParamValues<P>,
 ) => Vector
@@ -51,12 +51,14 @@ export type ModelFunction<P extends string = string> = (
 export type ParamNames = readonly string[]
 
 /**
- * 数据数组：自变量数据的统一形状（行主序）
- * - xData[i] 是第 i 个样本的自变量向量：单自变量时每行仅 1 个分量 [xᵢ]，
- *   多自变量时为 [x₁, x₂, …, xₘ]；行数 = 样本数 n，列数 = 自变量个数 m
+ * 数据数组：自变量数据的统一形状（行主序，复用自研矩阵类型）
+ * - 语义即数值线性代数的设计矩阵 X：rows = 样本数 n，cols = 自变量分量数 m；
+ *   data[i·m + j] = 第 i 个样本的第 j 个自变量分量
+ * - 单自变量（m = 1，物化实验业务主力形态）：data[i] 直接是第 i 个样本的 xᵢ
+ * - tfjs 对接：tf.tensor2d(xData.data, [xData.rows, xData.cols]) 一步进计算图
  * - 因变量 yData 保持 number[]（多因变量场景拆分为多个公式，见 equation 层）
  */
-export type DataArray = number[][]
+export type DataArray = Matrix
 
 /**
  * 单次迭代的状态快照

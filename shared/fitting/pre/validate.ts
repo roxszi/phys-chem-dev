@@ -22,7 +22,7 @@ import { isFinitePositive } from "@shared/math/index.ts"
 // 向量契约（跨模块，走 @shared 别名 + index.ts 唯一入口）
 import type { Vector } from "@shared/math/index.ts"
 // 导入数据类型（本模块内部文件，相对路径）
-import type { ParamValues, ParamNames, ModelFunction } from "../types.ts"
+import type { DataArray, ParamValues, ParamNames, ModelFunction } from "../types.ts"
 
 
 /**
@@ -56,7 +56,7 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): V
 
 /**
  * 校验拟合输入，返回数据点数 n
- * @param xData 自变量数据（行主序：第 i 行 = 第 i 个样本的自变量向量）
+ * @param xData 自变量数据（行主序设计矩阵：rows = 样本数，cols = 自变量分量数）
  * @param yData 因变量数据
  * @param paramNames 自由参数名列表（必须是全参数键集合的子集）
  * @param initialParams 全参数初值字典（含固定参数）
@@ -64,14 +64,14 @@ export function sigmaToWeights(sigmaY: number[], n: number, label = "sigmaY"): V
  * @returns 数据点数 n
  */
 export function validateInputs(
-  xData: number[][],
+  xData: DataArray,
   yData: Vector,
   paramNames: ParamNames,
   initialParams: ParamValues,
   fn: ModelFunction,
 ): number {
-  /** 数据长度（行数 = 样本数） */
-  const n = xData.length
+  /** 数据长度（rows = 样本数） */
+  const n = xData.rows
   // 1. 至少 1 个数据点
   if (n === 0) {
     throw new Error("xData / yData 为空")
@@ -86,13 +86,17 @@ export function validateInputs(
   if (yData.length !== n) {
     throw new Error(`xData 与 yData 长度不匹配：${ n } vs ${ yData.length }`)
   }
-  // 3.1 每行自变量向量至少 1 个分量（空行 = 模型函数无从取值）
+  // 3.1 自变量分量数 ≥ 1（cols = 0 时模型函数无从取值）
   //     多自变量合法（列数不限），LM 把模型当黑盒天然支持；
-  //     仅支持单自变量的算法（如 ODR）在自己的入口额外加“每行长度 = 1”守卫
-  for (let i = 0; i < n; i++) {
-    if (xData[i]!.length === 0) {
-      throw new Error(`xData[${ i }] 是空向量，每个样本至少需要 1 个自变量分量`)
-    }
+  //     仅支持单自变量的算法（如 ODR）在自己的入口额外加 "cols = 1" 守卫
+  if (xData.cols < 1) {
+    throw new Error("xData 列数（自变量分量数）必须 ≥ 1")
+  }
+  // 3.2 结构完整性：data 长度必须等于 rows × cols（防御手工拼装的不一致矩阵）
+  if (xData.data.length !== n * xData.cols) {
+    throw new Error(
+      `xData 结构不一致：data.length ${ xData.data.length } ≠ rows × cols = ${ n } × ${ xData.cols }`,
+    )
   }
   // 4. paramNames：非空、不重复、每个元素必须在全参数字典里
   if (paramNames.length === 0) {
