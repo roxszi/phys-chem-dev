@@ -8,6 +8,7 @@
 // 数据类型（本目录内部文件，相对路径）
 import type { Matrix, Vector } from "./types.ts"
 
+
 /**
  * 标量乘（新矩阵）：k · M
  * @param m 矩阵
@@ -23,6 +24,7 @@ export function matrixScalarMul(m: Matrix, k: number): Matrix {
   return { data, rows: m.rows, cols: m.cols }
 }
 
+
 /**
  * 矩阵 × 向量（列向量右乘）：y = M·v
  * @param m 矩阵（rows × cols）
@@ -30,7 +32,7 @@ export function matrixScalarMul(m: Matrix, k: number): Matrix {
  * @returns 结果向量（长度 = rows）
  */
 export function matrixVecMul(m: Matrix, v: Vector): Vector {
-  // 形状防御：向量长度必须等于列数
+  // 形状防御：向量长度（列向量的行数）必须等于矩阵列数
   if (v.length !== m.cols) {
     throw new Error(`matrixVecMul：向量长度 ${ v.length } ≠ 矩阵列数 ${ m.cols }`)
   }

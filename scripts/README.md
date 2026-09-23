@@ -13,8 +13,6 @@ scripts/
 └── fitting/               fitting 数值防线（脚本 + 基线同目录，相对引用不受移动影响）
     ├── verify-fitting.ts          回归主防线：8 用例固定输出对比基线
     ├── verify-trust-region.ts     策略防线：Nielsen / classic 双阻尼策略交叉收敛验证
-    ├── check-xcorrected-flat.ts   一次性核对脚本：批次 4 xCorrected 二维→扁平迁移的
-    │                              bit 级全等比对留档（迁移已完成，是否删除待定）
     └── baseline-fitting.json      数值基线（8 用例的 params / sse / r² / covariance /
                                    xCorrected 快照）
 ```

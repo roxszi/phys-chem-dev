@@ -22,6 +22,7 @@
  */
 export const DIAGONAL_FLOOR = 1e-12
 
+
 /**
  * Cholesky 分解（原地，只写 A 的下三角含对角）
  * - 调用后 a 的下三角（含对角）= L，上三角保留分解前的旧值（垃圾）——
@@ -48,6 +49,7 @@ export function choleskyDecomposeInPlace(a: Float64Array, n: number): void {
     }
   }
 }
+
 
 /**
  * 用分解好的 L 解 L·Lᵀ·x = g（前代 + 回代，结果写进调用方预分配的 out）

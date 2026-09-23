@@ -8,6 +8,7 @@
 // 数据类型（本目录内部文件，相对路径）
 import type { Matrix } from "./types.ts"
 
+
 /**
  * 创建 rows × cols 的全 0 矩阵
  * @param rows 行数（非负整数）
@@ -16,6 +17,7 @@ import type { Matrix } from "./types.ts"
 export function createMatrix(rows: number, cols: number): Matrix {
   return { data: new Float64Array(rows * cols), rows, cols }
 }
+
 
 /**
  * 从二维数组构造（行主序嵌套 → 扁平存储，深拷贝）
@@ -44,6 +46,7 @@ export function matrixFrom2D(source: number[][]): Matrix {
   return { data, rows, cols }
 }
 
+
 /**
  * 读元素 m[i][j]
  * @param m 矩阵
@@ -54,22 +57,26 @@ export function matrixGet(m: Matrix, i: number, j: number): number {
   return m.data[i * m.cols + j]!
 }
 
+
 /**
  * 写元素 m[i][j] = v（原地修改）
  */
-export function matrixSet(m: Matrix, i: number, j: number, v: number): void {
-  m.data[i * m.cols + j] = v
+export function matrixSet(m: Matrix, i: number, j: number, value: number): void {
+  m.data[i * m.cols + j] = value
 }
+
 
 /** 是否方阵（rows === cols） */
 export function matrixIsSquare(m: Matrix): boolean {
   return m.rows === m.cols
 }
 
+
 /** 是否空矩阵（任一维度为 0） */
 export function matrixIsEmpty(m: Matrix): boolean {
-  return m.rows === 0 || m.cols === 0
+  return (m.rows === 0 || m.cols === 0)
 }
+
 
 /**
  * 转二维数组（行主序嵌套深拷贝；调试 / 序列化用，热路径不消费）

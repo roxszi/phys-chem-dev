@@ -9,6 +9,7 @@
 // 数据类型（本目录内部文件，相对路径）
 import type { Vector } from "./types.ts"
 
+
 /**
  * 无穷范数
  * - ‖v‖∞ = maxᵢ |vᵢ|
